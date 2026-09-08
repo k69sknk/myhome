@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  schema:
+    name: Schema de donnees
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Le modele de donnees est la piece que le cahier des charges impose de
+      # valider avant tout developpement : on verifie qu'il s'execute reellement,
+      # vues et contraintes comprises.
+      - name: Executer docs/schema.sql
+        run: sqlite3 /tmp/schema_check.db < docs/schema.sql
+
+      - name: Verifier que les contraintes refusent bien les cas invalides
+        run: |
+          set -e
+          sqlite3 /tmp/schema_check.db "PRAGMA foreign_keys=ON;
+            INSERT INTO home (id, name) VALUES (1, 'Maison');
+            INSERT INTO asset (id, home_id, kind, name) VALUES (1, 1, 'equipment', 'PAC');"
+
+          assert_rejected() {
+            if sqlite3 /tmp/schema_check.db "PRAGMA foreign_keys=ON; $1" 2>/dev/null; then
+              echo "ECHEC: le schema a accepte un cas invalide -> $2"
+              exit 1
+            fi
+            echo "OK: refuse -> $2"
+          }
+
+          assert_rejected \
+            "INSERT INTO document (asset_id, name, storage_mode, url) VALUES (1,'x','local_file','http://a');" \
+            "mode local_file sans fichier"
+          assert_rejected \
+            "INSERT INTO maintenance_task (asset_id, home_id, name) VALUES (1,1,'x');" \
+            "tache rattachee a la fois a un equipement et a la maison"
+          assert_rejected \
+            "INSERT INTO maintenance_task (asset_id, name, recurrence_type) VALUES (1,'x','months');" \
+            "recurrence mensuelle sans intervalle"
+          assert_rejected \
+            "INSERT INTO issue (asset_id, title, status, opened_on) VALUES (1,'x','resolved','2026-01-01');" \
+            "probleme resolu sans date de resolution"
+
+      - name: Verifier la garantie calculee automatiquement
+        run: |
+          sqlite3 /tmp/schema_check.db "PRAGMA foreign_keys=ON;
+            INSERT INTO warranty (asset_id, start_date, duration_months) VALUES (1,'2024-05-12',60);"
+          END_DATE=$(sqlite3 /tmp/schema_check.db "SELECT end_date FROM warranty WHERE asset_id=1;")
+          echo "Fin de garantie calculee : ${END_DATE}"
+          test "${END_DATE}" = "2029-05-12"
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Installer
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint
+        working-directory: backend
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Typage
+        working-directory: backend
+        run: mypy
+
+      - name: Tests
+        working-directory: backend
+        run: pytest
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer
+        working-directory: frontend
+        run: npm ci
+
+      - name: Typage et build
+        working-directory: frontend
+        run: npm run build
+
+      # Le prefixe d'ingress Home Assistant n'est connu qu'a l'execution : une
+      # seule URL absolue dans le build casserait le chargement de l'add-on.
+      - name: Verifier l'absence de chemins absolus dans le build
+        working-directory: frontend
+        run: |
+          if grep -Eq '(src|href)="/[^/]' dist/index.html; then
+            echo "ECHEC: dist/index.html contient une URL absolue."
+            grep -En '(src|href)="/[^/]' dist/index.html
+            exit 1
+          fi
+          echo "OK: toutes les references sont relatives."
+
+      - name: Verifier la presence du marqueur de chemin de base
+        working-directory: frontend
+        run: |
+          grep -q '__HOMEKEEPER_BASE__' dist/index.html \
+            || { echo "ECHEC: marqueur __HOMEKEEPER_BASE__ absent du build."; exit 1; }
+          echo "OK: le backend pourra injecter le chemin d'ingress."

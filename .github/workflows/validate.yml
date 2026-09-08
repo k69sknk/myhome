@@ -1,0 +1,42 @@
+name: Validation Home Assistant
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Les regles de hassfest et de HACS evoluent independamment de ce depot :
+    # une execution hebdomadaire signale une rupture avant qu'un utilisateur ne
+    # la decouvre a l'installation.
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+jobs:
+  hassfest:
+    name: hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration
+          # `brands` exige une entree dans le depot home-assistant/brands, ce
+          # qui ne concerne que les integrations soumises au coeur.
+          ignore: brands
+
+  addon:
+    name: Configuration de l'add-on
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Anciennement frenck/action-addon-linter, renomme depuis.
+      - uses: frenck/action-app-linter@v2.21.1
+        with:
+          path: ./addon/homekeeper
