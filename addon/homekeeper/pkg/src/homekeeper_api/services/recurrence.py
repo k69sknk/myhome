@@ -77,6 +77,10 @@ def initial_next_due(
         return candidate
     if recurrence.recurrence_type == "custom_date":
         return recurrence.custom_due_date
+    if recurrence.recurrence_type in {"days", "months", "years"}:
+        # Sans dernier entretien, la premiere echeance est dans un intervalle
+        # a partir d'aujourd'hui (pas de rattrapage, pas de tache orpheline).
+        return _add_interval(today, recurrence)
     return None
 
 

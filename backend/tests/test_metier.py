@@ -80,6 +80,16 @@ def test_fait_filtre_vmc_decale_depuis_la_realisation(client: TestClient) -> Non
     assert done["next_due_on"] == "2026-06-20"
 
 
+def test_entretien_mensuel_sans_dernier_a_une_prochaine_date(client: TestClient) -> None:
+    asset_id = client.post("/api/assets", json={"name": "VMC"}).json()["id"]
+    task = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Filtres", "recurrence_type": "months", "recurrence_interval": 3},
+    ).json()
+    assert task["next_due_on"] is not None
+    assert task["status"] in {"ok", "due_soon"}
+
+
 def test_supprimer_un_lieu_occupe_est_refuse(client: TestClient) -> None:
     location = client.post("/api/locations", json={"name": "Atelier"}).json()
     client.post("/api/assets", json={"name": "Perceuse", "location_id": location["id"]})

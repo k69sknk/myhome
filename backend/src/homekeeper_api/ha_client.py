@@ -26,11 +26,11 @@ def list_ha_devices() -> list[HaDeviceOut]:
     url = os.environ.get("HOMEKEEPER_HA_WS_URL", "ws://supervisor/core/websocket")
     try:
         with connect(url, open_timeout=5, close_timeout=5) as ws:
-            hello = json.loads(ws.recv())
+            hello = json.loads(ws.recv(timeout=10))
             if hello.get("type") != "auth_required":
                 raise HaUnavailableError("handshake Home Assistant inattendu")
             ws.send(json.dumps({"type": "auth", "access_token": token}))
-            auth = json.loads(ws.recv())
+            auth = json.loads(ws.recv(timeout=10))
             if auth.get("type") != "auth_ok":
                 raise HaUnavailableError("authentification Core refusee")
 
@@ -80,7 +80,7 @@ def list_ha_devices() -> list[HaDeviceOut]:
 def _ws_command(ws: Any, msg_id: int, payload: dict[str, Any]) -> list[Any]:
     ws.send(json.dumps({"id": msg_id, **payload}))
     while True:
-        message = json.loads(ws.recv())
+        message = json.loads(ws.recv(timeout=10))
         if message.get("id") != msg_id:
             continue
         if not message.get("success"):

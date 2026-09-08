@@ -1,8 +1,4 @@
-"""Point de sante de l'API.
-
-Seul endpoint expose a ce stade : le modele de donnees doit etre valide avant
-que la moindre route metier ne soit ecrite (cahier des charges, brief final).
-"""
+"""Point de sante de l'API, lu par l'integration Home Assistant."""
 
 from typing import Literal
 

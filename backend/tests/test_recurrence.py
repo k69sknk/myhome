@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from homekeeper_api.services.recurrence import Recurrence, compute_next_due
+from homekeeper_api.services.recurrence import Recurrence, compute_next_due, initial_next_due
 
 
 def test_from_completion_decale_depuis_la_date_reelle() -> None:
@@ -74,3 +74,13 @@ def test_29_fevrier_plus_un_an_donne_le_28() -> None:
     )
 
     assert next_due == date(2025, 2, 28)
+
+
+def test_intervalle_sans_dernier_part_d_aujourd_hui() -> None:
+    next_due = initial_next_due(
+        last_completed_on=None,
+        today=date(2026, 9, 8),
+        recurrence=Recurrence(recurrence_type="months", interval=3, anchor="from_completion"),
+    )
+
+    assert next_due == date(2026, 12, 8)

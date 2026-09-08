@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 
 import { api } from '../api/client'
 import type { Task } from '../api/types'
@@ -18,8 +18,11 @@ export default function CompleteTask({
   const [performedOn, setPerformedOn] = useState(todayIso())
   const [performedBy, setPerformedBy] = useState('')
   const [notes, setNotes] = useState('')
+  const inflight = useRef(false)
 
   async function markToday() {
+    if (inflight.current) return
+    inflight.current = true
     setBusy(true)
     setError(null)
     try {
@@ -28,12 +31,15 @@ export default function CompleteTask({
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     } finally {
+      inflight.current = false
       setBusy(false)
     }
   }
 
   async function submitDetails(event: FormEvent) {
     event.preventDefault()
+    if (inflight.current) return
+    inflight.current = true
     setBusy(true)
     setError(null)
     try {
@@ -49,6 +55,7 @@ export default function CompleteTask({
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     } finally {
+      inflight.current = false
       setBusy(false)
     }
   }

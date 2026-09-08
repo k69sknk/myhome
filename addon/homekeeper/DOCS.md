@@ -95,7 +95,9 @@ la page avec un vidage du cache. Si le problème persiste, consultez le journal 
 
 **L'add-on ne démarre pas et le journal mentionne les migrations.** L'add-on refuse
 volontairement de démarrer si les migrations de base de données échouent, pour ne pas travailler
-sur une base incohérente. Restaurez une sauvegarde et signalez le problème avec le journal.
+sur une base incohérente. Sur une **mise à jour 0.1.0 → 0.2.0** (pas encore de données métier),
+vous pouvez supprimer le fichier SQLite dans `/data` de l'add-on puis redémarrer : le schéma
+sera recréé. Sinon, restaurez une sauvegarde et signalez le problème avec le journal.
 
 **L'intégration ne se propose pas automatiquement.** Vérifiez que l'add-on est bien démarré,
 puis ajoutez l'intégration manuellement depuis **Paramètres → Appareils et services → Ajouter une

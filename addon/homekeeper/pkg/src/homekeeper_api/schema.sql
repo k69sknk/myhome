@@ -5,10 +5,8 @@
 -- Ce fichier est la reference du modele de donnees. Il est documente dans
 -- docs/DATA_MODEL.md et les decisions structurantes sont justifiees dans docs/adr/.
 --
--- Il n'est PAS execute par l'application : les tables reelles sont creees par les
--- migrations Alembic (backend/alembic/). Ce fichier sert a valider et discuter le
--- modele, et de reference pour ecrire la premiere migration. Les deux doivent
--- rester synchronises ; la CI compare le schema genere par Alembic a celui-ci.
+-- La revision Alembic `0001_schema` execute la copie packagée
+-- `backend/src/homekeeper_api/schema.sql`, qui doit rester identique a ce fichier.
 --
 -- Conventions :
 --   * dates seules      -> TEXT 'YYYY-MM-DD'

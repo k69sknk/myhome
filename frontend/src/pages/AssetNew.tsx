@@ -96,13 +96,17 @@ export default function AssetNew() {
           : null,
       })
       if (selected) {
-        await api.putHaLink(created.id, {
-          ha_device_id: selected.ha_device_id,
-          name_at_link: selected.name,
-          entity_id_at_link: selected.entity_id,
-          domain_at_link: selected.domain,
-          area_name: optionalId(locationId) ? null : selected.area_name,
-        })
+        try {
+          await api.putHaLink(created.id, {
+            ha_device_id: selected.ha_device_id,
+            name_at_link: selected.name,
+            entity_id_at_link: selected.entity_id,
+            domain_at_link: selected.domain,
+            area_name: optionalId(locationId) ? null : selected.area_name,
+          })
+        } catch {
+          /* La fiche existe : le lien se retente depuis le detail. */
+        }
       }
       navigate(`/equipements/${created.id}`)
     } catch (caught: unknown) {
