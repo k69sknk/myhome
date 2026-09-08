@@ -1,0 +1,35 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Node ---
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# --- Donnees locales de developpement ---
+# Le Supervisor parcourt le depot en cherchant recursivement des fichiers
+# `config.yaml` ou `config.json` : tout fichier de ce nom committe ailleurs
+# serait pris pour un add-on. Raison de plus pour ne pas versionner
+# node_modules ni les repertoires de build.
+backend/.data/
+*.db
+*.db-wal
+*.db-shm
+
+# --- Environnements et editeurs ---
+.env
+.env.local
+.DS_Store
+.idea/
+.vscode/
