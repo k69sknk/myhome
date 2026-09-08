@@ -13,6 +13,8 @@ Premier morceau métier : fiche équipement, lieux, entretiens.
 - Entretiens récurrents, boutons **Fait** et **Préciser**
 - Tableau de bord aligné sur `/api/ha/summary` (mêmes compteurs que les capteurs HA)
 - Lien optionnel vers un appareil Home Assistant
+- Architecture **armv7 retirée** : Home Assistant ne la supporte plus depuis 2025.12, et
+  `uvicorn[standard]` (uvloop/httptools) ne se construit plus sous QEMU 32 bits
 - Migration `0001_schema` au démarrage : une install 0.1.0 se met à jour sans perdre `/data`
 
 ## 0.1.0

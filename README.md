@@ -117,7 +117,7 @@ cd frontend && npm run build
 ```
 
 La CI rejoue tout cela, plus `hassfest`, la validation HACS, le lint de l'add-on et le build de
-l'image sur les trois architectures.
+l'image sur amd64 et aarch64.
 
 ## Le piège à connaître : le chemin de base d'ingress
 

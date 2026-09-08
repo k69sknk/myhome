@@ -168,8 +168,8 @@ propre panneau latéral, en réutilisant sa session d'authentification. Il impos
 contraintes qui conditionnent le code, et qui sont la cause quasi systématique des add-ons
 ingress qui renvoient des 404.
 
-**Port et déclaration.** `ingress: true` dans `config.yaml`, avec `ingress_port: 8099`. Le port
-8099 est la convention Home Assistant ; l'utiliser évite d'avoir à le déclarer ailleurs.
+**Port et déclaration.** `ingress: true` dans `config.yaml`. Le port d'ingress par défaut
+est 8099 (convention Home Assistant) ; le linter refuse de restater cette valeur.
 
 **Restriction d'adresse IP.** Seules les connexions provenant de `172.30.32.2`, l'adresse du
 proxy Home Assistant, doivent être acceptées. Tout le reste est refusé au niveau de nginx :
