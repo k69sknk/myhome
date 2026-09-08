@@ -8,8 +8,8 @@ Vous ouvrez la fiche d'un appareil et vous savez immédiatement ce que c'est, o�
 a été installé et entretenu, ce qui a été réparé, combien il a coûté, où sont la facture et la
 notice, et s'il est encore sous garantie.
 
-> Cette version est un squelette d'architecture. Les fonctionnalités décrites ci-dessous
-> correspondent à la V1 visée et ne sont pas encore implémentées.
+Cette version (0.2.0) couvre le premier morceau métier : fiches d'appareils, lieux,
+entretiens et tableau de bord. Les documents (notices, factures) arriveront plus tard.
 
 ## Confidentialité
 
@@ -28,25 +28,34 @@ adresse, trois modes sont proposés et vous choisissez librement pour chaque doc
 
 Vous pouvez changer de mode à tout moment sans perdre le document ni ses rattachements.
 
-## Installation
+## Mise à jour depuis 0.1.0
 
-> Le dépôt GitHub ne contient pas encore ce code tant qu'il n'a pas été poussé.
-> Sans ce push, l'étape 2 ci-dessous ne trouvera pas l'add-on.
+Si l'add-on 0.1.0 est déjà installé :
+
+1. **Paramètres → Modules complémentaires → Boutique → HomeKeeper → Mettre à jour**.
+   Home Assistant reconstruit l'image en local : plusieurs minutes, parfois plus de
+   dix sur un Raspberry Pi.
+2. Redémarrez l'add-on. Le volume `/data` est conservé. Au démarrage,
+   `homekeeper-migrate` crée le schéma métier (la 0.1.0 n'avait pas encore de tables).
+3. Mettez aussi à jour l'intégration HACS **HomeKeeper** à la **même** version 0.2.0.
+
+Le contrat `/api/ha/summary` reste `api_schema_version = 1` : les capteurs existants
+continuent de fonctionner. Videz le cache du navigateur si le panneau reste sur
+l'ancien écran « squelette ».
+
+## Installation
 
 1. Dans Home Assistant, allez dans **Paramètres → Modules complémentaires → Boutique**.
 2. Menu en haut à droite, **Dépôts**, puis ajoutez `https://github.com/k69sknk/myhome`.
 3. Rechargez la boutique, cherchez **HomeKeeper**, installez-le, puis démarrez-le.
 4. Activez **Afficher dans la barre latérale**.
 
-Le premier démarrage construit l'image **sur votre machine Home Assistant**. Comptez
-plusieurs minutes, parfois plus de dix sur un Raspberry Pi. Le journal de l'add-on
-doit finir par « HomeKeeper est pret » puis le démarrage de l'API.
-
-Cette version est un squelette : le panneau s'ouvre, mais il n'y a pas encore de
-fiches ni d'entretiens. C'est normal.
+Le premier démarrage (ou une mise à jour) construit l'image **sur votre machine
+Home Assistant**. Comptez plusieurs minutes, parfois plus de dix sur un Raspberry Pi.
+Le journal de l'add-on doit finir par « HomeKeeper est pret » puis le démarrage de l'API.
 
 Pour les capteurs Home Assistant, installez ensuite l'intégration via HACS depuis
-le même dépôt. Ce n'est pas nécessaire pour tester le panneau.
+le même dépôt, à la même version que l'add-on.
 
 ## Configuration
 

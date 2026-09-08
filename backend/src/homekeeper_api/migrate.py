@@ -1,10 +1,4 @@
-"""Application des migrations Alembic.
-
-Expose la commande `homekeeper-migrate`, appelee par le service s6
-`init-homekeeper` avant tout demarrage de l'API. Les migrations sont jouees a
-chaque demarrage de l'add-on : c'est ce qui rend sure une mise a jour, y compris
-apres plusieurs versions sautees.
-"""
+"""Application des migrations Alembic."""
 
 import logging
 import sys
@@ -13,19 +7,13 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 
-from .config import get_settings
+from .config import Settings, get_settings
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def alembic_config() -> Config:
-    """Construit la configuration Alembic depuis le paquet installe.
-
-    Le repertoire de migrations est resolu par rapport a ce module, et non par
-    rapport au repertoire courant : dans le conteneur, seul le paquet installe
-    existe et il n'y a pas d'alembic.ini a la racine.
-    """
-    settings = get_settings()
+def alembic_config(settings: Settings | None = None) -> Config:
+    settings = settings or get_settings()
     script_location = Path(__file__).parent / "alembic"
 
     config = Config()
@@ -34,10 +22,10 @@ def alembic_config() -> Config:
     return config
 
 
-def upgrade_to_head() -> None:
-    settings = get_settings()
+def upgrade_to_head(settings: Settings | None = None) -> None:
+    settings = settings or get_settings()
     settings.data_dir.mkdir(parents=True, exist_ok=True)
-    command.upgrade(alembic_config(), "head")
+    command.upgrade(alembic_config(settings), "head")
 
 
 def main() -> int:

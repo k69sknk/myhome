@@ -3,9 +3,8 @@
 Interface web de l'add-on, affichée dans le panneau latéral de Home Assistant. React 19,
 TypeScript, Vite, React Router.
 
-À ce stade, seule la coquille existe : navigation, mise en page et vérification de la connexion
-à l'API. Aucun écran métier, conformément au cahier des charges qui impose de valider
-l'architecture des données avant de coder.
+Les écrans 0.2.0 : tableau de bord, lieux, liste et fiche d'équipement, entretiens.
+L'onglet Documents reste un placeholder.
 
 ## Développement
 
@@ -53,7 +52,7 @@ rompt.
 - `src/api/client.ts` : appels HTTP et gestion d'erreurs
 - `src/api/types.ts` : types du contrat de l'API, en `snake_case` comme le JSON du backend
 - `src/components/Layout.tsx` : en-tête et navigation
-- `src/pages/` : écrans, aujourd'hui limités au tableau de bord et à des pages d'attente
+- `src/pages/` : tableau de bord, lieux, équipements, entretiens
 
 ## Conventions
 

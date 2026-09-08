@@ -1,28 +1,22 @@
-"""Contrat consomme par l'integration Home Assistant.
+"""Contrat consomme par l'integration Home Assistant."""
 
-`/api/ha/summary` est l'unique point de couplage entre l'add-on et l'integration
-(docs/ARCHITECTURE.md section 5.3). Il est declare des maintenant, avec une
-reponse vide mais conforme, pour deux raisons :
+from datetime import UTC, datetime, timedelta
 
-* la chaine add-on vers integration est testable de bout en bout des le squelette ;
-* le contrat, qui doit rester stable entre deux versions installees separement
-  (ADR-0005), est fige avant que quoi que ce soit ne le consomme.
-
-Les valeurs seront calculees par `homekeeper_api.services` a partir de la vue SQL
-`v_task_status`, une fois le modele de donnees valide.
-"""
-
-from datetime import UTC, datetime
-from typing import Literal
-
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
+from ..clock import utc_today
 from ..config import API_SCHEMA_VERSION
+from ..db import get_session
+from ..models import Asset, TaskStatusRow, Warranty
+from ..services.catalog import worst_status
+from ..services.home import ensure_home
 
 router = APIRouter(prefix="/ha", tags=["home assistant"])
 
-TaskStatus = Literal["ok", "due_soon", "overdue", "unscheduled"]
+TaskStatus = str
 
 
 class SummaryCounts(BaseModel):
@@ -36,6 +30,7 @@ class NextTask(BaseModel):
     id: int
     name: str
     asset_name: str | None = None
+    asset_id: int | None = None
     due_date: str
     days_until: int
 
@@ -43,7 +38,7 @@ class NextTask(BaseModel):
 class AssetStatus(BaseModel):
     id: int
     name: str
-    status: TaskStatus
+    status: str
 
 
 class ExpiringWarranty(BaseModel):
@@ -53,15 +48,7 @@ class ExpiringWarranty(BaseModel):
 
 
 class HaSummary(BaseModel):
-    """Etat agrege de la maison, projete en entites Home Assistant."""
-
-    api_schema_version: int = Field(
-        default=API_SCHEMA_VERSION,
-        description=(
-            "Version du contrat. L'integration la lit pour detecter un add-on "
-            "trop ancien et le signaler explicitement."
-        ),
-    )
+    api_schema_version: int = Field(default=API_SCHEMA_VERSION)
     generated_at: datetime
     counts: SummaryCounts
     next_task: NextTask | None = None
@@ -70,5 +57,76 @@ class HaSummary(BaseModel):
 
 
 @router.get("/summary", response_model=HaSummary, summary="Synthese pour Home Assistant")
-def summary() -> HaSummary:
-    return HaSummary(generated_at=datetime.now(UTC), counts=SummaryCounts())
+def summary(session: Session = Depends(get_session)) -> HaSummary:
+    ensure_home(session)
+    rows = session.scalars(select(TaskStatusRow)).all()
+    counts = SummaryCounts()
+    for row in rows:
+        if row.status == "overdue":
+            counts.overdue += 1
+        elif row.status == "due_soon":
+            counts.due_soon += 1
+        elif row.status == "ok":
+            counts.ok += 1
+        else:
+            counts.unscheduled += 1
+
+    scheduled = [row for row in rows if row.next_due_on is not None]
+    scheduled.sort(key=lambda row: (0 if row.status == "overdue" else 1, row.next_due_on or ""))
+    next_task: NextTask | None = None
+    if scheduled:
+        row = scheduled[0]
+        asset_name = None
+        if row.asset_id is not None:
+            asset = session.get(Asset, row.asset_id)
+            asset_name = None if asset is None else asset.name
+        next_task = NextTask(
+            id=row.task_id,
+            name=row.name,
+            asset_name=asset_name,
+            asset_id=row.asset_id,
+            due_date=row.next_due_on or "",
+            days_until=row.days_until_due or 0,
+        )
+
+    assets = session.scalars(
+        select(Asset)
+        .where(Asset.kind == "equipment", Asset.status != "removed")
+        .options(selectinload(Asset.tasks))
+        .order_by(Asset.name)
+    ).all()
+    status_by_task = {row.task_id: row.status for row in rows}
+    asset_statuses = [
+        AssetStatus(
+            id=asset.id,
+            name=asset.name,
+            status=worst_status(
+                [status_by_task[task.id] for task in asset.tasks if task.id in status_by_task]
+            ),
+        )
+        for asset in assets
+    ]
+
+    today = utc_today()
+    limit = (today + timedelta(days=30)).isoformat()
+    warranties: list[ExpiringWarranty] = []
+    for warranty in session.scalars(select(Warranty).where(Warranty.end_date.is_not(None))).all():
+        if warranty.end_date is None:
+            continue
+        if today.isoformat() <= warranty.end_date <= limit:
+            asset = session.get(Asset, warranty.asset_id)
+            if asset is None:
+                continue
+            warranties.append(
+                ExpiringWarranty(
+                    asset_id=asset.id, asset_name=asset.name, end_date=warranty.end_date
+                )
+            )
+
+    return HaSummary(
+        generated_at=datetime.now(UTC),
+        counts=counts,
+        next_task=next_task,
+        assets=asset_statuses,
+        warranties_expiring=warranties,
+    )

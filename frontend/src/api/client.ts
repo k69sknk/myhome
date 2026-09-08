@@ -1,5 +1,21 @@
 import { apiUrl } from '../base-path'
-import type { HealthResponse } from './types'
+import type {
+  Asset,
+  AssetIn,
+  AssetListItem,
+  AssetPatch,
+  Category,
+  CompleteIn,
+  HaDevice,
+  HaLinkIn,
+  HaSummary,
+  HealthResponse,
+  Home,
+  Location,
+  LocationIn,
+  Task,
+  TaskIn,
+} from './types'
 
 export class ApiError extends Error {
   constructor(
@@ -11,22 +27,80 @@ export class ApiError extends Error {
   }
 }
 
+function formatErrorDetail(detail: string): string {
+  try {
+    const parsed = JSON.parse(detail) as { detail?: unknown }
+    if (typeof parsed.detail === 'string') return parsed.detail
+    if (Array.isArray(parsed.detail)) {
+      return parsed.detail
+        .map((item) => {
+          if (typeof item === 'string') return item
+          if (item && typeof item === 'object' && 'msg' in item) {
+            return String((item as { msg: unknown }).msg)
+          }
+          return JSON.stringify(item)
+        })
+        .join('; ')
+    }
+  } catch {
+    /* reponse non JSON (nginx, ingress) */
+  }
+  return detail
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(apiUrl(path), {
-    headers: { Accept: 'application/json', ...init?.headers },
     ...init,
+    headers: { Accept: 'application/json', ...init?.headers },
   })
 
   if (!response.ok) {
-    // FastAPI renvoie {"detail": ...} sur erreur, mais un echec en amont
-    // (nginx, ingress) renvoie du HTML : on ne suppose donc pas du JSON.
     const detail = await response.text().catch(() => '')
-    throw new ApiError(response.status, detail || response.statusText)
+    throw new ApiError(response.status, formatErrorDetail(detail) || response.statusText)
   }
 
   return (await response.json()) as T
 }
 
+function jsonBody(body: unknown): RequestInit {
+  return {
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }
+}
+
 export const api = {
   health: () => request<HealthResponse>('health'),
+  summary: () => request<HaSummary>('ha/summary'),
+
+  home: () => request<Home>('homes/current'),
+  patchHome: (body: { name?: string }) =>
+    request<Home>('homes/current', { method: 'PATCH', ...jsonBody(body) }),
+
+  categories: () => request<Category[]>('categories'),
+
+  locations: () => request<Location[]>('locations'),
+  createLocation: (body: LocationIn) =>
+    request<Location>('locations', { method: 'POST', ...jsonBody(body) }),
+  patchLocation: (id: number, body: Partial<LocationIn>) =>
+    request<Location>(`locations/${id}`, { method: 'PATCH', ...jsonBody(body) }),
+  deleteLocation: (id: number) => request<{ ok: boolean }>(`locations/${id}`, { method: 'DELETE' }),
+
+  assets: () => request<AssetListItem[]>('assets'),
+  asset: (id: number) => request<Asset>(`assets/${id}`),
+  createAsset: (body: AssetIn) => request<Asset>('assets', { method: 'POST', ...jsonBody(body) }),
+  patchAsset: (id: number, body: AssetPatch) =>
+    request<Asset>(`assets/${id}`, { method: 'PATCH', ...jsonBody(body) }),
+
+  createTask: (assetId: number, body: TaskIn) =>
+    request<Task>(`assets/${assetId}/tasks`, { method: 'POST', ...jsonBody(body) }),
+  tasks: () => request<Task[]>('tasks'),
+  completeTask: (taskId: number, body: CompleteIn) =>
+    request<Task>(`tasks/${taskId}/complete`, { method: 'POST', ...jsonBody(body) }),
+
+  haDevices: () => request<HaDevice[]>('ha/devices'),
+  putHaLink: (assetId: number, body: HaLinkIn) =>
+    request<Asset>(`assets/${assetId}/ha-link`, { method: 'PUT', ...jsonBody(body) }),
+  deleteHaLink: (assetId: number) =>
+    request<Asset>(`assets/${assetId}/ha-link`, { method: 'DELETE' }),
 }

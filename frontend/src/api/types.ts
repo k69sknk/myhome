@@ -7,9 +7,8 @@
  * ferait diverger deux descriptions d'un meme contrat.
  *
  * `HaSummary` decrit `/api/ha/summary`, unique point de couplage entre l'add-on
- * et l'integration (docs/ARCHITECTURE.md section 5.3). Il est declare ici parce
- * que le tableau de bord affiche exactement les memes compteurs que les capteurs
- * Home Assistant : les deux doivent lire la meme source pour ne pas diverger.
+ * et l'integration (docs/ARCHITECTURE.md section 5.3). Le tableau de bord affiche
+ * exactement les memes compteurs que les capteurs Home Assistant.
  */
 
 export interface HealthResponse {
@@ -22,10 +21,21 @@ export interface HealthResponse {
 /** Statut derive d'une tache, calcule par le backend (vue SQL `v_task_status`). */
 export type TaskStatus = 'ok' | 'due_soon' | 'overdue' | 'unscheduled'
 
+export type RecurrenceType =
+  | 'none'
+  | 'days'
+  | 'months'
+  | 'years'
+  | 'annual_fixed'
+  | 'custom_date'
+
+export type LocationType = 'building' | 'floor' | 'room' | 'zone' | 'outdoor' | 'technical'
+
 export interface NextTask {
   id: number
   name: string
   asset_name: string | null
+  asset_id: number | null
   due_date: string
   days_until: number
 }
@@ -43,9 +53,175 @@ export interface ExpiringWarranty {
 }
 
 export interface HaSummary {
+  api_schema_version: number
   generated_at: string
   counts: Record<TaskStatus, number>
   next_task: NextTask | null
   assets: AssetStatus[]
   warranties_expiring: ExpiringWarranty[]
+}
+
+export interface Home {
+  id: number
+  name: string
+  address: string | null
+  currency: string
+  due_soon_threshold_days: number
+}
+
+export interface Location {
+  id: number
+  name: string
+  parent_id: number | null
+  location_type: LocationType | string
+  sort_order: number
+  notes: string | null
+  path: string
+  asset_count: number
+}
+
+export interface LocationIn {
+  name: string
+  parent_id?: number | null
+  location_type?: LocationType
+  sort_order?: number
+  notes?: string | null
+}
+
+export interface Category {
+  id: number
+  parent_id: number | null
+  name: string
+  slug: string
+  icon: string | null
+  is_builtin: boolean
+  sort_order: number
+}
+
+export interface Warranty {
+  start_date: string
+  duration_months: number | null
+  end_date: string | null
+  provider: string | null
+  terms_url: string | null
+  notes: string | null
+}
+
+export interface WarrantyIn {
+  start_date: string
+  duration_months?: number | null
+  provider?: string | null
+  notes?: string | null
+}
+
+export interface HaLink {
+  ha_device_id: string | null
+  name_at_link: string
+  entity_id_at_link: string | null
+  resolution_status: string
+}
+
+export interface HaLinkIn {
+  ha_device_id: string
+  name_at_link: string
+  entity_id_at_link?: string | null
+  domain_at_link?: string | null
+  area_name?: string | null
+}
+
+export interface HaDevice {
+  ha_device_id: string
+  name: string
+  manufacturer: string | null
+  model: string | null
+  area_name: string | null
+  entity_id: string | null
+  domain: string | null
+}
+
+export interface Task {
+  id: number
+  asset_id: number | null
+  asset_name: string | null
+  location_path: string | null
+  name: string
+  last_completed_on: string | null
+  next_due_on: string | null
+  status: TaskStatus
+  days_until_due: number | null
+  recurrence_type: RecurrenceType | string
+  recurrence_interval: number | null
+  fixed_month: number | null
+  fixed_day: number | null
+}
+
+export interface TaskIn {
+  name: string
+  recurrence_type: RecurrenceType
+  recurrence_interval?: number | null
+  fixed_month?: number | null
+  fixed_day?: number | null
+  last_completed_on?: string | null
+}
+
+export interface CompleteIn {
+  performed_on?: string | null
+  performed_by?: string | null
+  notes?: string | null
+}
+
+export interface AssetListItem {
+  id: number
+  name: string
+  category_name: string | null
+  location_path: string | null
+  install_date: string | null
+  status: string
+  task_status: TaskStatus
+}
+
+export interface Asset {
+  id: number
+  name: string
+  kind: string
+  status: string
+  category_id: number | null
+  category_name: string | null
+  location_id: number | null
+  location_path: string | null
+  brand: string | null
+  model: string | null
+  reference: string | null
+  serial_number: string | null
+  purchase_date: string | null
+  install_date: string | null
+  notes: string | null
+  warranty: Warranty | null
+  ha_link: HaLink | null
+  tasks: Task[]
+}
+
+export interface AssetIn {
+  name: string
+  category_id?: number | null
+  location_id?: number | null
+  brand?: string | null
+  model?: string | null
+  reference?: string | null
+  serial_number?: string | null
+  purchase_date?: string | null
+  install_date?: string | null
+  notes?: string | null
+  warranty?: WarrantyIn | null
+}
+
+export interface AssetPatch {
+  name?: string
+  category_id?: number | null
+  location_id?: number | null
+  brand?: string | null
+  model?: string | null
+  serial_number?: string | null
+  install_date?: string | null
+  notes?: string | null
 }

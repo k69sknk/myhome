@@ -1,9 +1,8 @@
 """Tests du contrat consomme par l'integration Home Assistant.
 
 Ce contrat doit rester stable entre une version d'add-on et une version
-d'integration installees separement (ADR-0005). Ces tests fixent sa forme, pas
-son contenu : les valeurs sont encore vides puisque aucune logique metier
-n'existe.
+d'integration installees separement (ADR-0005). Ces tests fixent sa forme sur
+une base vide : le contenu metier est couvert dans `test_metier.py`.
 """
 
 from fastapi.testclient import TestClient

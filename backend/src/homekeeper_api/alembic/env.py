@@ -1,7 +1,7 @@
 """Environnement Alembic.
 
-La cible est `Base.metadata`, encore vide : aucune table n'est declaree tant que
-le modele de donnees n'est pas valide (docs/DATA_MODEL.md).
+La cible est `Base.metadata` (modeles SQLAlchemy). La premiere revision execute
+le schema SQL packagé (`0001_schema`).
 """
 
 from logging.config import fileConfig
@@ -9,6 +9,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+from homekeeper_api import models as _models  # noqa: F401
 from homekeeper_api.config import get_settings
 from homekeeper_api.db import Base
 

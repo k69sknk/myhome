@@ -1,15 +1,192 @@
-"""Tables SQLAlchemy.
+"""Tables SQLAlchemy alignees sur docs/schema.sql."""
 
-Volontairement vide a ce stade. Le cahier des charges impose de valider
-l'architecture des donnees avant de coder ; le modele fige se trouve dans
-docs/DATA_MODEL.md et docs/schema.sql, et sera traduit ici une fois valide.
+from __future__ import annotations
 
-Rappel des points a ne pas perdre a la traduction :
+from sqlalchemy import Computed, ForeignKey, Integer, Text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-* `asset` porte le discriminant `kind` (ADR-0001) ;
-* les trois modes de stockage de `document` sont exclusifs, garantis par CHECK
-  (ADR-0002) ;
-* l'historique est une vue, pas une table (ADR-0003) ;
-* `maintenance_task.recurrence_anchor` conditionne tout le calcul d'echeances
-  (ADR-0004).
-"""
+from ..db import Base
+
+
+class Home(Base):
+    __tablename__ = "home"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(Text)
+    address: Mapped[str | None] = mapped_column(Text)
+    currency: Mapped[str] = mapped_column(Text, default="EUR")
+    due_soon_threshold_days: Mapped[int] = mapped_column(Integer, default=30)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+    locations: Mapped[list[Location]] = relationship(back_populates="home")
+    assets: Mapped[list[Asset]] = relationship(back_populates="home")
+
+
+class Location(Base):
+    __tablename__ = "location"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    home_id: Mapped[int] = mapped_column(ForeignKey("home.id"))
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("location.id"))
+    name: Mapped[str] = mapped_column(Text)
+    location_type: Mapped[str] = mapped_column(Text, default="room")
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+    home: Mapped[Home] = relationship(back_populates="locations")
+    parent: Mapped[Location | None] = relationship(remote_side=[id])
+    assets: Mapped[list[Asset]] = relationship(back_populates="location")
+
+
+class Category(Base):
+    __tablename__ = "category"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("category.id"))
+    name: Mapped[str] = mapped_column(Text)
+    slug: Mapped[str] = mapped_column(Text, unique=True)
+    icon: Mapped[str | None] = mapped_column(Text)
+    is_builtin: Mapped[int] = mapped_column(Integer, default=0)
+    is_hidden: Mapped[int] = mapped_column(Integer, default=0)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+    parent: Mapped[Category | None] = relationship(remote_side=[id])
+
+
+class Asset(Base):
+    __tablename__ = "asset"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    home_id: Mapped[int] = mapped_column(ForeignKey("home.id"))
+    kind: Mapped[str] = mapped_column(Text)
+    name: Mapped[str] = mapped_column(Text)
+    category_id: Mapped[int | None] = mapped_column(ForeignKey("category.id"))
+    location_id: Mapped[int | None] = mapped_column(ForeignKey("location.id"))
+    status: Mapped[str] = mapped_column(Text, default="active")
+    manufacturer_id: Mapped[int | None] = mapped_column(Integer)
+    brand: Mapped[str | None] = mapped_column(Text)
+    model: Mapped[str | None] = mapped_column(Text)
+    reference: Mapped[str | None] = mapped_column(Text)
+    serial_number: Mapped[str | None] = mapped_column(Text)
+    purchase_date: Mapped[str | None] = mapped_column(Text)
+    install_date: Mapped[str | None] = mapped_column(Text)
+    manual_url: Mapped[str | None] = mapped_column(Text)
+    support_url: Mapped[str | None] = mapped_column(Text)
+    parts_url: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+    home: Mapped[Home] = relationship(back_populates="assets")
+    location: Mapped[Location | None] = relationship(back_populates="assets")
+    category: Mapped[Category | None] = relationship()
+    warranty: Mapped[Warranty | None] = relationship(back_populates="asset")
+    tasks: Mapped[list[MaintenanceTask]] = relationship(back_populates="asset")
+    ha_links: Mapped[list[HaLink]] = relationship(back_populates="asset")
+
+
+class Warranty(Base):
+    __tablename__ = "warranty"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("asset.id"), unique=True)
+    start_date: Mapped[str] = mapped_column(Text)
+    duration_months: Mapped[int | None] = mapped_column(Integer)
+    end_date: Mapped[str | None] = mapped_column(
+        Text,
+        Computed(
+            "CASE WHEN duration_months IS NULL THEN NULL "
+            "ELSE date(start_date, '+' || duration_months || ' months') END"
+        ),
+    )
+    provider: Mapped[str | None] = mapped_column(Text)
+    terms_url: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+    asset: Mapped[Asset] = relationship(back_populates="warranty")
+
+
+class MaintenanceTask(Base):
+    __tablename__ = "maintenance_task"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey("asset.id"))
+    home_id: Mapped[int | None] = mapped_column(ForeignKey("home.id"))
+    name: Mapped[str] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    priority: Mapped[str] = mapped_column(Text, default="normal")
+    recurrence_type: Mapped[str] = mapped_column(Text, default="none")
+    recurrence_interval: Mapped[int | None] = mapped_column(Integer)
+    recurrence_anchor: Mapped[str] = mapped_column(Text, default="from_completion")
+    fixed_month: Mapped[int | None] = mapped_column(Integer)
+    fixed_day: Mapped[int | None] = mapped_column(Integer)
+    custom_due_date: Mapped[str | None] = mapped_column(Text)
+    last_completed_on: Mapped[str | None] = mapped_column(Text)
+    next_due_on: Mapped[str | None] = mapped_column(Text)
+    lead_time_days: Mapped[int | None] = mapped_column(Integer)
+    is_active: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+    asset: Mapped[Asset | None] = relationship(back_populates="tasks")
+
+
+class HaLink(Base):
+    __tablename__ = "ha_link"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("asset.id"))
+    link_kind: Mapped[str] = mapped_column(Text)
+    ha_device_id: Mapped[str | None] = mapped_column(Text)
+    ha_entity_registry_id: Mapped[str | None] = mapped_column(Text)
+    entity_id_at_link: Mapped[str | None] = mapped_column(Text)
+    name_at_link: Mapped[str] = mapped_column(Text)
+    domain_at_link: Mapped[str | None] = mapped_column(Text)
+    role: Mapped[str] = mapped_column(Text, default="primary")
+    consumable_kind: Mapped[str | None] = mapped_column(Text)
+    last_resolved_at: Mapped[str | None] = mapped_column(Text)
+    resolution_status: Mapped[str] = mapped_column(Text, default="unresolved")
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+    asset: Mapped[Asset] = relationship(back_populates="ha_links")
+
+
+class Intervention(Base):
+    __tablename__ = "intervention"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("asset.id"))
+    task_id: Mapped[int | None] = mapped_column(ForeignKey("maintenance_task.id"))
+    issue_id: Mapped[int | None] = mapped_column(Integer)
+    intervention_type: Mapped[str] = mapped_column(Text, default="maintenance")
+    performed_on: Mapped[str] = mapped_column(Text)
+    performed_by: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+
+class TaskStatusRow(Base):
+    """Vue `v_task_status` : lecture seule."""
+
+    __tablename__ = "v_task_status"
+    __table_args__ = {"info": {"is_view": True}}
+
+    task_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asset_id: Mapped[int | None] = mapped_column(Integer)
+    home_id: Mapped[int | None] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(Text)
+    priority: Mapped[str] = mapped_column(Text)
+    next_due_on: Mapped[str | None] = mapped_column(Text)
+    last_completed_on: Mapped[str | None] = mapped_column(Text)
+    effective_lead_time_days: Mapped[int | None] = mapped_column(Integer)
+    days_until_due: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(Text)

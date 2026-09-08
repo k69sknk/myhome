@@ -18,6 +18,7 @@ l'ancien passe en statut `Remplacé par ADR-XXXX`.
 | [0004](0004-ancrage-de-recurrence.md) | La récurrence porte un ancrage explicite | Accepté |
 | [0005](0005-monodepot-addon-et-hacs.md) | Un monodépôt servant à la fois d'add-on et d'intégration HACS | Accepté |
 | [0006](0006-liaison-aux-appareils-home-assistant.md) | Lier les fiches aux appareils Home Assistant | Accepté |
+| [0007](0007-v1-ecrit-ha-link.md) | La V1 écrit `ha_link` (liaison manuelle assistée) | Accepté |
 
 Le choix de l'architecture hybride add-on plus intégration est documenté directement dans
 [../ARCHITECTURE.md](../ARCHITECTURE.md), section 2, avec les options écartées.

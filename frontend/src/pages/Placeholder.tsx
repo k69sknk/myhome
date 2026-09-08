@@ -5,8 +5,7 @@ interface PlaceholderProps {
 }
 
 /**
- * Ecran d'attente des fonctionnalites de la V1. Le cahier des charges impose de
- * valider l'architecture des donnees avant d'ecrire la moindre logique metier.
+ * Ecran d'attente des fonctionnalites pas encore livrees.
  */
 export default function Placeholder({ title, description, reference }: PlaceholderProps) {
   return (
@@ -14,10 +13,10 @@ export default function Placeholder({ title, description, reference }: Placehold
       <h1 className="page__title">{title}</h1>
       <p className="page__lead">{description}</p>
       <div className="notice">
-        <strong>Pas encore implemente.</strong>
+        <strong>Pas encore dans cette version.</strong>
         <p>
-          Cette section fait partie de la V1. Le modele de donnees correspondant est fige et
-          documente, l'implementation vient apres sa validation.
+          Le modele de donnees est deja en place. Cette section arrivera dans un prochain
+          morceau.
         </p>
         <p className="notice__ref">{reference}</p>
       </div>

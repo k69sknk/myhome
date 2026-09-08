@@ -1,11 +1,9 @@
 # Backend HomeKeeper
 
-API FastAPI de l'add-on. À ce stade, seul le squelette existe : une fabrique
-d'application, la configuration, la connexion SQLite et le point de santé. Aucune route ni
-aucun modèle métier, conformément au cahier des charges qui impose de valider l'architecture
-des données avant de coder.
+API FastAPI de l'add-on : maison, lieux, fiches d'équipement, entretiens et contrat
+`/api/ha/summary` consommé par l'intégration Home Assistant.
 
-Le modèle de données à implémenter est figé dans [../docs/DATA_MODEL.md](../docs/DATA_MODEL.md)
+Le modèle de données de référence reste [../docs/DATA_MODEL.md](../docs/DATA_MODEL.md)
 et [../docs/schema.sql](../docs/schema.sql).
 
 ## Prérequis
@@ -57,7 +55,7 @@ mypy
 - `main.py` : fabrique de l'application et service de la coquille SPA
 - `routers/` : surface HTTP, sans règle métier
 - `services/` : règles métier, notamment le calcul des échéances
-- `models/`, `schemas/` : encore vides, en attente de validation du modèle
+- `models/`, `schemas/` : tables et contrats Pydantic
 - `migrate.py` : commande `homekeeper-migrate`, appelée au démarrage de l'add-on
 
 ## Migrations
@@ -73,4 +71,5 @@ alembic upgrade head
 `render_as_batch` est activé dans `env.py`. C'est obligatoire avec SQLite, dont les `ALTER
 TABLE` sont trop limités : Alembic recrée la table et recopie les données.
 
-Aucune migration n'existe encore. La première traduira `docs/schema.sql`.
+La révision `0001_schema` exécute le schéma SQL packagé. Sur une install 0.1.0, elle
+crée les tables métier dans `/data` sans effacer le volume.

@@ -1,9 +1,7 @@
-"""Tests du squelette backend.
+"""Tests de sante et d'ingress.
 
-Ils ne couvrent volontairement aucune logique metier : il n'y en a pas encore.
-Ils verifient ce que le squelette doit garantir, en particulier la resolution du
-chemin d'ingress, qui est la source d'erreur la plus frequente sur les add-ons
-Home Assistant.
+Ils verifient le point `/api/health` et la resolution du chemin d'ingress, source
+d'erreur la plus frequente sur les add-ons Home Assistant.
 """
 
 from fastapi.testclient import TestClient

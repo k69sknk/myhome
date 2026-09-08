@@ -11,10 +11,9 @@ est encore sous garantie.
 **Local-first.** Aucune donnée ne quitte votre machine. Pas de cloud, pas de compte, pas de
 télémétrie.
 
-> **État du projet : squelette d'architecture.**
-> L'architecture et le modèle de données sont figés et documentés ; aucune fonctionnalité métier
-> n'est encore implémentée. Le cahier des charges impose de valider l'architecture des données
-> avant de coder, et c'est exactement ce qui est livré ici.
+> **État du projet : 0.2.0 — fiche équipement.**
+> Maison, lieux en arbre, fiches d'appareils, entretiens (Fait / préciser) et tableau de bord.
+> Les documents (PDF, factures) et les éléments de construction ne sont pas encore dans l'interface.
 
 ## Ce dépôt contient deux produits
 
