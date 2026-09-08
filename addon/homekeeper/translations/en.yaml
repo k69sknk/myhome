@@ -1,0 +1,13 @@
+---
+configuration:
+  log_level:
+    name: Log level
+    description: >-
+      Verbosity of the add-on log, from `trace` (most verbose) to `fatal`
+      (quietest). Keep `info` for normal use.
+
+network:
+  8099/tcp: >-
+    Not required: the interface is served through Home Assistant ingress. Opening
+    this port would expose the interface without any authentication on your
+    local network.

@@ -1,0 +1,10 @@
+---
+# Declare ce depot comme un depot d'add-ons Home Assistant.
+# Home Assistant lit ce fichier et decouvre les add-ons dans les sous-dossiers.
+#
+# Le meme depot sert aussi de depot d'integration HACS via hacs.json : les deux
+# mecanismes coexistent sans conflit (docs/adr/0005-monodepot-addon-et-hacs.md).
+
+name: HomeKeeper
+url: https://github.com/k69sknk/myhome
+maintainer: k69sknk <https://github.com/k69sknk>

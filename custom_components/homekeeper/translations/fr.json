@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connexion à l'add-on HomeKeeper",
+        "description": "Indiquez l'hôte et le port de l'add-on HomeKeeper. Les valeurs par défaut conviennent à une installation standard.",
+        "data": {
+          "host": "Hôte",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "Nom d'hôte de l'add-on, tel que le Supervisor le résout.",
+          "port": "Port d'ingress de l'add-on. 8099 par défaut."
+        }
+      },
+      "hassio_confirm": {
+        "title": "Add-on HomeKeeper détecté",
+        "description": "Voulez-vous ajouter {name} à Home Assistant ? Ses données d'entretien seront exposées sous forme de capteurs."
+      }
+    },
+    "error": {
+      "cannot_connect": "L'add-on est injoignable. Vérifiez qu'il est démarré, puis réessayez.",
+      "unsupported_version": "La version de l'add-on n'est pas compatible avec cette intégration. Mettez les deux à jour ensemble."
+    },
+    "abort": {
+      "already_configured": "HomeKeeper est déjà configuré.",
+      "single_instance_allowed": "Une seule instance de HomeKeeper peut être configurée."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "tasks_overdue": {
+        "name": "Entretiens en retard"
+      },
+      "tasks_due_soon": {
+        "name": "Entretiens à venir"
+      },
+      "next_maintenance": {
+        "name": "Prochain entretien"
+      }
+    }
+  }
+}

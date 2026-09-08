@@ -1,0 +1,12 @@
+---
+configuration:
+  log_level:
+    name: Niveau de journalisation
+    description: >-
+      Detail du journal de l'add-on, de `trace` (le plus bavard) a `fatal`
+      (le plus silencieux). Laissez `info` en usage normal.
+
+network:
+  8099/tcp: >-
+    Non requis : l'interface passe par l'ingress Home Assistant. Ouvrir ce port
+    exposerait l'interface sans aucune authentification sur votre reseau local.

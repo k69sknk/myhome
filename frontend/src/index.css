@@ -1,0 +1,176 @@
+/*
+ * L'application est affichee dans une iframe du panneau lateral de Home
+ * Assistant. Les couleurs suivent donc le schema clair/sombre du systeme pour
+ * ne pas jurer avec le theme de l'utilisateur.
+ */
+
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --border: #e2e5ea;
+  --text: #16191d;
+  --text-muted: #5b6472;
+  --accent: #03a9f4;
+  --ok: #1b8a4b;
+  --error: #c0392b;
+  --radius: 10px;
+
+  color-scheme: light dark;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101418;
+    --surface: #1a1f26;
+    --border: #2a313a;
+    --text: #e9edf2;
+    --text-muted: #9aa5b4;
+    --ok: #4cd07d;
+    --error: #ff6b5b;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.55;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+}
+
+.app__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.9rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.app__brand {
+  font-weight: 650;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.app__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.app__nav-link {
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.925rem;
+}
+
+.app__nav-link:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text);
+}
+
+.app__nav-link--active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+  font-weight: 550;
+}
+
+.app__main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.page__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+}
+
+.page__lead {
+  margin: 0 0 1.75rem;
+  color: var(--text-muted);
+  max-width: 44rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.card__title {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1.5rem;
+  margin: 0;
+  font-size: 0.925rem;
+}
+
+.facts dt {
+  color: var(--text-muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.status--ok {
+  color: var(--ok);
+  font-weight: 550;
+}
+
+.status--error {
+  color: var(--error);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.notice {
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 1rem 1.25rem;
+  font-size: 0.925rem;
+}
+
+.notice p {
+  margin: 0.5rem 0 0;
+  color: var(--text-muted);
+}
+
+.notice__ref {
+  font-size: 0.85rem;
+  font-style: italic;
+}

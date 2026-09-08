@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to the HomeKeeper add-on",
+        "description": "Enter the host and port of the HomeKeeper add-on. The defaults work for a standard add-on installation.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "Host name of the add-on, as resolved by the Supervisor.",
+          "port": "Ingress port of the add-on. Default is 8099."
+        }
+      },
+      "hassio_confirm": {
+        "title": "HomeKeeper add-on detected",
+        "description": "Do you want to add {name} to Home Assistant? Its maintenance data will be exposed as sensors."
+      }
+    },
+    "error": {
+      "cannot_connect": "The add-on is unreachable. Check that it is started, then try again.",
+      "unsupported_version": "The add-on version is not compatible with this integration. Update both together."
+    },
+    "abort": {
+      "already_configured": "HomeKeeper is already configured.",
+      "single_instance_allowed": "Only one HomeKeeper instance can be configured."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "tasks_overdue": {
+        "name": "Overdue maintenance"
+      },
+      "tasks_due_soon": {
+        "name": "Maintenance due soon"
+      },
+      "next_maintenance": {
+        "name": "Next maintenance"
+      }
+    }
+  }
+}
