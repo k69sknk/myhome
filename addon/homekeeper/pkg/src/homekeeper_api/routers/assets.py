@@ -586,6 +586,7 @@ async def upload_asset_document(
     asset_id: int,
     file: UploadFile = File(...),
     doc_type: Literal["manual", "invoice", "other", "photo"] = Form("manual"),
+    name: str | None = Form(None),
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_app_settings),
 ) -> DocumentOut:
@@ -602,7 +603,7 @@ async def upload_asset_document(
     now = utc_now_iso()
     row = Document(
         asset_id=asset.id,
-        name=original_name,
+        name=(name or "").strip() or original_name,
         doc_type=doc_type,
         storage_mode="local_file",
         file_path=file_path,

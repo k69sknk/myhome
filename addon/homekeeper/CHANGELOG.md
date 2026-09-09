@@ -3,6 +3,15 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.8.1
+
+Un document de type "Autre" gardait le nom du fichier tel quel (souvent
+illisible, ex. IMG_20260909.pdf).
+
+- **Nom personnalise** pour les documents "Autre" : un champ apparait pour
+  le nommer soi-meme (ex. "Certificat de conformite gaz") au moment de
+  l'ajouter.
+
 ## 0.8.0
 
 Deux correctifs et une coherence retrouvee autour de "marquer un entretien
