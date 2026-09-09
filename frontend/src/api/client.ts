@@ -123,6 +123,19 @@ export const api = {
     })
   },
   documentFileUrl: (documentId: number) => apiUrl(`documents/${documentId}/file`),
+  uploadAssetDocument: async (
+    assetId: number,
+    file: File,
+    docType: 'manual' | 'other' | 'photo' = 'manual',
+  ) => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('doc_type', docType)
+    return request<DocumentMeta>(`assets/${assetId}/documents`, { method: 'POST', body: form })
+  },
+  assetDocuments: (assetId: number) => request<DocumentMeta[]>(`assets/${assetId}/documents`),
+  deleteDocument: (documentId: number) =>
+    request<{ ok: boolean }>(`documents/${documentId}`, { method: 'DELETE' }),
 
   haDevices: () => request<HaDevice[]>('ha/devices'),
   putHaLink: (assetId: number, body: HaLinkIn) =>

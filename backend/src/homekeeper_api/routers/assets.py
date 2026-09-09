@@ -1,9 +1,10 @@
 """Fiches d'equipements et taches d'entretien."""
 
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -122,6 +123,12 @@ def _task_out(
     )
 
 
+def _photo_document_id(session: Session, asset_id: int) -> int | None:
+    return session.scalars(
+        select(Document.id).where(Document.asset_id == asset_id, Document.doc_type == "photo")
+    ).first()
+
+
 def _asset_out(session: Session, asset: Asset) -> AssetOut:
     statuses = task_status_map(session, [task.id for task in asset.tasks])
     link = primary_ha_link(asset)
@@ -132,6 +139,7 @@ def _asset_out(session: Session, asset: Asset) -> AssetOut:
         status=asset.status,
         category_id=asset.category_id,
         category_name=asset.category.name if asset.category is not None else None,
+        category_slug=asset.category.slug if asset.category is not None else None,
         location_id=asset.location_id,
         location_path=location_path(session, asset.location_id),
         brand=asset.brand,
@@ -142,6 +150,7 @@ def _asset_out(session: Session, asset: Asset) -> AssetOut:
         install_date=asset.install_date,
         notes=asset.notes,
         warranty=_warranty_out(asset.warranty),
+        photo_document_id=_photo_document_id(session, asset.id),
         ha_link=(
             HaLinkOut(
                 ha_device_id=link.ha_device_id,
@@ -187,11 +196,21 @@ def list_assets(session: Session = Depends(get_session)) -> list[AssetListItem]:
     rows = session.scalars(
         select(Asset)
         .where(Asset.home_id == home.id, Asset.kind == "equipment", Asset.status != "removed")
-        .options(selectinload(Asset.category), selectinload(Asset.tasks))
+        .options(
+            selectinload(Asset.category), selectinload(Asset.tasks), selectinload(Asset.warranty)
+        )
         .order_by(Asset.name)
     ).all()
     all_ids = [task.id for asset in rows for task in asset.tasks]
     statuses = task_status_map(session, all_ids)
+    asset_ids = [asset.id for asset in rows]
+    photo_ids: dict[int, int] = dict(
+        session.execute(
+            select(Document.asset_id, Document.id).where(
+                Document.asset_id.in_(asset_ids), Document.doc_type == "photo"
+            )
+        ).all()  # type: ignore[arg-type]
+    )
     items: list[AssetListItem] = []
     for asset in rows:
         task_statuses = [statuses[task.id].status for task in asset.tasks if task.id in statuses]
@@ -200,10 +219,13 @@ def list_assets(session: Session = Depends(get_session)) -> list[AssetListItem]:
                 id=asset.id,
                 name=asset.name,
                 category_name=asset.category.name if asset.category is not None else None,
+                category_slug=asset.category.slug if asset.category is not None else None,
                 location_path=location_path(session, asset.location_id),
                 install_date=asset.install_date,
                 status=asset.status,
                 task_status=worst_status(task_statuses),  # type: ignore[arg-type]
+                photo_document_id=photo_ids.get(asset.id),
+                warranty_end_date=asset.warranty.end_date if asset.warranty is not None else None,
             )
         )
     return items
@@ -375,17 +397,7 @@ def list_task_interventions(
                 if row.costs
                 else None
             ),
-            documents=[
-                DocumentOut(
-                    id=doc.id,
-                    name=doc.name,
-                    doc_type=doc.doc_type,
-                    file_size=doc.file_size,
-                    mime_type=doc.mime_type,
-                    created_at=doc.created_at,
-                )
-                for doc in row.documents
-            ],
+            documents=[_document_out(doc) for doc in row.documents],
         )
         for row in interventions
     ]
@@ -403,6 +415,41 @@ _ALLOWED_DOCUMENT_EXTENSIONS = {
 _MAX_DOCUMENT_SIZE = 10 * 1024 * 1024
 
 
+def _document_out(row: Document) -> DocumentOut:
+    return DocumentOut(
+        id=row.id,
+        name=row.name,
+        doc_type=row.doc_type,
+        file_size=row.file_size,
+        mime_type=row.mime_type,
+        created_at=row.created_at,
+    )
+
+
+async def _store_uploaded_file(
+    asset_id: int, file: UploadFile, settings: Settings
+) -> tuple[str, int, str | None, str]:
+    original_name = file.filename or "document"
+    extension = Path(original_name).suffix.lower()
+    if extension not in _ALLOWED_DOCUMENT_EXTENSIONS:
+        raise HTTPException(415, "Type de fichier non accepte")
+    content = await file.read()
+    if len(content) > _MAX_DOCUMENT_SIZE:
+        raise HTTPException(413, "Fichier trop volumineux (10 Mo maximum)")
+
+    asset_dir = settings.documents_dir / str(asset_id)
+    asset_dir.mkdir(parents=True, exist_ok=True)
+    stored_name = f"{uuid4().hex}{extension}"
+    (asset_dir / stored_name).write_bytes(content)
+    return f"{asset_id}/{stored_name}", len(content), file.content_type, original_name
+
+
+def _delete_document(session: Session, settings: Settings, row: Document) -> None:
+    if row.storage_mode == "local_file" and row.file_path:
+        (settings.documents_dir / row.file_path).unlink(missing_ok=True)
+    session.delete(row)
+
+
 @router.post(
     "/interventions/{intervention_id}/documents", response_model=DocumentOut, status_code=201
 )
@@ -417,41 +464,90 @@ async def upload_intervention_document(
         raise HTTPException(404, "Intervention introuvable")
     _get_asset(session, intervention.asset_id)
 
-    original_name = file.filename or "document"
-    extension = Path(original_name).suffix.lower()
-    if extension not in _ALLOWED_DOCUMENT_EXTENSIONS:
-        raise HTTPException(415, "Type de fichier non accepte")
-    content = await file.read()
-    if len(content) > _MAX_DOCUMENT_SIZE:
-        raise HTTPException(413, "Fichier trop volumineux (10 Mo maximum)")
-
-    asset_dir = settings.documents_dir / str(intervention.asset_id)
-    asset_dir.mkdir(parents=True, exist_ok=True)
-    stored_name = f"{uuid4().hex}{extension}"
-    (asset_dir / stored_name).write_bytes(content)
-
+    file_path, size, mime_type, original_name = await _store_uploaded_file(
+        intervention.asset_id, file, settings
+    )
     now = utc_now_iso()
     row = Document(
         intervention_id=intervention.id,
         name=original_name,
         doc_type="invoice",
         storage_mode="local_file",
-        file_path=f"{intervention.asset_id}/{stored_name}",
-        file_size=len(content),
-        mime_type=file.content_type,
+        file_path=file_path,
+        file_size=size,
+        mime_type=mime_type,
         created_at=now,
         updated_at=now,
     )
     session.add(row)
     session.flush()
-    return DocumentOut(
-        id=row.id,
-        name=row.name,
-        doc_type=row.doc_type,
-        file_size=row.file_size,
-        mime_type=row.mime_type,
-        created_at=row.created_at,
+    return _document_out(row)
+
+
+@router.post("/assets/{asset_id}/documents", response_model=DocumentOut, status_code=201)
+async def upload_asset_document(
+    asset_id: int,
+    file: UploadFile = File(...),
+    doc_type: Literal["manual", "other", "photo"] = Form("manual"),
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_app_settings),
+) -> DocumentOut:
+    asset = _get_asset(session, asset_id)
+    if doc_type == "photo":
+        existing_photo = session.scalars(
+            select(Document).where(Document.asset_id == asset.id, Document.doc_type == "photo")
+        ).first()
+        if existing_photo is not None:
+            _delete_document(session, settings, existing_photo)
+            session.flush()
+
+    file_path, size, mime_type, original_name = await _store_uploaded_file(
+        asset.id, file, settings
     )
+    now = utc_now_iso()
+    row = Document(
+        asset_id=asset.id,
+        name=original_name,
+        doc_type=doc_type,
+        storage_mode="local_file",
+        file_path=file_path,
+        file_size=size,
+        mime_type=mime_type,
+        is_primary_photo=1 if doc_type == "photo" else 0,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(row)
+    session.flush()
+    return _document_out(row)
+
+
+@router.get("/assets/{asset_id}/documents", response_model=list[DocumentOut])
+def list_asset_documents(
+    asset_id: int, session: Session = Depends(get_session)
+) -> list[DocumentOut]:
+    asset = _get_asset(session, asset_id)
+    rows = session.scalars(
+        select(Document)
+        .where(Document.asset_id == asset.id, Document.doc_type != "photo")
+        .order_by(Document.created_at.desc())
+    ).all()
+    return [_document_out(row) for row in rows]
+
+
+@router.delete("/documents/{document_id}")
+def delete_document(
+    document_id: int,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_app_settings),
+) -> dict[str, bool]:
+    row = session.get(Document, document_id)
+    if row is None or row.asset_id is None:
+        raise HTTPException(404, "Document introuvable")
+    _get_asset(session, row.asset_id)
+    _delete_document(session, settings, row)
+    session.flush()
+    return {"ok": True}
 
 
 @router.get("/documents/{document_id}/file")

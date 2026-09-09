@@ -1,13 +1,14 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { api, ApiError } from '../api/client'
-import type { Asset, Category, HaDevice, Location } from '../api/types'
+import type { Asset, Category, DocumentMeta, HaDevice, Location } from '../api/types'
 import CategorySelect from '../components/CategorySelect'
 import CompleteTask from '../components/CompleteTask'
 import Field from '../components/Field'
 import StatusBadge from '../components/StatusBadge'
 import TaskForm from '../components/TaskForm'
+import { categoryIcon } from '../lib/categoryIcon'
 import {
   emptyToNull,
   equipmentCategories,
@@ -15,7 +16,18 @@ import {
   formatDate,
   formatRecurrence,
   optionalId,
+  warrantyAlert,
+  warrantyAlertLabel,
 } from '../lib/format'
+
+const DOCUMENT_ACCEPT = '.pdf,.jpg,.jpeg,.png,.heic,.doc,.docx'
+const PHOTO_ACCEPT = '.jpg,.jpeg,.png,.heic'
+
+function WarrantyBadge({ endDate }: { endDate: string | null | undefined }) {
+  const level = warrantyAlert(endDate)
+  if (level === null) return null
+  return <span className={`badge badge--${level === 'expired' ? 'overdue' : 'due_soon'}`}>{warrantyAlertLabel(level)}</span>
+}
 
 export default function AssetDetail() {
   const { id } = useParams()
@@ -23,6 +35,7 @@ export default function AssetDetail() {
   const [asset, setAsset] = useState<Asset | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [locations, setLocations] = useState<Location[]>([])
+  const [documents, setDocuments] = useState<DocumentMeta[]>([])
   const [devices, setDevices] = useState<HaDevice[]>([])
   const [haUnavailable, setHaUnavailable] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,18 +46,23 @@ export default function AssetDetail() {
     setAsset(next)
   }
 
+  async function reloadDocuments() {
+    setDocuments(await api.assetDocuments(assetId))
+  }
+
   useEffect(() => {
     let cancelled = false
     if (!Number.isFinite(assetId)) {
       setError('Fiche introuvable')
       return
     }
-    Promise.all([api.asset(assetId), api.categories(), api.locations()])
-      .then(([nextAsset, nextCategories, nextLocations]) => {
+    Promise.all([api.asset(assetId), api.categories(), api.locations(), api.assetDocuments(assetId)])
+      .then(([nextAsset, nextCategories, nextLocations, nextDocuments]) => {
         if (cancelled) return
         setAsset(nextAsset)
         setCategories(equipmentCategories(nextCategories))
         setLocations(nextLocations)
+        setDocuments(nextDocuments)
       })
       .catch((caught: unknown) => {
         if (!cancelled) setError(errorMessage(caught))
@@ -88,13 +106,22 @@ export default function AssetDetail() {
         <Link to="/equipements">Equipements</Link>
       </p>
       <div className="page__header">
-        <div>
-          <h1 className="page__title">{asset.name}</h1>
-          <p className="page__lead">
-            {[asset.category_name, asset.location_path, formatDate(asset.install_date)]
-              .filter((part) => part && part !== '—')
-              .join(' · ') || 'Fiche appareil'}
-          </p>
+        <div className="field__row">
+          <AssetPhoto
+            asset={asset}
+            onChanged={() => void reload().catch((caught) => setError(errorMessage(caught)))}
+            onError={setError}
+          />
+          <div>
+            <h1 className="page__title">
+              {asset.name} <WarrantyBadge endDate={asset.warranty?.end_date} />
+            </h1>
+            <p className="page__lead">
+              {[asset.category_name, asset.location_path, formatDate(asset.install_date)]
+                .filter((part) => part && part !== '—')
+                .join(' · ') || 'Fiche appareil'}
+            </p>
+          </div>
         </div>
         <button type="button" className="btn" onClick={() => setEditing((value) => !value)}>
           {editing ? 'Fermer' : 'Modifier'}
@@ -163,12 +190,20 @@ export default function AssetDetail() {
           <dd>
             {asset.warranty
               ? `${formatDate(asset.warranty.start_date)} → ${formatDate(asset.warranty.end_date)}`
-              : '—'}
+              : '—'}{' '}
+            <WarrantyBadge endDate={asset.warranty?.end_date} />
           </dd>
           <dt>Notes</dt>
           <dd>{asset.notes || '—'}</dd>
         </dl>
       </div>
+
+      <AssetDocuments
+        assetId={asset.id}
+        documents={documents}
+        onChanged={() => void reloadDocuments().catch((caught) => setError(errorMessage(caught)))}
+        onError={setError}
+      />
 
       <HaLinkCard
         asset={asset}
@@ -178,6 +213,173 @@ export default function AssetDetail() {
         onError={setError}
       />
     </section>
+  )
+}
+
+function AssetPhoto({
+  asset,
+  onChanged,
+  onError,
+}: {
+  asset: Asset
+  onChanged: () => void
+  onError: (message: string | null) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function upload(file: File) {
+    setBusy(true)
+    onError(null)
+    try {
+      await api.uploadAssetDocument(asset.id, file, 'photo')
+      onChanged()
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove() {
+    if (asset.photo_document_id === null) return
+    setBusy(true)
+    onError(null)
+    try {
+      await api.deleteDocument(asset.photo_document_id)
+      onChanged()
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="asset-photo">
+      <span className="asset-avatar asset-avatar--lg">
+        {asset.photo_document_id !== null ? (
+          <img src={api.documentFileUrl(asset.photo_document_id)} alt="" />
+        ) : (
+          categoryIcon(asset.category_slug)
+        )}
+      </span>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={PHOTO_ACCEPT}
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          event.target.value = ''
+          if (file) void upload(file)
+        }}
+      />
+      <div className="asset-photo__actions">
+        <button
+          type="button"
+          className="btn btn--small"
+          disabled={busy}
+          onClick={() => inputRef.current?.click()}
+        >
+          Changer l'image
+        </button>
+        {asset.photo_document_id !== null && (
+          <button type="button" className="btn btn--small" disabled={busy} onClick={() => void remove()}>
+            Supprimer
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AssetDocuments({
+  assetId,
+  documents,
+  onChanged,
+  onError,
+}: {
+  assetId: number
+  documents: DocumentMeta[]
+  onChanged: () => void
+  onError: (message: string | null) => void
+}) {
+  const [docType, setDocType] = useState<'manual' | 'other'>('manual')
+  const [busy, setBusy] = useState(false)
+
+  async function upload(file: File) {
+    setBusy(true)
+    onError(null)
+    try {
+      await api.uploadAssetDocument(assetId, file, docType)
+      onChanged()
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(documentId: number) {
+    setBusy(true)
+    onError(null)
+    try {
+      await api.deleteDocument(documentId)
+      onChanged()
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <h2 className="card__title">Documents</h2>
+      <p className="muted">Manuel d'utilisation, notice, ou tout autre document utile.</p>
+      {documents.length === 0 ? (
+        <p className="muted">Aucun document pour l'instant.</p>
+      ) : (
+        <ul className="task-list">
+          {documents.map((document) => (
+            <li key={document.id} className="task">
+              <div className="task__main">
+                <a href={api.documentFileUrl(document.id)} target="_blank" rel="noreferrer">
+                  <strong>{document.name}</strong>
+                </a>
+                <p className="muted">{document.doc_type === 'manual' ? 'Manuel' : 'Autre'}</p>
+              </div>
+              <button
+                type="button"
+                className="btn btn--small"
+                disabled={busy}
+                onClick={() => void remove(document.id)}
+              >
+                Supprimer
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <h3 className="card__subtitle">Ajouter un document</h3>
+      <div className="form form--inline">
+        <select value={docType} onChange={(event) => setDocType(event.target.value as 'manual' | 'other')}>
+          <option value="manual">Manuel d'utilisation</option>
+          <option value="other">Autre</option>
+        </select>
+        <input
+          type="file"
+          accept={DOCUMENT_ACCEPT}
+          disabled={busy}
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.target.value = ''
+            if (file) void upload(file)
+          }}
+        />
+      </div>
+    </div>
   )
 }
 

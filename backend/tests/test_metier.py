@@ -250,3 +250,70 @@ def test_upload_document_type_refuse(client: TestClient) -> None:
         files={"file": ("virus.exe", BytesIO(b"MZ"), "application/octet-stream")},
     )
     assert response.status_code == 415
+
+
+def test_photo_equipement_remplace_la_precedente(client: TestClient) -> None:
+    asset_id = client.post("/api/assets", json={"name": "Lave-linge"}).json()["id"]
+
+    first = client.post(
+        f"/api/assets/{asset_id}/documents",
+        data={"doc_type": "photo"},
+        files={"file": ("avant.jpg", BytesIO(b"fake-jpg-1"), "image/jpeg")},
+    )
+    assert first.status_code == 201
+    first_id = first.json()["id"]
+
+    asset = client.get(f"/api/assets/{asset_id}").json()
+    assert asset["photo_document_id"] == first_id
+    listed = client.get("/api/assets").json()
+    assert next(row for row in listed if row["id"] == asset_id)["photo_document_id"] == first_id
+
+    second = client.post(
+        f"/api/assets/{asset_id}/documents",
+        data={"doc_type": "photo"},
+        files={"file": ("apres.jpg", BytesIO(b"fake-jpg-2"), "image/jpeg")},
+    )
+    assert second.status_code == 201
+    second_id = second.json()["id"]
+
+    asset = client.get(f"/api/assets/{asset_id}").json()
+    assert asset["photo_document_id"] == second_id
+    downloaded = client.get(f"/api/documents/{second_id}/file")
+    assert downloaded.status_code == 200
+    assert downloaded.content == b"fake-jpg-2"
+
+
+def test_manuel_equipement_upload_liste_et_suppression(client: TestClient) -> None:
+    asset_id = client.post("/api/assets", json={"name": "Chaudiere"}).json()["id"]
+
+    uploaded = client.post(
+        f"/api/assets/{asset_id}/documents",
+        data={"doc_type": "manual"},
+        files={"file": ("notice.pdf", BytesIO(b"%PDF-1.4 notice"), "application/pdf")},
+    )
+    assert uploaded.status_code == 201
+    document = uploaded.json()
+    assert document["doc_type"] == "manual"
+
+    documents = client.get(f"/api/assets/{asset_id}/documents").json()
+    assert [row["id"] for row in documents] == [document["id"]]
+
+    downloaded = client.get(f"/api/documents/{document['id']}/file")
+    assert downloaded.status_code == 200
+    assert downloaded.content == b"%PDF-1.4 notice"
+
+    deleted = client.delete(f"/api/documents/{document['id']}")
+    assert deleted.status_code == 200
+    assert deleted.json() == {"ok": True}
+    assert client.get(f"/api/assets/{asset_id}/documents").json() == []
+    assert client.get(f"/api/documents/{document['id']}/file").status_code == 404
+
+
+def test_upload_document_equipement_type_refuse(client: TestClient) -> None:
+    asset_id = client.post("/api/assets", json={"name": "VMC"}).json()["id"]
+    response = client.post(
+        f"/api/assets/{asset_id}/documents",
+        data={"doc_type": "manual"},
+        files={"file": ("virus.exe", BytesIO(b"MZ"), "application/octet-stream")},
+    )
+    assert response.status_code == 415

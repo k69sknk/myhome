@@ -216,10 +216,13 @@ export interface AssetListItem {
   id: number
   name: string
   category_name: string | null
+  category_slug: string | null
   location_path: string | null
   install_date: string | null
   status: string
   task_status: TaskStatus
+  photo_document_id: number | null
+  warranty_end_date: string | null
 }
 
 export interface Asset {
@@ -229,6 +232,7 @@ export interface Asset {
   status: string
   category_id: number | null
   category_name: string | null
+  category_slug: string | null
   location_id: number | null
   location_path: string | null
   brand: string | null
@@ -239,6 +243,7 @@ export interface Asset {
   install_date: string | null
   notes: string | null
   warranty: Warranty | null
+  photo_document_id: number | null
   ha_link: HaLink | null
   tasks: Task[]
 }

@@ -4,7 +4,8 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { AssetListItem } from '../api/types'
 import StatusBadge from '../components/StatusBadge'
-import { errorMessage, formatDate } from '../lib/format'
+import { categoryIcon } from '../lib/categoryIcon'
+import { errorMessage, formatDate, warrantyAlert, warrantyAlertLabel } from '../lib/format'
 
 export default function Assets() {
   const [assets, setAssets] = useState<AssetListItem[] | null>(null)
@@ -46,21 +47,40 @@ export default function Assets() {
       )}
       {assets && assets.length > 0 && (
         <ul className="rows rows--card">
-          {assets.map((asset) => (
-            <li key={asset.id}>
-              <Link className="rows__link" to={`/equipements/${asset.id}`}>
-                <span>
-                  <strong>{asset.name}</strong>
-                  <span className="muted">
-                    {[asset.category_name, asset.location_path, formatDate(asset.install_date)]
-                      .filter((part) => part && part !== '—')
-                      .join(' · ')}
-                  </span>
-                </span>
-                <StatusBadge status={asset.task_status} />
-              </Link>
-            </li>
-          ))}
+          {assets.map((asset) => {
+            const warrantyLevel = warrantyAlert(asset.warranty_end_date)
+            return (
+              <li key={asset.id}>
+                <Link className="rows__link" to={`/equipements/${asset.id}`}>
+                  <div className="rows__main">
+                    <span className="asset-avatar" aria-hidden="true">
+                      {asset.photo_document_id !== null ? (
+                        <img src={api.documentFileUrl(asset.photo_document_id)} alt="" />
+                      ) : (
+                        categoryIcon(asset.category_slug)
+                      )}
+                    </span>
+                    <span>
+                      <strong>{asset.name}</strong>
+                      <span className="muted">
+                        {[asset.category_name, asset.location_path, formatDate(asset.install_date)]
+                          .filter((part) => part && part !== '—')
+                          .join(' · ')}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="rows__badges">
+                    {warrantyLevel && (
+                      <span className={`badge badge--${warrantyLevel === 'expired' ? 'overdue' : 'due_soon'}`}>
+                        {warrantyAlertLabel(warrantyLevel)}
+                      </span>
+                    )}
+                    <StatusBadge status={asset.task_status} />
+                  </div>
+                </Link>
+              </li>
+            )
+          })}
         </ul>
       )}
     </section>

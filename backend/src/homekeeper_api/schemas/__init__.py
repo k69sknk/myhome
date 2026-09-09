@@ -205,10 +205,13 @@ class AssetListItem(BaseModel):
     id: int
     name: str
     category_name: str | None
+    category_slug: str | None = None
     location_path: str | None
     install_date: str | None
     status: str
     task_status: TaskStatus
+    photo_document_id: int | None = None
+    warranty_end_date: str | None = None
 
 
 class AssetOut(BaseModel):
@@ -218,6 +221,7 @@ class AssetOut(BaseModel):
     status: str
     category_id: int | None
     category_name: str | None
+    category_slug: str | None = None
     location_id: int | None
     location_path: str | None
     brand: str | None
@@ -228,6 +232,7 @@ class AssetOut(BaseModel):
     install_date: str | None
     notes: str | None
     warranty: WarrantyOut | None
+    photo_document_id: int | None = None
     ha_link: HaLinkOut | None
     tasks: list[TaskOut]
 

@@ -99,3 +99,30 @@ export function optionalId(value: string): number | null {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
 }
+
+/** Ajoute des mois a une date ISO (YYYY-MM-DD), pour l'apercu de fin de garantie. */
+export function addMonthsIso(dateIso: string, months: number): string | null {
+  const [year, month, day] = dateIso.split('-').map(Number)
+  if (!year || !month || !day || !Number.isFinite(months)) return null
+  const date = new Date(Date.UTC(year, month - 1, day))
+  date.setUTCMonth(date.getUTCMonth() + months)
+  return date.toISOString().slice(0, 10)
+}
+
+export type WarrantyAlertLevel = 'expired' | 'soon'
+
+const WARRANTY_ALERT_WINDOW_DAYS = 180
+
+/** Alerte de garantie : visible seulement dans les 6 derniers mois (ou apres expiration). */
+export function warrantyAlert(endDate: string | null | undefined): WarrantyAlertLevel | null {
+  if (!endDate) return null
+  const daysUntil = Math.floor((new Date(`${endDate}T00:00:00Z`).getTime() - Date.now()) / 86_400_000)
+  if (Number.isNaN(daysUntil)) return null
+  if (daysUntil <= 0) return 'expired'
+  if (daysUntil <= WARRANTY_ALERT_WINDOW_DAYS) return 'soon'
+  return null
+}
+
+export function warrantyAlertLabel(level: WarrantyAlertLevel): string {
+  return level === 'expired' ? 'Garantie expiree' : 'Garantie bientot expiree'
+}

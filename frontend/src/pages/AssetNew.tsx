@@ -5,7 +5,15 @@ import { api, ApiError } from '../api/client'
 import type { Category, HaDevice, Location } from '../api/types'
 import CategorySelect from '../components/CategorySelect'
 import Field from '../components/Field'
-import { emptyToNull, equipmentCategories, errorMessage, optionalId } from '../lib/format'
+import { categoryIcon } from '../lib/categoryIcon'
+import {
+  addMonthsIso,
+  emptyToNull,
+  equipmentCategories,
+  errorMessage,
+  formatDate,
+  optionalId,
+} from '../lib/format'
 
 export default function AssetNew() {
   const navigate = useNavigate()
@@ -23,7 +31,7 @@ export default function AssetNew() {
   const [serial, setSerial] = useState('')
   const [notes, setNotes] = useState('')
   const [warrantyStart, setWarrantyStart] = useState('')
-  const [warrantyMonths, setWarrantyMonths] = useState('')
+  const [warrantyMonths, setWarrantyMonths] = useState('24')
   const [haDeviceId, setHaDeviceId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -169,12 +177,17 @@ export default function AssetNew() {
           <input required value={name} onChange={(event) => setName(event.target.value)} />
         </Field>
         <Field label="Categorie">
-          <CategorySelect
-            categories={categories}
-            value={categoryId}
-            onChange={setCategoryId}
-            onCreated={(category) => setCategories((current) => [...current, category])}
-          />
+          <div className="field__row">
+            <span className="asset-avatar" aria-hidden="true">
+              {categoryIcon(categories.find((row) => String(row.id) === categoryId)?.slug)}
+            </span>
+            <CategorySelect
+              categories={categories}
+              value={categoryId}
+              onChange={setCategoryId}
+              onCreated={(category) => setCategories((current) => [...current, category])}
+            />
+          </div>
         </Field>
         <Field label="Lieu">
           <select value={locationId} onChange={(event) => setLocationId(event.target.value)}>
@@ -205,14 +218,21 @@ export default function AssetNew() {
         <Field label="Notes">
           <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} />
         </Field>
-        <Field label="Debut de garantie (facultatif)">
+        <Field label="Date d'achat (debut de garantie)" hint="Facultatif">
           <input
             type="date"
             value={warrantyStart}
             onChange={(event) => setWarrantyStart(event.target.value)}
           />
         </Field>
-        <Field label="Duree de garantie (mois)">
+        <Field
+          label="Duree de garantie (mois)"
+          hint={
+            warrantyStart && warrantyMonths
+              ? `Fin de garantie estimee : ${formatDate(addMonthsIso(warrantyStart, Number(warrantyMonths)))}`
+              : undefined
+          }
+        >
           <input
             type="number"
             min={1}
