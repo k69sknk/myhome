@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { api } from '../api/client'
+import { ApiError, api } from '../api/client'
 import type { HistoryEntry } from '../api/types'
 import { errorMessage, formatAmount, formatDate } from '../lib/format'
 import { TrashIcon } from './icons'
@@ -15,6 +15,7 @@ export default function InterventionHistory() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set())
   const inflight = useRef(false)
 
   async function loadMore() {
@@ -41,12 +42,26 @@ export default function InterventionHistory() {
   }, [])
 
   async function removeEntry(id: number) {
+    if (deletingIds.has(id)) return
     setError(null)
+    setDeletingIds((current) => new Set(current).add(id))
     try {
       await api.deleteIntervention(id)
       setEntries((current) => current.filter((entry) => entry.id !== id))
     } catch (caught: unknown) {
-      setError(errorMessage(caught))
+      if (caught instanceof ApiError && caught.status === 404) {
+        // Deja supprimee (double-tap, ou liste pas encore rafraichie) : on
+        // aligne l'affichage plutot que d'afficher une erreur trompeuse.
+        setEntries((current) => current.filter((entry) => entry.id !== id))
+      } else {
+        setError(errorMessage(caught))
+      }
+    } finally {
+      setDeletingIds((current) => {
+        const next = new Set(current)
+        next.delete(id)
+        return next
+      })
     }
   }
 
@@ -91,6 +106,7 @@ export default function InterventionHistory() {
                 <button
                   type="button"
                   className="btn btn--small btn--delete"
+                  disabled={deletingIds.has(entry.id)}
                   onClick={() => void removeEntry(entry.id)}
                 >
                   <TrashIcon /> Supprimer

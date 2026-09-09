@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
-import { api } from '../api/client'
+import { ApiError, api } from '../api/client'
 import type { Intervention, Task } from '../api/types'
 import { errorMessage, formatAmount, formatDate, todayIso } from '../lib/format'
 import Field from './Field'
@@ -30,6 +30,7 @@ export default function CompleteTask({
   const [historyOpen, setHistoryOpen] = useState(false)
   const [history, setHistory] = useState<Intervention[] | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
+  const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     if (open) dateInputRef.current?.focus()
@@ -119,12 +120,26 @@ export default function CompleteTask({
   }
 
   async function removeIntervention(interventionId: number) {
+    if (deletingIds.has(interventionId)) return
     setHistoryError(null)
+    setDeletingIds((current) => new Set(current).add(interventionId))
     try {
       await api.deleteIntervention(interventionId)
       setHistory(await api.taskInterventions(task.id))
     } catch (caught: unknown) {
-      setHistoryError(errorMessage(caught))
+      if (caught instanceof ApiError && caught.status === 404) {
+        // Deja supprimee (double-tap, ou liste pas encore rafraichie) : on
+        // resynchronise l'affichage plutot que d'afficher une erreur trompeuse.
+        setHistory(await api.taskInterventions(task.id))
+      } else {
+        setHistoryError(errorMessage(caught))
+      }
+    } finally {
+      setDeletingIds((current) => {
+        const next = new Set(current)
+        next.delete(interventionId)
+        return next
+      })
     }
   }
 
@@ -264,6 +279,7 @@ export default function CompleteTask({
                     <button
                       type="button"
                       className="btn btn--small btn--delete"
+                      disabled={deletingIds.has(entry.id)}
                       onClick={() => void removeIntervention(entry.id)}
                     >
                       <TrashIcon /> Supprimer
