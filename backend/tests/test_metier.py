@@ -100,3 +100,20 @@ def test_supprimer_un_lieu_occupe_est_refuse(client: TestClient) -> None:
 def test_ha_devices_sans_supervisor_renvoie_503(client: TestClient) -> None:
     response = client.get("/api/ha/devices")
     assert response.status_code == 503
+
+
+def test_lister_les_lieux_avec_equipements_ne_plante_pas(client: TestClient) -> None:
+    """Non-regression : dict(session.execute(...).tuples()) plantait avec
+    'TypeError: ... object is not subscriptable' des que la requete de
+    comptage renvoyait un Result SQLAlchemy (dict() le traite comme un
+    mapping car il expose .keys())."""
+    garage = client.post("/api/locations", json={"name": "Garage"}).json()
+    vide = client.post("/api/locations", json={"name": "Grenier"}).json()
+    client.post("/api/assets", json={"name": "Perceuse", "location_id": garage["id"]})
+    client.post("/api/assets", json={"name": "Etabli", "location_id": garage["id"]})
+
+    response = client.get("/api/locations")
+    assert response.status_code == 200
+    par_id = {row["id"]: row["asset_count"] for row in response.json()}
+    assert par_id[garage["id"]] == 2
+    assert par_id[vide["id"]] == 0
