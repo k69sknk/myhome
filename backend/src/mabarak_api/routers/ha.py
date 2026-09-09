@@ -130,9 +130,7 @@ def summary(session: Session = Depends(get_session)) -> HaSummary:
     asset_name_by_id = {asset.id: asset.name for asset in assets}
     upcoming_limit = (today + timedelta(days=UPCOMING_WINDOW_DAYS)).isoformat()
     upcoming = [
-        row
-        for row in rows
-        if row.next_due_on is not None and row.next_due_on <= upcoming_limit
+        row for row in rows if row.next_due_on is not None and row.next_due_on <= upcoming_limit
     ]
     upcoming.sort(key=lambda row: row.next_due_on or "")
     upcoming_tasks = [
