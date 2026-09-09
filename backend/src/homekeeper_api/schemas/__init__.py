@@ -129,6 +129,11 @@ class TaskOut(BaseModel):
     fixed_month: int | None
     fixed_day: int | None
     last_intervention_id: int | None = None
+    needs_part_replacement: bool = False
+    replacement_part_name: str | None = None
+    replacement_part_source: str | None = None
+    preparation_notes: str | None = None
+    notes: str | None = None
 
 
 class TaskIn(BaseModel):
@@ -138,6 +143,11 @@ class TaskIn(BaseModel):
     fixed_month: int | None = Field(default=None, ge=1, le=12)
     fixed_day: int | None = Field(default=None, ge=1, le=31)
     last_completed_on: str | None = None
+    needs_part_replacement: bool = False
+    replacement_part_name: str | None = None
+    replacement_part_source: str | None = None
+    preparation_notes: str | None = None
+    notes: str | None = None
 
 
 class CompleteIn(BaseModel):
@@ -165,6 +175,19 @@ class CostOut(BaseModel):
 
 class InterventionOut(BaseModel):
     id: int
+    performed_on: str
+    performed_by: str | None
+    notes: str | None
+    cost: CostOut | None
+    documents: list[DocumentOut]
+
+
+class HistoryEntryOut(BaseModel):
+    id: int
+    asset_id: int
+    asset_name: str
+    task_id: int | None
+    task_name: str | None
     performed_on: str
     performed_by: str | None
     notes: str | None

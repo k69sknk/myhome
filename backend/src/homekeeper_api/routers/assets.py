@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Literal
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -37,6 +37,7 @@ from ..schemas import (
     HaDeviceOut,
     HaLinkIn,
     HaLinkOut,
+    HistoryEntryOut,
     InterventionOut,
     TaskIn,
     TaskOut,
@@ -120,6 +121,11 @@ def _task_out(
         fixed_month=task.fixed_month,
         fixed_day=task.fixed_day,
         last_intervention_id=last_intervention_id,
+        needs_part_replacement=bool(task.needs_part_replacement),
+        replacement_part_name=task.replacement_part_name,
+        replacement_part_source=task.replacement_part_source,
+        preparation_notes=task.preparation_notes,
+        notes=task.description,
     )
 
 
@@ -316,6 +322,11 @@ def create_task(asset_id: int, body: TaskIn, session: Session = Depends(get_sess
         last_completed_on=body.last_completed_on,
         next_due_on=next_due,
         is_active=1,
+        needs_part_replacement=1 if body.needs_part_replacement else 0,
+        replacement_part_name=(body.replacement_part_name or "").strip() or None,
+        replacement_part_source=(body.replacement_part_source or "").strip() or None,
+        preparation_notes=(body.preparation_notes or "").strip() or None,
+        description=(body.notes or "").strip() or None,
         created_at=now,
         updated_at=now,
     )
@@ -387,19 +398,58 @@ def list_task_interventions(
             performed_on=row.performed_on,
             performed_by=row.performed_by,
             notes=row.notes,
-            cost=(
-                CostOut(
-                    id=row.costs[0].id,
-                    amount_cents=row.costs[0].amount_cents,
-                    currency=row.costs[0].currency,
-                    incurred_on=row.costs[0].incurred_on,
-                )
-                if row.costs
-                else None
-            ),
+            cost=_cost_out(row),
             documents=[_document_out(doc) for doc in row.documents],
         )
         for row in interventions
+    ]
+
+
+@router.get("/interventions", response_model=list[HistoryEntryOut])
+def list_interventions(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    session: Session = Depends(get_session),
+) -> list[HistoryEntryOut]:
+    """Historique global, toutes les interventions de la maison confondues (page /entretiens)."""
+    home = _home(session)
+    rows = session.scalars(
+        select(Intervention)
+        .join(Asset, Intervention.asset_id == Asset.id)
+        .where(Asset.home_id == home.id)
+        .options(selectinload(Intervention.costs), selectinload(Intervention.documents))
+        .order_by(Intervention.performed_on.desc(), Intervention.id.desc())
+        .limit(limit)
+        .offset(offset)
+    ).all()
+
+    asset_ids = {row.asset_id for row in rows}
+    assets = (
+        {a.id: a for a in session.scalars(select(Asset).where(Asset.id.in_(asset_ids))).all()}
+        if asset_ids
+        else {}
+    )
+    task_ids = {row.task_id for row in rows if row.task_id is not None}
+    tasks = (
+        {t.id: t for t in session.scalars(select(MaintenanceTask).where(MaintenanceTask.id.in_(task_ids))).all()}
+        if task_ids
+        else {}
+    )
+
+    return [
+        HistoryEntryOut(
+            id=row.id,
+            asset_id=row.asset_id,
+            asset_name=assets[row.asset_id].name if row.asset_id in assets else "?",
+            task_id=row.task_id,
+            task_name=tasks[row.task_id].name if row.task_id in tasks else None,
+            performed_on=row.performed_on,
+            performed_by=row.performed_by,
+            notes=row.notes,
+            cost=_cost_out(row),
+            documents=[_document_out(doc) for doc in row.documents],
+        )
+        for row in rows
     ]
 
 
@@ -453,6 +503,15 @@ def _document_out(row: Document) -> DocumentOut:
         file_size=row.file_size,
         mime_type=row.mime_type,
         created_at=row.created_at,
+    )
+
+
+def _cost_out(intervention: Intervention) -> CostOut | None:
+    if not intervention.costs:
+        return None
+    cost = intervention.costs[0]
+    return CostOut(
+        id=cost.id, amount_cents=cost.amount_cents, currency=cost.currency, incurred_on=cost.incurred_on
     )
 
 

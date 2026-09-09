@@ -559,6 +559,27 @@ textarea {
   color: var(--accent);
 }
 
+.combobox__empty {
+  display: block;
+  padding: 0.4rem 0.55rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.combobox__group {
+  padding: 0.4rem 0.55rem 0.15rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.combobox__option-meta {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 .tree {
   display: flex;
   flex-direction: column;
@@ -602,6 +623,11 @@ textarea {
 
 .task__main strong {
   margin-right: 0.5rem;
+}
+
+.task__prep {
+  color: var(--accent);
+  font-size: 0.9rem;
 }
 
 .complete__actions {

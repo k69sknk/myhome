@@ -169,6 +169,11 @@ export interface Task {
   fixed_month: number | null
   fixed_day: number | null
   last_intervention_id: number | null
+  needs_part_replacement: boolean
+  replacement_part_name: string | null
+  replacement_part_source: string | null
+  preparation_notes: string | null
+  notes: string | null
 }
 
 export interface DocumentMeta {
@@ -196,6 +201,13 @@ export interface Intervention {
   documents: DocumentMeta[]
 }
 
+export interface HistoryEntry extends Intervention {
+  asset_id: number
+  asset_name: string
+  task_id: number | null
+  task_name: string | null
+}
+
 export interface TaskIn {
   name: string
   recurrence_type: RecurrenceType
@@ -203,6 +215,11 @@ export interface TaskIn {
   fixed_month?: number | null
   fixed_day?: number | null
   last_completed_on?: string | null
+  needs_part_replacement?: boolean
+  replacement_part_name?: string | null
+  replacement_part_source?: string | null
+  preparation_notes?: string | null
+  notes?: string | null
 }
 
 export interface CompleteIn {

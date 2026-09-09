@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 
 import type { RecurrenceType, TaskIn } from '../api/types'
-import { errorMessage } from '../lib/format'
+import { emptyToNull, errorMessage } from '../lib/format'
 import Field from './Field'
 
 type Frequency = Extract<RecurrenceType, 'none' | 'months' | 'years' | 'annual_fixed'>
@@ -21,6 +21,11 @@ export default function TaskForm({
   const [interval, setInterval] = useState(3)
   const [fixedDate, setFixedDate] = useState(defaultFixedDate())
   const [lastCompleted, setLastCompleted] = useState('')
+  const [needsPartReplacement, setNeedsPartReplacement] = useState(false)
+  const [partName, setPartName] = useState('')
+  const [partSource, setPartSource] = useState('')
+  const [prepNotes, setPrepNotes] = useState('')
+  const [notes, setNotes] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -32,6 +37,11 @@ export default function TaskForm({
       name: trimmed,
       recurrence_type: frequency,
       last_completed_on: lastCompleted || null,
+      needs_part_replacement: needsPartReplacement,
+      replacement_part_name: needsPartReplacement ? emptyToNull(partName) : null,
+      replacement_part_source: needsPartReplacement ? emptyToNull(partSource) : null,
+      preparation_notes: emptyToNull(prepNotes),
+      notes: emptyToNull(notes),
     }
     if (frequency === 'months' || frequency === 'years') {
       body.recurrence_interval = interval
@@ -47,6 +57,11 @@ export default function TaskForm({
       await onCreate(body)
       setName('')
       setLastCompleted('')
+      setNeedsPartReplacement(false)
+      setPartName('')
+      setPartSource('')
+      setPrepNotes('')
+      setNotes('')
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     } finally {
@@ -101,6 +116,48 @@ export default function TaskForm({
           type="date"
           value={lastCompleted}
           onChange={(event) => setLastCompleted(event.target.value)}
+        />
+      </Field>
+      <label className="complete__checkbox">
+        <input
+          type="checkbox"
+          checked={needsPartReplacement}
+          onChange={(event) => setNeedsPartReplacement(event.target.checked)}
+        />
+        Piece a remplacer
+      </label>
+      {needsPartReplacement && (
+        <div className="complete__form-fields">
+          <Field label="Nom de la piece">
+            <input
+              type="text"
+              value={partName}
+              onChange={(event) => setPartName(event.target.value)}
+              placeholder="Filtre a eau 10 pouces..."
+            />
+          </Field>
+          <Field label="Lien ou magasin d'achat">
+            <input
+              type="text"
+              value={partSource}
+              onChange={(event) => setPartSource(event.target.value)}
+              placeholder="https://... ou nom du magasin"
+            />
+          </Field>
+        </div>
+      )}
+      <Field label="A prevoir lors de l'entretien" hint="Outils specifiques, produits, autres">
+        <textarea
+          rows={2}
+          value={prepNotes}
+          onChange={(event) => setPrepNotes(event.target.value)}
+        />
+      </Field>
+      <Field label="Notes">
+        <textarea
+          rows={2}
+          value={notes}
+          onChange={(event) => setNotes(event.target.value)}
         />
       </Field>
       {error && <p className="status status--error">{error}</p>}

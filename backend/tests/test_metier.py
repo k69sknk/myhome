@@ -237,6 +237,33 @@ def test_completer_un_entretien_avec_montant_et_facture(client: TestClient) -> N
     assert downloaded.content == b"%PDF-1.4 fake invoice"
 
 
+def test_historique_global_toutes_equipements_confondus(client: TestClient) -> None:
+    chaudiere = client.post("/api/assets", json={"name": "Chaudiere"}).json()["id"]
+    vmc = client.post("/api/assets", json={"name": "VMC"}).json()["id"]
+    task_chaudiere = client.post(
+        f"/api/assets/{chaudiere}/tasks",
+        json={"name": "Revision annuelle", "recurrence_type": "months", "recurrence_interval": 12},
+    ).json()
+    task_vmc = client.post(
+        f"/api/assets/{vmc}/tasks",
+        json={"name": "Filtres", "recurrence_type": "months", "recurrence_interval": 3},
+    ).json()
+
+    client.post(f"/api/tasks/{task_chaudiere['id']}/complete", json={"performed_on": "2026-01-10"})
+    client.post(f"/api/tasks/{task_vmc['id']}/complete", json={"performed_on": "2026-03-01"})
+
+    history = client.get("/api/interventions").json()
+    assert len(history) == 2
+    # Tri par date decroissante : la VMC (mars) avant la chaudiere (janvier).
+    assert history[0]["asset_name"] == "VMC"
+    assert history[0]["task_name"] == "Filtres"
+    assert history[1]["asset_name"] == "Chaudiere"
+
+    page = client.get("/api/interventions?limit=1&offset=1").json()
+    assert len(page) == 1
+    assert page[0]["asset_name"] == "Chaudiere"
+
+
 def test_upload_document_type_refuse(client: TestClient) -> None:
     asset_id = client.post("/api/assets", json={"name": "VMC"}).json()["id"]
     task = client.post(

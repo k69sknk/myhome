@@ -2,13 +2,23 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { api } from '../api/client'
-import type { Task } from '../api/types'
+import type { AssetListItem, Category, Task, TaskStatus } from '../api/types'
+import AssetSelect from '../components/AssetSelect'
 import CompleteTask from '../components/CompleteTask'
+import Field from '../components/Field'
+import InterventionHistory from '../components/InterventionHistory'
 import StatusBadge from '../components/StatusBadge'
-import { errorMessage, formatDate, formatRecurrence } from '../lib/format'
+import TaskForm from '../components/TaskForm'
+import TaskPrepInfo from '../components/TaskPrepInfo'
+import { errorMessage, formatDate, formatRecurrence, statusLabel } from '../lib/format'
+
+const STATUS_GROUPS: TaskStatus[] = ['overdue', 'due_soon', 'ok', 'unscheduled']
 
 export default function Tasks() {
   const [tasks, setTasks] = useState<Task[] | null>(null)
+  const [assets, setAssets] = useState<AssetListItem[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [selectedAssetId, setSelectedAssetId] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   async function reload() {
@@ -17,9 +27,16 @@ export default function Tasks() {
 
   useEffect(() => {
     let cancelled = false
-    reload().catch((caught: unknown) => {
-      if (!cancelled) setError(errorMessage(caught))
-    })
+    Promise.all([api.tasks(), api.assets(), api.categories()])
+      .then(([taskList, assetList, categoryList]) => {
+        if (cancelled) return
+        setTasks(taskList)
+        setAssets(assetList)
+        setCategories(categoryList)
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) setError(errorMessage(caught))
+      })
     return () => {
       cancelled = true
     }
@@ -31,44 +48,82 @@ export default function Tasks() {
       <p className="page__lead">Toutes les taches, tous appareils confondus.</p>
 
       {error && <p className="status status--error">{error}</p>}
-      {tasks === null && !error && <p className="muted">Chargement...</p>}
-      {tasks && tasks.length === 0 && (
-        <p className="muted">
-          Aucun entretien. Ajoutez-en depuis la{' '}
-          <Link to="/equipements">fiche d'un equipement</Link>.
-        </p>
-      )}
-      {tasks && tasks.length > 0 && (
-        <ul className="task-list task-list--page">
-          {tasks.map((task) => (
-            <li key={task.id} className="task card">
-              <div className="task__main">
-                <strong>{task.name}</strong>
-                <StatusBadge status={task.status} />
-                <p className="muted">
-                  {task.asset_id ? (
-                    <Link to={`/equipements/${task.asset_id}`}>{task.asset_name}</Link>
-                  ) : (
-                    task.asset_name
-                  )}
-                  {task.location_path ? ` · ${task.location_path}` : ''}
-                  {' · '}
-                  {formatRecurrence(task)}
-                  {' · dernier '}
-                  {formatDate(task.last_completed_on)}
-                  {' · prochain '}
-                  {formatDate(task.next_due_on)}
-                </p>
+
+      <div className="card">
+        <h2 className="card__title">Ajouter un entretien</h2>
+        <Field label="Equipement" hint="Tapez pour chercher ; si l'equipement n'existe pas encore, proposez de le creer.">
+          <AssetSelect
+            assets={assets}
+            categories={categories}
+            value={selectedAssetId}
+            onChange={setSelectedAssetId}
+            onCreated={(asset) => setAssets((current) => [...current, asset])}
+          />
+        </Field>
+        {selectedAssetId && (
+          <TaskForm
+            onCreate={async (body) => {
+              await api.createTask(Number(selectedAssetId), body)
+              await reload()
+            }}
+          />
+        )}
+      </div>
+
+      <div className="card">
+        <h2 className="card__title">A faire</h2>
+        {tasks === null && !error && <p className="muted">Chargement...</p>}
+        {tasks && tasks.length === 0 && (
+          <p className="muted">Aucun entretien. Ajoutez-en ci-dessus.</p>
+        )}
+        {tasks &&
+          STATUS_GROUPS.map((status) => {
+            const group = tasks.filter((task) => task.status === status)
+            if (group.length === 0) return null
+            return (
+              <div key={status}>
+                <h3 className="card__subtitle">
+                  {statusLabel(status)} ({group.length})
+                </h3>
+                <ul className="task-list task-list--page">
+                  {group.map((task) => (
+                    <li key={task.id} className="task card">
+                      <div className="task__main">
+                        <strong>{task.name}</strong>
+                        <StatusBadge status={task.status} />
+                        <p className="muted">
+                          {task.asset_id ? (
+                            <Link to={`/equipements/${task.asset_id}`}>{task.asset_name}</Link>
+                          ) : (
+                            task.asset_name
+                          )}
+                          {task.location_path ? ` · ${task.location_path}` : ''}
+                          {' · '}
+                          {formatRecurrence(task)}
+                          {' · dernier '}
+                          {formatDate(task.last_completed_on)}
+                          {' · prochain '}
+                          {formatDate(task.next_due_on)}
+                        </p>
+                        <TaskPrepInfo task={task} />
+                      </div>
+                      <CompleteTask
+                        task={task}
+                        onCompleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
+                        onDeleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
+                      />
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <CompleteTask
-                task={task}
-                onCompleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
-                onDeleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+            )
+          })}
+      </div>
+
+      <div className="card">
+        <h2 className="card__title">Historique</h2>
+        <InterventionHistory />
+      </div>
     </section>
   )
 }

@@ -9,6 +9,7 @@ import Field from '../components/Field'
 import { EditIcon, TrashIcon } from '../components/icons'
 import StatusBadge from '../components/StatusBadge'
 import TaskForm from '../components/TaskForm'
+import TaskPrepInfo from '../components/TaskPrepInfo'
 import { categoryIcon } from '../lib/categoryIcon'
 import {
   emptyToNull,
@@ -169,6 +170,7 @@ export default function AssetDetail() {
                     {' · prochain '}
                     {formatDate(task.next_due_on)}
                   </p>
+                  <TaskPrepInfo task={task} />
                 </div>
                 <CompleteTask
                   task={task}
