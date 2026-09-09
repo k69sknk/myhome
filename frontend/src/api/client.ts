@@ -80,7 +80,7 @@ export const api = {
   summary: () => request<HaSummary>('ha/summary'),
 
   home: () => request<Home>('homes/current'),
-  patchHome: (body: { name?: string }) =>
+  patchHome: (body: { name?: string; due_soon_threshold_days?: number }) =>
     request<Home>('homes/current', { method: 'PATCH', ...jsonBody(body) }),
 
   categories: () => request<Category[]>('categories'),

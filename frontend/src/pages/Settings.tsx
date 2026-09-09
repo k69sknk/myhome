@@ -9,6 +9,7 @@ import { errorMessage } from '../lib/format'
 export default function Settings() {
   const [home, setHome] = useState<Home | null>(null)
   const [homeName, setHomeName] = useState('')
+  const [threshold, setThreshold] = useState('')
   const [types, setTypes] = useState<LocationType[]>([])
   const [newTypeName, setNewTypeName] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -17,6 +18,7 @@ export default function Settings() {
     const [nextHome, nextTypes] = await Promise.all([api.home(), api.locationTypes()])
     setHome(nextHome)
     setHomeName(nextHome.name)
+    setThreshold(String(nextHome.due_soon_threshold_days))
     setTypes(nextTypes)
   }
 
@@ -34,8 +36,12 @@ export default function Settings() {
     event.preventDefault()
     setError(null)
     try {
-      const updated = await api.patchHome({ name: homeName.trim() })
+      const updated = await api.patchHome({
+        name: homeName.trim(),
+        due_soon_threshold_days: Number(threshold),
+      })
       setHome(updated)
+      setThreshold(String(updated.due_soon_threshold_days))
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     }
@@ -78,6 +84,18 @@ export default function Settings() {
           <form className="form form--inline" onSubmit={(event) => void saveHome(event)}>
             <Field label="Nom de la maison">
               <input value={homeName} onChange={(event) => setHomeName(event.target.value)} />
+            </Field>
+            <Field
+              label="Seuil 'bientot' (jours)"
+              hint="Plafond. Un entretien mensuel ou hebdomadaire se resserre deja automatiquement selon sa propre frequence ; ce seuil s'applique tel quel aux entretiens annuels ou ponctuels, et peut resserrer les autres si tu le baisses."
+            >
+              <input
+                type="number"
+                required
+                min={0}
+                value={threshold}
+                onChange={(event) => setThreshold(event.target.value)}
+              />
             </Field>
             <button type="submit" className="btn">
               Enregistrer

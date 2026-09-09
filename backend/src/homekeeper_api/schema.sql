@@ -44,6 +44,8 @@ CREATE TABLE home (
     currency                TEXT    NOT NULL DEFAULT 'EUR',
 
     -- Seuil global de passage en statut 'due_soon'. Surchargeable par tache.
+    -- Sert de PLAFOND dans v_task_status : chaque entretien peut le resserrer
+    -- automatiquement selon sa propre frequence (voir le commentaire de la vue).
     due_soon_threshold_days INTEGER NOT NULL DEFAULT 30
                             CHECK (due_soon_threshold_days >= 0),
 
@@ -731,33 +733,55 @@ CREATE VIEW v_asset_timeline AS
 -- donc des memes valeurs, ce qui les empeche de diverger.
 
 CREATE VIEW v_task_status AS
-    SELECT t.id                AS task_id,
-           t.asset_id,
-           t.home_id,
-           t.name,
-           t.priority,
-           t.next_due_on,
-           t.last_completed_on,
+    WITH base AS (
+        SELECT t.id                AS task_id,
+               t.asset_id,
+               t.home_id,
+               t.name,
+               t.priority,
+               t.next_due_on,
+               t.last_completed_on,
 
-           -- Seuil effectif : surcharge de la tache, sinon seuil de la maison.
-           COALESCE(t.lead_time_days, h.due_soon_threshold_days) AS effective_lead_time_days,
+               -- Seuil effectif : la surcharge de la tache prime absolument ;
+               -- sinon, le seuil de la maison agit comme un PLAFOND resserre
+               -- automatiquement par la frequence de la tache (un tiers de
+               -- l'intervalle, jamais moins d'un jour). Sans ce resserrement,
+               -- un seuil fixe de 30 jours laisserait un entretien mensuel
+               -- perpetuellement 'due_soon' des qu'il est marque fait.
+               COALESCE(
+                   t.lead_time_days,
+                   MIN(
+                       h.due_soon_threshold_days,
+                       CASE t.recurrence_type
+                           WHEN 'days'   THEN MAX(1, t.recurrence_interval / 3)
+                           WHEN 'months' THEN MAX(1, (t.recurrence_interval * 30) / 3)
+                           WHEN 'years'  THEN MAX(1, (t.recurrence_interval * 365) / 3)
+                           ELSE h.due_soon_threshold_days
+                       END
+                   )
+               ) AS effective_lead_time_days
+
+        FROM       maintenance_task t
+        LEFT JOIN  asset a ON a.id = t.asset_id
+        -- La maison provient soit de l'equipement, soit du rattachement direct.
+        LEFT JOIN  home  h ON h.id = COALESCE(a.home_id, t.home_id)
+        WHERE      t.is_active = 1
+    )
+    SELECT task_id, asset_id, home_id, name, priority, next_due_on, last_completed_on,
+           effective_lead_time_days,
 
            -- Negatif = en retard de N jours.
-           CAST(julianday(t.next_due_on) - julianday(date('now')) AS INTEGER) AS days_until_due,
+           CAST(julianday(next_due_on) - julianday(date('now')) AS INTEGER) AS days_until_due,
 
            CASE
-               WHEN t.next_due_on IS NULL THEN 'unscheduled'
-               WHEN julianday(t.next_due_on) < julianday(date('now')) THEN 'overdue'
-               WHEN julianday(t.next_due_on) - julianday(date('now'))
-                    <= COALESCE(t.lead_time_days, h.due_soon_threshold_days) THEN 'due_soon'
+               WHEN next_due_on IS NULL THEN 'unscheduled'
+               WHEN julianday(next_due_on) < julianday(date('now')) THEN 'overdue'
+               WHEN julianday(next_due_on) - julianday(date('now')) <= effective_lead_time_days
+                   THEN 'due_soon'
                ELSE 'ok'
            END AS status
 
-    FROM       maintenance_task t
-    LEFT JOIN  asset a ON a.id = t.asset_id
-    -- La maison provient soit de l'equipement, soit du rattachement direct.
-    LEFT JOIN  home  h ON h.id = COALESCE(a.home_id, t.home_id)
-    WHERE      t.is_active = 1;
+    FROM base;
 
 
 -- =============================================================================

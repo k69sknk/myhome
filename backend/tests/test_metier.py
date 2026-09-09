@@ -264,6 +264,20 @@ def test_historique_global_toutes_equipements_confondus(client: TestClient) -> N
     assert page[0]["asset_name"] == "Chaudiere"
 
 
+def test_entretien_mensuel_redevient_a_jour_apres_avoir_ete_fait(client: TestClient) -> None:
+    """Seuil 'due_soon' automatique (aucun seuil manuel defini) : sans repli
+    relatif a la frequence, un entretien mensuel resterait perpetuellement
+    'due_soon' juste apres avoir ete marque fait (seuil fixe = intervalle)."""
+    asset_id = client.post("/api/assets", json={"name": "Machine a laver"}).json()["id"]
+    task = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Detartrage", "recurrence_type": "months", "recurrence_interval": 1},
+    ).json()
+
+    completed = client.post(f"/api/tasks/{task['id']}/complete", json={}).json()
+    assert completed["status"] == "ok"
+
+
 def test_upload_document_type_refuse(client: TestClient) -> None:
     asset_id = client.post("/api/assets", json={"name": "VMC"}).json()["id"]
     task = client.post(

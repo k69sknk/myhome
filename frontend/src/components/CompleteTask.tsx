@@ -4,7 +4,7 @@ import { ApiError, api } from '../api/client'
 import type { Intervention, Task } from '../api/types'
 import { errorMessage, formatAmount, formatDate, todayIso } from '../lib/format'
 import Field from './Field'
-import { EditIcon, TrashIcon } from './icons'
+import { TrashIcon } from './icons'
 
 export default function CompleteTask({
   task,
@@ -36,19 +36,22 @@ export default function CompleteTask({
     if (open) dateInputRef.current?.focus()
   }, [open])
 
-  async function markToday() {
-    if (inflight.current) return
-    inflight.current = true
-    setBusy(true)
-    setError(null)
+  async function refreshHistory() {
+    setHistoryError(null)
     try {
-      await api.completeTask(task.id, { performed_on: todayIso() })
-      onCompleted()
+      setHistory(await api.taskInterventions(task.id))
     } catch (caught: unknown) {
-      setError(errorMessage(caught))
-    } finally {
-      inflight.current = false
-      setBusy(false)
+      setHistoryError(errorMessage(caught))
+    }
+  }
+
+  /** Invalide le cache d'historique ; le rafraichit tout de suite s'il est
+   * affiche, sinon laisse le prochain "Historique" le refaire. */
+  async function invalidateHistory() {
+    if (historyOpen) {
+      await refreshHistory()
+    } else {
+      setHistory(null)
     }
   }
 
@@ -80,7 +83,7 @@ export default function CompleteTask({
       setIsPro(false)
       setAmount('')
       if (fileInputRef.current) fileInputRef.current.value = ''
-      setHistory(null)
+      await invalidateHistory()
       onCompleted()
     } catch (caught: unknown) {
       setError(errorMessage(caught))
@@ -94,12 +97,7 @@ export default function CompleteTask({
     const next = !historyOpen
     setHistoryOpen(next)
     if (next && history === null) {
-      setHistoryError(null)
-      try {
-        setHistory(await api.taskInterventions(task.id))
-      } catch (caught: unknown) {
-        setHistoryError(errorMessage(caught))
-      }
+      await refreshHistory()
     }
   }
 
@@ -125,12 +123,12 @@ export default function CompleteTask({
     setDeletingIds((current) => new Set(current).add(interventionId))
     try {
       await api.deleteIntervention(interventionId)
-      setHistory(await api.taskInterventions(task.id))
+      await refreshHistory()
     } catch (caught: unknown) {
       if (caught instanceof ApiError && caught.status === 404) {
         // Deja supprimee (double-tap, ou liste pas encore rafraichie) : on
         // resynchronise l'affichage plutot que d'afficher une erreur trompeuse.
-        setHistory(await api.taskInterventions(task.id))
+        await refreshHistory()
       } else {
         setHistoryError(errorMessage(caught))
       }
@@ -146,23 +144,14 @@ export default function CompleteTask({
   return (
     <div className="complete">
       <div className="complete__actions">
-        <button type="button" className="btn btn--primary" disabled={busy} onClick={() => void markToday()}>
-          Fait
-        </button>
         <button
           type="button"
-          className={open ? 'btn btn--active' : 'btn btn--edit'}
+          className={open ? 'btn btn--active' : 'btn btn--primary'}
           disabled={busy}
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
         >
-          {open ? (
-            'Annuler'
-          ) : (
-            <>
-              <EditIcon /> Editer
-            </>
-          )}
+          {open ? 'Annuler' : 'Marquer comme fait'}
         </button>
         {(task.last_completed_on || historyOpen) && (
           <button
@@ -180,9 +169,7 @@ export default function CompleteTask({
       {error && <p className="status status--error">{error}</p>}
       {open && (
         <form className="complete__form" onSubmit={(event) => void submitDetails(event)}>
-          <p className="complete__form-hint">
-            Consigner une date de realisation differente, qui l'a fait, ou une note.
-          </p>
+          <p className="complete__form-hint">Qui l'a fait, quand, et une note si besoin.</p>
           <div className="complete__form-fields">
             <Field label="Date">
               <input
