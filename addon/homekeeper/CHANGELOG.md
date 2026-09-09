@@ -3,6 +3,26 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.8.0
+
+Deux correctifs et une coherence retrouvee autour de "marquer un entretien
+comme fait".
+
+- **Historique bloque sur "Chargement..."** : marquer un entretien fait ou
+  enregistrer une modification alors que son historique etait deja ouvert le
+  laissait bloque indefiniment sur "Chargement..." (rien ne relancait la
+  requete). Corrige : l'historique se rafraichit desormais immediatement.
+- **Badge "Bientot" qui ne bougeait jamais** sur les entretiens frequents
+  (mensuels, hebdomadaires) : le seuil de 30 jours coincidait avec leur
+  propre frequence, donc marquer fait ne changeait jamais rien a l'oeil. Le
+  seuil se resserre maintenant automatiquement selon la frequence de chaque
+  entretien ; le reglage de la maison (Parametres) sert desormais de plafond
+  ajustable, et peut resserrer davantage les entretiens moins frequents.
+- **"Fait" et "Editer" fusionnes** : un seul bouton "Marquer comme fait" qui
+  ouvre directement le formulaire (qui, quand, note) — dire qu'un entretien a
+  ete realise est une etape importante, elle ne doit pas se limiter a un
+  clic sans consequence.
+
 ## 0.7.1
 
 La fiche equipement gagne des onglets (Entretiens, Details, Documents) pour
