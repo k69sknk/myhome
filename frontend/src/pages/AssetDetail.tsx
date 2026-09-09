@@ -113,6 +113,7 @@ export default function AssetDetail() {
             setEditing(false)
           }}
           onError={setError}
+          onCategoryCreated={(category) => setCategories((current) => [...current, category])}
         />
       )}
 
@@ -186,12 +187,14 @@ function EditAsset({
   locations,
   onSaved,
   onError,
+  onCategoryCreated,
 }: {
   asset: Asset
   categories: Category[]
   locations: Location[]
   onSaved: (asset: Asset) => void
   onError: (message: string | null) => void
+  onCategoryCreated: (category: Category) => void
 }) {
   const [name, setName] = useState(asset.name)
   const [categoryId, setCategoryId] = useState(asset.category_id ? String(asset.category_id) : '')
@@ -232,7 +235,12 @@ function EditAsset({
         <input required value={name} onChange={(event) => setName(event.target.value)} />
       </Field>
       <Field label="Categorie">
-        <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
+        <CategorySelect
+          categories={categories}
+          value={categoryId}
+          onChange={setCategoryId}
+          onCreated={onCategoryCreated}
+        />
       </Field>
       <Field label="Lieu">
         <select value={locationId} onChange={(event) => setLocationId(event.target.value)}>

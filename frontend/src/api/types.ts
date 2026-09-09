@@ -109,6 +109,10 @@ export interface Category {
   sort_order: number
 }
 
+export interface CategoryIn {
+  name: string
+}
+
 export interface Warranty {
   start_date: string
   duration_months: number | null

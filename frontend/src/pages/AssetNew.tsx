@@ -169,7 +169,12 @@ export default function AssetNew() {
           <input required value={name} onChange={(event) => setName(event.target.value)} />
         </Field>
         <Field label="Categorie">
-          <CategorySelect categories={categories} value={categoryId} onChange={setCategoryId} />
+          <CategorySelect
+            categories={categories}
+            value={categoryId}
+            onChange={setCategoryId}
+            onCreated={(category) => setCategories((current) => [...current, category])}
+          />
         </Field>
         <Field label="Lieu">
           <select value={locationId} onChange={(event) => setLocationId(event.target.value)}>

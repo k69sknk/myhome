@@ -5,6 +5,7 @@ import type {
   AssetListItem,
   AssetPatch,
   Category,
+  CategoryIn,
   CompleteIn,
   HaDevice,
   HaLinkIn,
@@ -80,6 +81,8 @@ export const api = {
     request<Home>('homes/current', { method: 'PATCH', ...jsonBody(body) }),
 
   categories: () => request<Category[]>('categories'),
+  createCategory: (body: CategoryIn) =>
+    request<Category>('categories', { method: 'POST', ...jsonBody(body) }),
 
   locationTypes: () => request<LocationType[]>('location-types'),
   createLocationType: (body: LocationTypeIn) =>

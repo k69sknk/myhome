@@ -412,6 +412,53 @@ textarea {
   width: 100%;
 }
 
+.combobox {
+  position: relative;
+}
+
+.combobox__list {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  max-height: 14rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.25rem;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.combobox__list li + li {
+  margin-top: 0.1rem;
+}
+
+.combobox__option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.55rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.combobox__option:hover,
+.combobox__option:focus-visible {
+  background: color-mix(in srgb, var(--text) 6%, var(--surface));
+}
+
+.combobox__option--create {
+  color: var(--accent);
+}
+
 .tree {
   display: flex;
   flex-direction: column;
