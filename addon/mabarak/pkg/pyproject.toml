@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mabarak-api"
-version = "0.10.0"
+version = "0.10.1"
 description = "Backend de MaBarak — gestion et entretien de la maison, local-first"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -20,13 +20,13 @@ dependencies = [
     "pydantic-settings>=2.7",
     "websockets>=14",
     "python-multipart>=0.0.20",
+    "httpx>=0.28",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3",
     "pytest-cov>=6.0",
-    "httpx>=0.28",
     "ruff>=0.9",
     "mypy>=1.14",
 ]

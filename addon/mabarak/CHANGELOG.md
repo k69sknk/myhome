@@ -3,6 +3,14 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.10.1
+
+Correctif : `httpx` (utilisé par le nouvel accès REST à Home Assistant depuis
+la version 0.10.0) manquait des dépendances installées dans l'image de
+l'add-on — il n'était déclaré que comme dépendance de développement, jamais
+embarqué dans le conteneur. L'API ne démarrait plus (`ModuleNotFoundError:
+No module named 'httpx'`).
+
 ## 0.10.0
 
 - Mini-calendrier mensuel sur le tableau de bord : les entretiens à venir et
