@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { to: '/equipements', label: 'Equipements', end: false },
   { to: '/entretiens', label: 'Entretiens', end: false },
   { to: '/documents', label: 'Documents', end: false },
+  { to: '/parametres', label: 'Parametres', end: false },
 ]
 
 export default function Layout() {

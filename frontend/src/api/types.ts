@@ -29,7 +29,17 @@ export type RecurrenceType =
   | 'annual_fixed'
   | 'custom_date'
 
-export type LocationType = 'building' | 'floor' | 'room' | 'zone' | 'outdoor' | 'technical'
+export interface LocationType {
+  id: number
+  slug: string
+  name: string
+  is_builtin: boolean
+  sort_order: number
+}
+
+export interface LocationTypeIn {
+  name: string
+}
 
 export interface NextTask {
   id: number
@@ -73,7 +83,8 @@ export interface Location {
   id: number
   name: string
   parent_id: number | null
-  location_type: LocationType | string
+  location_type_id: number
+  location_type_name: string
   sort_order: number
   notes: string | null
   path: string
@@ -83,7 +94,7 @@ export interface Location {
 export interface LocationIn {
   name: string
   parent_id?: number | null
-  location_type?: LocationType
+  location_type_id?: number | null
   sort_order?: number
   notes?: string | null
 }

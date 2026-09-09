@@ -395,6 +395,11 @@ code {
   color: var(--text-muted);
 }
 
+.field__hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
 input,
 select,
 textarea {

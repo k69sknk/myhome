@@ -13,6 +13,8 @@ import type {
   Home,
   Location,
   LocationIn,
+  LocationType,
+  LocationTypeIn,
   Task,
   TaskIn,
 } from './types'
@@ -78,6 +80,14 @@ export const api = {
     request<Home>('homes/current', { method: 'PATCH', ...jsonBody(body) }),
 
   categories: () => request<Category[]>('categories'),
+
+  locationTypes: () => request<LocationType[]>('location-types'),
+  createLocationType: (body: LocationTypeIn) =>
+    request<LocationType>('location-types', { method: 'POST', ...jsonBody(body) }),
+  patchLocationType: (id: number, body: LocationTypeIn) =>
+    request<LocationType>(`location-types/${id}`, { method: 'PATCH', ...jsonBody(body) }),
+  deleteLocationType: (id: number) =>
+    request<{ ok: boolean }>(`location-types/${id}`, { method: 'DELETE' }),
 
   locations: () => request<Location[]>('locations'),
   createLocation: (body: LocationIn) =>
