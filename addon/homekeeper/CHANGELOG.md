@@ -3,6 +3,13 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.6.1
+
+Correctif : le selecteur d'equipement du formulaire "Ajouter un entretien"
+proposait de creer un equipement pourtant deja selectionne, des qu'il avait
+une categorie ou un lieu (la verification comparait le texte affiche a son
+nom seul, jamais au texte avec categorie/lieu).
+
 ## 0.6.0
 
 Preparation des entretiens : ne plus perdre l'info d'une echeance a l'autre,
