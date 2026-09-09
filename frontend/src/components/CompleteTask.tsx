@@ -1,8 +1,8 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 import { api } from '../api/client'
-import type { Task } from '../api/types'
-import { errorMessage, todayIso } from '../lib/format'
+import type { Intervention, Task } from '../api/types'
+import { errorMessage, formatAmount, formatDate, todayIso } from '../lib/format'
 import Field from './Field'
 
 export default function CompleteTask({
@@ -18,7 +18,19 @@ export default function CompleteTask({
   const [performedOn, setPerformedOn] = useState(todayIso())
   const [performedBy, setPerformedBy] = useState('')
   const [notes, setNotes] = useState('')
+  const [isPro, setIsPro] = useState(false)
+  const [amount, setAmount] = useState('')
   const inflight = useRef(false)
+  const dateInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [history, setHistory] = useState<Intervention[] | null>(null)
+  const [historyError, setHistoryError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (open) dateInputRef.current?.focus()
+  }, [open])
 
   async function markToday() {
     if (inflight.current) return
@@ -43,20 +55,47 @@ export default function CompleteTask({
     setBusy(true)
     setError(null)
     try {
-      await api.completeTask(task.id, {
+      const amountCents = isPro && amount.trim() ? Math.round(Number(amount) * 100) : null
+      const completed = await api.completeTask(task.id, {
         performed_on: performedOn,
         performed_by: performedBy.trim() || null,
         notes: notes.trim() || null,
+        amount_cents: amountCents,
       })
+      const file = fileInputRef.current?.files?.[0]
+      if (isPro && file && completed.last_intervention_id) {
+        try {
+          await api.uploadInterventionDocument(completed.last_intervention_id, file)
+        } catch (caught: unknown) {
+          setError(`Entretien enregistre, mais l'envoi du document a echoue : ${errorMessage(caught)}`)
+        }
+      }
       setOpen(false)
       setPerformedBy('')
       setNotes('')
+      setIsPro(false)
+      setAmount('')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      setHistory(null)
       onCompleted()
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     } finally {
       inflight.current = false
       setBusy(false)
+    }
+  }
+
+  async function toggleHistory() {
+    const next = !historyOpen
+    setHistoryOpen(next)
+    if (next && history === null) {
+      setHistoryError(null)
+      try {
+        setHistory(await api.taskInterventions(task.id))
+      } catch (caught: unknown) {
+        setHistoryError(errorMessage(caught))
+      }
     }
   }
 
@@ -68,43 +107,122 @@ export default function CompleteTask({
         </button>
         <button
           type="button"
-          className="btn"
+          className={open ? 'btn btn--active' : 'btn'}
           disabled={busy}
+          aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
         >
-          Preciser
+          {open ? 'Annuler' : 'Editer'}
         </button>
+        {(task.last_completed_on || historyOpen) && (
+          <button
+            type="button"
+            className={historyOpen ? 'btn btn--small btn--active' : 'btn btn--small'}
+            onClick={() => void toggleHistory()}
+          >
+            {historyOpen ? 'Masquer l\'historique' : 'Historique'}
+          </button>
+        )}
       </div>
       {error && <p className="status status--error">{error}</p>}
       {open && (
         <form className="complete__form" onSubmit={(event) => void submitDetails(event)}>
-          <Field label="Date">
+          <p className="complete__form-hint">
+            Consigner une date de realisation differente, qui l'a fait, ou une note.
+          </p>
+          <div className="complete__form-fields">
+            <Field label="Date">
+              <input
+                ref={dateInputRef}
+                type="date"
+                required
+                value={performedOn}
+                onChange={(event) => setPerformedOn(event.target.value)}
+              />
+            </Field>
+            <Field label={isPro ? 'Entreprise' : 'Qui (facultatif)'}>
+              <input
+                type="text"
+                value={performedBy}
+                onChange={(event) => setPerformedBy(event.target.value)}
+                placeholder={isPro ? 'Dupont Chauffage...' : 'Vous, un pro...'}
+              />
+            </Field>
+            <Field label="Note (facultatif)">
+              <input
+                type="text"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+              />
+            </Field>
+          </div>
+          <label className="complete__checkbox">
             <input
-              type="date"
-              required
-              value={performedOn}
-              onChange={(event) => setPerformedOn(event.target.value)}
+              type="checkbox"
+              checked={isPro}
+              onChange={(event) => setIsPro(event.target.checked)}
             />
-          </Field>
-          <Field label="Qui (facultatif)">
-            <input
-              type="text"
-              value={performedBy}
-              onChange={(event) => setPerformedBy(event.target.value)}
-              placeholder="Vous, un pro..."
-            />
-          </Field>
-          <Field label="Note (facultatif)">
-            <input
-              type="text"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-            />
-          </Field>
-          <button type="submit" className="btn btn--primary" disabled={busy}>
-            Enregistrer
-          </button>
+            Entretien realise par un pro
+          </label>
+          {isPro && (
+            <div className="complete__form-fields">
+              <Field label="Montant (facultatif)">
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  placeholder="0,00"
+                />
+              </Field>
+              <Field label="Facture / document (facultatif)">
+                <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx" />
+              </Field>
+            </div>
+          )}
+          <div className="complete__form-actions">
+            <button type="submit" className="btn btn--primary" disabled={busy}>
+              Enregistrer
+            </button>
+          </div>
         </form>
+      )}
+      {historyOpen && (
+        <div className="complete__history">
+          {historyError && <p className="status status--error">{historyError}</p>}
+          {history === null && !historyError && <p className="muted">Chargement...</p>}
+          {history !== null && history.length === 0 && (
+            <p className="muted">Aucun entretien enregistre pour l'instant.</p>
+          )}
+          {history !== null && history.length > 0 && (
+            <ul className="complete__history-list">
+              {history.map((entry) => (
+                <li key={entry.id}>
+                  <strong>{formatDate(entry.performed_on)}</strong>
+                  {entry.performed_by && <span> · {entry.performed_by}</span>}
+                  {entry.cost && <span> · {formatAmount(entry.cost.amount_cents, entry.cost.currency)}</span>}
+                  {entry.notes && <p className="muted">{entry.notes}</p>}
+                  {entry.documents.length > 0 && (
+                    <p>
+                      {entry.documents.map((document) => (
+                        <a
+                          key={document.id}
+                          href={api.documentFileUrl(document.id)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="complete__history-doc"
+                        >
+                          {document.name}
+                        </a>
+                      ))}
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   )

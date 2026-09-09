@@ -74,6 +74,10 @@ export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Erreur inattendue'
 }
 
+export function formatAmount(cents: number, currency: string): string {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(cents / 100)
+}
+
 /** Categories d'appareils seulement : le batiment reste hors UI (fiche construction plus tard). */
 export function equipmentCategories(all: Category[]): Category[] {
   const structure = all.find((row) => row.slug === 'structure')

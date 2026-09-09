@@ -285,6 +285,11 @@ code {
   background: color-mix(in srgb, var(--accent) 85%, #000);
 }
 
+.btn--active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .btn--small {
   padding: 0.2rem 0.55rem;
   font-size: 0.8rem;
@@ -510,10 +515,74 @@ textarea {
 }
 
 .complete__form {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.6rem;
   margin-top: 0.75rem;
-  min-width: 14rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+  min-width: 18rem;
+  max-width: 100%;
+}
+
+.complete__form-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.complete__form-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.6rem;
+}
+
+.complete__form-actions {
+  display: flex;
+}
+
+.complete__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.complete__checkbox input {
+  width: auto;
+}
+
+.complete__history {
+  margin-top: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.complete__history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.complete__history-list li + li {
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+.complete__history-list p {
+  margin: 0.2rem 0 0;
+}
+
+.complete__history-doc {
+  color: var(--accent);
+  margin-right: 0.6rem;
 }
 
 .card__subtitle {

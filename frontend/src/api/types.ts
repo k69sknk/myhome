@@ -168,6 +168,32 @@ export interface Task {
   recurrence_interval: number | null
   fixed_month: number | null
   fixed_day: number | null
+  last_intervention_id: number | null
+}
+
+export interface DocumentMeta {
+  id: number
+  name: string
+  doc_type: string
+  file_size: number | null
+  mime_type: string | null
+  created_at: string
+}
+
+export interface Cost {
+  id: number
+  amount_cents: number
+  currency: string
+  incurred_on: string
+}
+
+export interface Intervention {
+  id: number
+  performed_on: string
+  performed_by: string | null
+  notes: string | null
+  cost: Cost | null
+  documents: DocumentMeta[]
 }
 
 export interface TaskIn {
@@ -183,6 +209,7 @@ export interface CompleteIn {
   performed_on?: string | null
   performed_by?: string | null
   notes?: string | null
+  amount_cents?: number | null
 }
 
 export interface AssetListItem {

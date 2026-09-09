@@ -7,11 +7,13 @@ import type {
   Category,
   CategoryIn,
   CompleteIn,
+  DocumentMeta,
   HaDevice,
   HaLinkIn,
   HaSummary,
   HealthResponse,
   Home,
+  Intervention,
   Location,
   LocationIn,
   LocationType,
@@ -110,6 +112,17 @@ export const api = {
   tasks: () => request<Task[]>('tasks'),
   completeTask: (taskId: number, body: CompleteIn) =>
     request<Task>(`tasks/${taskId}/complete`, { method: 'POST', ...jsonBody(body) }),
+  taskInterventions: (taskId: number) =>
+    request<Intervention[]>(`tasks/${taskId}/interventions`),
+  uploadInterventionDocument: async (interventionId: number, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<DocumentMeta>(`interventions/${interventionId}/documents`, {
+      method: 'POST',
+      body: form,
+    })
+  },
+  documentFileUrl: (documentId: number) => apiUrl(`documents/${documentId}/file`),
 
   haDevices: () => request<HaDevice[]>('ha/devices'),
   putHaLink: (assetId: number, body: HaLinkIn) =>
