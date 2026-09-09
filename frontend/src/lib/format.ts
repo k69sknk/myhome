@@ -34,6 +34,17 @@ export function monthName(month: number): string {
   return MONTHS[month - 1] ?? String(month)
 }
 
+export function docTypeLabel(docType: string): string {
+  switch (docType) {
+    case 'manual':
+      return 'Manuel'
+    case 'invoice':
+      return 'Facture'
+    default:
+      return 'Autre'
+  }
+}
+
 export function statusLabel(status: TaskStatus): string {
   switch (status) {
     case 'overdue':

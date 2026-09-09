@@ -336,6 +336,22 @@ def test_manuel_equipement_upload_liste_et_suppression(client: TestClient) -> No
     assert client.get(f"/api/documents/{document['id']}/file").status_code == 404
 
 
+def test_facture_equipement_upload_et_liee_a_la_garantie(client: TestClient) -> None:
+    asset_id = client.post("/api/assets", json={"name": "Chaudiere"}).json()["id"]
+
+    uploaded = client.post(
+        f"/api/assets/{asset_id}/documents",
+        data={"doc_type": "invoice"},
+        files={"file": ("facture.pdf", BytesIO(b"%PDF-1.4 facture"), "application/pdf")},
+    )
+    assert uploaded.status_code == 201
+    document = uploaded.json()
+    assert document["doc_type"] == "invoice"
+
+    documents = client.get(f"/api/assets/{asset_id}/documents").json()
+    assert [row["id"] for row in documents] == [document["id"]]
+
+
 def test_upload_document_equipement_type_refuse(client: TestClient) -> None:
     asset_id = client.post("/api/assets", json={"name": "VMC"}).json()["id"]
     response = client.post(

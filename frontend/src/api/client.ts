@@ -132,7 +132,7 @@ export const api = {
   uploadAssetDocument: async (
     assetId: number,
     file: File,
-    docType: 'manual' | 'other' | 'photo' = 'manual',
+    docType: 'manual' | 'invoice' | 'other' | 'photo' = 'manual',
   ) => {
     const form = new FormData()
     form.append('file', file)

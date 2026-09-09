@@ -12,6 +12,7 @@ import TaskForm from '../components/TaskForm'
 import TaskPrepInfo from '../components/TaskPrepInfo'
 import { categoryIcon } from '../lib/categoryIcon'
 import {
+  docTypeLabel,
   emptyToNull,
   equipmentCategories,
   errorMessage,
@@ -101,6 +102,8 @@ export default function AssetDetail() {
       </section>
     )
   }
+
+  const invoiceDocument = documents.find((document) => document.doc_type === 'invoice')
 
   return (
     <section className="page">
@@ -205,6 +208,14 @@ export default function AssetDetail() {
               ? `${formatDate(asset.warranty.start_date)} → ${formatDate(asset.warranty.end_date)}`
               : '—'}{' '}
             <WarrantyBadge endDate={asset.warranty?.end_date} />
+            {invoiceDocument && (
+              <>
+                {' · '}
+                <a href={api.documentFileUrl(invoiceDocument.id)} target="_blank" rel="noreferrer">
+                  Facture
+                </a>
+              </>
+            )}
           </dd>
           <dt>Notes</dt>
           <dd>{asset.notes || '—'}</dd>
@@ -323,7 +334,7 @@ function AssetDocuments({
   onChanged: () => void
   onError: (message: string | null) => void
 }) {
-  const [docType, setDocType] = useState<'manual' | 'other'>('manual')
+  const [docType, setDocType] = useState<'manual' | 'invoice' | 'other'>('manual')
   const [busy, setBusy] = useState(false)
 
   async function upload(file: File) {
@@ -355,7 +366,7 @@ function AssetDocuments({
   return (
     <div className="card">
       <h2 className="card__title">Documents</h2>
-      <p className="muted">Manuel d'utilisation, notice, ou tout autre document utile.</p>
+      <p className="muted">Manuel d'utilisation, facture d'achat, ou tout autre document utile.</p>
       {documents.length === 0 ? (
         <p className="muted">Aucun document pour l'instant.</p>
       ) : (
@@ -366,7 +377,7 @@ function AssetDocuments({
                 <a href={api.documentFileUrl(document.id)} target="_blank" rel="noreferrer">
                   <strong>{document.name}</strong>
                 </a>
-                <p className="muted">{document.doc_type === 'manual' ? 'Manuel' : 'Autre'}</p>
+                <p className="muted">{docTypeLabel(document.doc_type)}</p>
               </div>
               <button
                 type="button"
@@ -382,8 +393,12 @@ function AssetDocuments({
       )}
       <h3 className="card__subtitle">Ajouter un document</h3>
       <div className="form form--inline">
-        <select value={docType} onChange={(event) => setDocType(event.target.value as 'manual' | 'other')}>
+        <select
+          value={docType}
+          onChange={(event) => setDocType(event.target.value as 'manual' | 'invoice' | 'other')}
+        >
           <option value="manual">Manuel d'utilisation</option>
+          <option value="invoice">Facture d'achat</option>
           <option value="other">Autre</option>
         </select>
         <input
