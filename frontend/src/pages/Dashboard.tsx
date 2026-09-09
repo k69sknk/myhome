@@ -138,7 +138,7 @@ function Ready({ summary, health }: { summary: HaSummary; health: HealthResponse
       )}
 
       <p className="muted page__meta">
-        HomeKeeper {health.version} · contrat HA v{health.api_schema_version}
+        MaBarak {health.version} · contrat HA v{health.api_schema_version}
       </p>
     </>
   )

@@ -1,4 +1,4 @@
-# Frontend HomeKeeper
+# Frontend MaBarak
 
 Interface web de l'add-on, affichée dans le panneau latéral de Home Assistant. React 19,
 TypeScript, Vite, React Router.
@@ -31,7 +31,7 @@ Trois mécanismes le résolvent ensemble, et ils doivent rester cohérents :
 
 1. `vite.config.ts` fixe `base: './'`, donc tous les assets sont référencés relativement. **Une
    seule URL absolue commençant par `/` suffit à tout casser.**
-2. `index.html` contient `<base href="__HOMEKEEPER_BASE__">`. Le backend remplace ce marqueur
+2. `index.html` contient `<base href="__MABARAK_BASE__">`. Le backend remplace ce marqueur
    par l'en-tête `X-Ingress-Path` à chaque requête. Les URL relatives se résolvent alors contre
    le bon préfixe, y compris quand l'utilisateur recharge une route profonde comme
    `/equipements/7`.
@@ -41,8 +41,8 @@ Trois mécanismes le résolvent ensemble, et ils doivent rester cohérents :
 En développement, un plugin Vite remplace le marqueur par `/`, puisque Vite sert `index.html`
 sans passer par le backend.
 
-Le marqueur `__HOMEKEEPER_BASE__` est dupliqué dans trois fichiers : `index.html`,
-`vite.config.ts` et `backend/src/homekeeper_api/ingress.py`. Le modifier impose de le changer
+Le marqueur `__MABARAK_BASE__` est dupliqué dans trois fichiers : `index.html`,
+`vite.config.ts` et `backend/src/mabarak_api/ingress.py`. Le modifier impose de le changer
 partout. Le test `test_index_injecte_le_chemin_ingress` côté backend échouera si la chaîne se
 rompt.
 

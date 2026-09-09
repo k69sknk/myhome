@@ -7,7 +7,7 @@ une base vide : le contenu metier est couvert dans `test_metier.py`.
 
 from fastapi.testclient import TestClient
 
-from homekeeper_api.config import API_SCHEMA_VERSION
+from mabarak_api.config import API_SCHEMA_VERSION
 
 
 def test_summary_expose_la_version_du_contrat(client: TestClient) -> None:

@@ -4,8 +4,8 @@ from alembic import command
 from alembic.script import ScriptDirectory
 from sqlalchemy import Engine, inspect, text
 
-from homekeeper_api.db import create_db_engine
-from homekeeper_api.migrate import alembic_config, upgrade_to_head
+from mabarak_api.db import create_db_engine
+from mabarak_api.migrate import alembic_config, upgrade_to_head
 
 
 def test_premiere_migration_cree_tables_vues_et_categories(settings) -> None:

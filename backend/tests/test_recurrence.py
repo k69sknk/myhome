@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from homekeeper_api.services.recurrence import Recurrence, compute_next_due, initial_next_due
+from mabarak_api.services.recurrence import Recurrence, compute_next_due, initial_next_due
 
 
 def test_from_completion_decale_depuis_la_date_reelle() -> None:

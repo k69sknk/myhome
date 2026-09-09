@@ -1,0 +1,23 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Prepare /data et applique les migrations avant tout demarrage de service.
+# S'execute une fois, avant mabarak-api (dependance s6).
+# ==============================================================================
+set -e
+
+bashio::log.info "Preparation de MaBarak..."
+
+# /data est le seul repertoire persistant de l'add-on, et le seul inclus dans
+# les sauvegardes Home Assistant.
+mkdir -p /data/documents
+
+# Les migrations Alembic sont jouees a chaque demarrage : c'est ce qui rend une
+# mise a jour de l'add-on sure, y compris apres plusieurs versions sautees.
+bashio::log.info "Application des migrations de base de donnees..."
+if ! /opt/venv/bin/mabarak-migrate; then
+    bashio::log.fatal "Echec des migrations. L'add-on ne demarrera pas afin de"
+    bashio::log.fatal "ne pas travailler sur une base incoherente."
+    bashio::exit.nok
+fi
+
+bashio::log.info "MaBarak est pret."

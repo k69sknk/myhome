@@ -2,7 +2,7 @@
 
 - Date : 2026-09-08
 - Statut : Approuvé, implémenté en 0.2.0
-- Produit : HomeKeeper
+- Produit : MaBarak
 
 ## Objectif
 
@@ -30,6 +30,6 @@ ranger les lieux, lier optionnellement un appareil Home Assistant.
 ## Mise à jour d’une installation existante
 
 L’add-on 0.1.0 n’a pas encore de tables métier. Au passage en 0.2.0, le
-démarrage joue `homekeeper-migrate` sur `/data` : le volume persistant n’est
+démarrage joue `mabarak-migrate` sur `/data` : le volume persistant n’est
 pas effacé, le schéma est créé. Reconstruire l’add-on depuis le dépôt, puis
 mettre à jour l’intégration HACS à la même version.

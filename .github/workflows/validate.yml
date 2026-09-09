@@ -39,4 +39,4 @@ jobs:
       # Anciennement frenck/action-addon-linter, renomme depuis.
       - uses: frenck/action-app-linter@v2.21.1
         with:
-          path: ./addon/homekeeper
+          path: ./addon/mabarak

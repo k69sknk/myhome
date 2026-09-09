@@ -1,4 +1,4 @@
-# Modèle de données — HomeKeeper
+# Modèle de données — MaBarak
 
 Ce document décrit le modèle de données de l'application. Le schéma SQL exécutable et commenté
 est dans [schema.sql](schema.sql), qui fait référence. Les décisions structurantes sont

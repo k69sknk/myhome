@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from homekeeper_api.config import Settings
-from homekeeper_api.main import create_app
+from mabarak_api.config import Settings
+from mabarak_api.main import create_app
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def client_avec_frontend(settings: Settings) -> Iterator[TestClient]:
     """Client avec une coquille HTML minimale, comme apres un build Vite."""
     settings.frontend_dir.mkdir(parents=True, exist_ok=True)
     (settings.frontend_dir / "index.html").write_text(
-        '<!doctype html><html><head><base href="__HOMEKEEPER_BASE__">'
+        '<!doctype html><html><head><base href="__MABARAK_BASE__">'
         '</head><body><div id="root"></div></body></html>',
         encoding="utf-8",
     )

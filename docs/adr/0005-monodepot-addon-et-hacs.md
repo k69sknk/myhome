@@ -25,7 +25,7 @@ entités. Toute évolution de ce contrat concerne les deux.
 
 ### Option A — Deux dépôts
 
-`homekeeper-addon` et `homekeeper-integration`, chacun avec sa racine propre, ses issues, sa CI
+`mabarak-addon` et `mabarak-integration`, chacun avec sa racine propre, ses issues, sa CI
 et son versionnement.
 
 Le découplage est net, mais le couplage réel du code ne disparaît pas pour autant : il devient
@@ -37,8 +37,8 @@ c'est du coût de coordination sans bénéfice.
 
 ### Option B — Un monodépôt
 
-Un seul dépôt contenant `repository.yaml`, `hacs.json`, `addon/homekeeper/`, `backend/`,
-`frontend/` et `custom_components/homekeeper/`.
+Un seul dépôt contenant `repository.yaml`, `hacs.json`, `addon/mabarak/`, `backend/`,
+`frontend/` et `custom_components/mabarak/`.
 
 ### Option C — Un monodépôt de développement plus deux dépôts de publication
 

@@ -9,7 +9,7 @@
  * Voir docs/ARCHITECTURE.md section 4.
  */
 
-const BASE_PLACEHOLDER = '__HOMEKEEPER_BASE__'
+const BASE_PLACEHOLDER = '__MABARAK_BASE__'
 const INGRESS_PATTERN = /^(\/api\/hassio_ingress\/[^/]+)/
 
 function ensureTrailingSlash(path: string): string {

@@ -48,7 +48,7 @@ jobs:
 
       # Le contexte de build est le repertoire de l'add-on : le backend et le
       # frontend doivent y etre stages au prealable
-      # (voir addon/homekeeper/Dockerfile).
+      # (voir addon/mabarak/Dockerfile).
       - name: Preparer les artefacts
         run: ./scripts/stage-addon.sh
 
@@ -64,7 +64,7 @@ jobs:
       - name: Construire l'image
         uses: docker/build-push-action@v6
         with:
-          context: ./addon/homekeeper
+          context: ./addon/mabarak
           platforms: ${{ matrix.platform }}
           push: false
           build-args: |

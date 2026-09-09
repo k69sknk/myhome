@@ -126,6 +126,6 @@ jobs:
       - name: Verifier la presence du marqueur de chemin de base
         working-directory: frontend
         run: |
-          grep -q '__HOMEKEEPER_BASE__' dist/index.html \
-            || { echo "ECHEC: marqueur __HOMEKEEPER_BASE__ absent du build."; exit 1; }
+          grep -q '__MABARAK_BASE__' dist/index.html \
+            || { echo "ECHEC: marqueur __MABARAK_BASE__ absent du build."; exit 1; }
           echo "OK: le backend pourra injecter le chemin d'ingress."

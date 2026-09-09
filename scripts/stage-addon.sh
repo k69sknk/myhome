@@ -5,8 +5,8 @@
 # Le builder Home Assistant utilise le repertoire de l'add-on comme contexte de
 # build : le Dockerfile ne peut donc pas atteindre ../../backend ni
 # ../../frontend. Ce script copie ce qu'il faut dans :
-#     addon/homekeeper/pkg/   <- source du paquet Python
-#     addon/homekeeper/www/   <- build Vite du frontend
+#     addon/mabarak/pkg/   <- source du paquet Python
+#     addon/mabarak/www/   <- build Vite du frontend
 #
 # Ces deux repertoires SONT versionnes : le Supervisor construit l'image a
 # partir du seul dossier de l'add-on, sans executer ce script. Sans eux,
@@ -17,7 +17,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ADDON_DIR="${REPO_ROOT}/addon/homekeeper"
+ADDON_DIR="${REPO_ROOT}/addon/mabarak"
 PKG_DIR="${ADDON_DIR}/pkg"
 WWW_DIR="${ADDON_DIR}/www"
 

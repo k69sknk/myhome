@@ -6,8 +6,8 @@ d'erreur la plus frequente sur les add-ons Home Assistant.
 
 from fastapi.testclient import TestClient
 
-from homekeeper_api.config import API_SCHEMA_VERSION
-from homekeeper_api.ingress import INGRESS_HEADER, resolve_base_path
+from mabarak_api.config import API_SCHEMA_VERSION
+from mabarak_api.ingress import INGRESS_HEADER, resolve_base_path
 
 
 def test_health_repond_ok(client: TestClient) -> None:
@@ -16,7 +16,7 @@ def test_health_repond_ok(client: TestClient) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "ok"
-    assert payload["app"] == "HomeKeeper"
+    assert payload["app"] == "MaBarak"
     # L'integration s'appuie sur ce champ pour detecter un add-on incompatible.
     assert payload["api_schema_version"] == API_SCHEMA_VERSION
 
@@ -56,7 +56,7 @@ def test_index_injecte_le_chemin_ingress(client_avec_frontend: TestClient) -> No
 
     assert response.status_code == 200
     assert "/api/hassio_ingress/tok3n/" in response.text
-    assert "__HOMEKEEPER_BASE__" not in response.text
+    assert "__MABARAK_BASE__" not in response.text
     # La coquille porte un chemin d'ingress qui change a chaque instance.
     assert response.headers["cache-control"] == "no-store"
 

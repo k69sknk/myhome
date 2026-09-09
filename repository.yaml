@@ -5,6 +5,6 @@
 # Le meme depot sert aussi de depot d'integration HACS via hacs.json : les deux
 # mecanismes coexistent sans conflit (docs/adr/0005-monodepot-addon-et-hacs.md).
 
-name: HomeKeeper
+name: MaBarak
 url: https://github.com/k69sknk/myhome
 maintainer: k69sknk <https://github.com/k69sknk>

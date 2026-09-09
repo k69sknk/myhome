@@ -1,0 +1,35 @@
+#!/command/with-contenv bashio
+# ==============================================================================
+# Backend FastAPI, servi par uvicorn.
+#
+# Ecoute sur 127.0.0.1 uniquement : le seul point d'entree du conteneur est
+# nginx, qui filtre les adresses IP. Exposer uvicorn sur 0.0.0.0 contournerait
+# ce filtrage.
+# ==============================================================================
+
+declare log_level
+declare uvicorn_log_level
+
+log_level=$(bashio::config 'log_level' 'info')
+
+# Les niveaux de bashio ne correspondent pas tous a ceux d'uvicorn.
+case "${log_level}" in
+    trace|debug)       uvicorn_log_level="debug" ;;
+    info|notice)       uvicorn_log_level="info" ;;
+    warning)           uvicorn_log_level="warning" ;;
+    error)             uvicorn_log_level="error" ;;
+    fatal)             uvicorn_log_level="critical" ;;
+    *)                 uvicorn_log_level="info" ;;
+esac
+
+bashio::log.info "Demarrage de l'API MaBarak (niveau: ${uvicorn_log_level})..."
+
+export MABARAK_LOG_LEVEL="${log_level}"
+
+exec /opt/venv/bin/uvicorn mabarak_api.main:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --log-level "${uvicorn_log_level}" \
+    --no-access-log \
+    --proxy-headers \
+    --forwarded-allow-ips '127.0.0.1'

@@ -1,4 +1,4 @@
-# HomeKeeper
+# MaBarak
 
 Application locale de gestion et d'entretien de la maison, pour Home Assistant.
 
@@ -22,9 +22,9 @@ d'add-ons Home Assistant** et un **dépôt d'intégration HACS**, et les deux ar
 publient ensemble.
 
 - `repository.yaml` déclare le dépôt d'add-ons. Home Assistant y trouve l'add-on dans
-  [`addon/homekeeper/`](addon/homekeeper/).
+  [`addon/mabarak/`](addon/mabarak/).
 - `hacs.json` déclare le dépôt d'intégration. HACS y trouve l'intégration dans
-  [`custom_components/homekeeper/`](custom_components/homekeeper/).
+  [`custom_components/mabarak/`](custom_components/mabarak/).
 
 Les deux mécanismes coexistent sans conflit. Le raisonnement, et la contrainte qui en découle
 sur le versionnement, sont dans
@@ -33,10 +33,10 @@ sur le versionnement, sont dans
 ```mermaid
 flowchart LR
     subgraph repo [Depot]
-        addon["addon/homekeeper<br/>add-on"]
+        addon["addon/mabarak<br/>add-on"]
         backend["backend<br/>FastAPI + SQLite"]
         frontend["frontend<br/>React + Vite"]
-        integ["custom_components/homekeeper<br/>integration HACS"]
+        integ["custom_components/mabarak<br/>integration HACS"]
     end
     backend --> addon
     frontend --> addon
@@ -54,18 +54,18 @@ utilisables dans les automatisations et les notifications.
   - [`DATA_MODEL.md`](docs/DATA_MODEL.md) — modèle de données commenté
   - [`schema.sql`](docs/schema.sql) — schéma SQL exécutable, qui fait référence
   - [`adr/`](docs/adr/) — décisions structurantes et options écartées
-- [`addon/homekeeper/`](addon/homekeeper/) — configuration de l'add-on, Dockerfile, services
+- [`addon/mabarak/`](addon/mabarak/) — configuration de l'add-on, Dockerfile, services
   s6-overlay, nginx
 - [`backend/`](backend/) — API FastAPI, SQLite, migrations Alembic
 - [`frontend/`](frontend/) — interface React servie dans le panneau latéral
-- [`custom_components/homekeeper/`](custom_components/homekeeper/) — intégration Home Assistant
+- [`custom_components/mabarak/`](custom_components/mabarak/) — intégration Home Assistant
 - [`scripts/stage-addon.sh`](scripts/stage-addon.sh) — prépare les artefacts pour le build de
   l'add-on
 
 ## Installation
 
-Voir [la documentation de l'add-on](addon/homekeeper/DOCS.md). En résumé : ajoutez
-`https://github.com/k69sknk/myhome` comme dépôt d'add-ons, installez HomeKeeper, démarrez-le,
+Voir [la documentation de l'add-on](addon/mabarak/DOCS.md). En résumé : ajoutez
+`https://github.com/k69sknk/myhome` comme dépôt d'add-ons, installez MaBarak, démarrez-le,
 puis ajoutez l'intégration via HACS depuis le même dépôt.
 
 ## Développement
@@ -85,7 +85,7 @@ puis ajoutez l'intégration via HACS depuis le même dépôt.
 cd backend
 python3.13 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-HOMEKEEPER_DATA_DIR=./.data uvicorn homekeeper_api.main:app --reload --port 8000
+MABARAK_DATA_DIR=./.data uvicorn mabarak_api.main:app --reload --port 8000
 
 # Frontend, sur le port 5173, qui relaie /api vers le backend
 cd frontend
@@ -102,10 +102,10 @@ Le builder Home Assistant utilise le répertoire de l'add-on comme contexte de b
 donc pas atteindre `backend/` ni `frontend/`. Les artefacts sont stagés au préalable :
 
 ```bash
-./scripts/stage-addon.sh   # regenerer addon/homekeeper/pkg et www, puis les committer
-docker build -t homekeeper:dev \
+./scripts/stage-addon.sh   # regenerer addon/mabarak/pkg et www, puis les committer
+docker build -t mabarak:dev \
   --build-arg BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:trixie \
-  addon/homekeeper
+  addon/mabarak
 ```
 
 ### Vérifications
@@ -126,7 +126,7 @@ instance et à chaque redémarrage. C'est la cause de la quasi-totalité des add
 affichent une page blanche.
 
 Trois mécanismes le résolvent ensemble et doivent rester cohérents : `base: './'` dans
-`vite.config.ts`, la balise `<base href="__HOMEKEEPER_BASE__">` dans `index.html` que le backend
+`vite.config.ts`, la balise `<base href="__MABARAK_BASE__">` dans `index.html` que le backend
 remplace à partir de l'en-tête `X-Ingress-Path`, et `src/base-path.ts` qui en déduit le
 `basename` du routeur. Le marqueur est dupliqué dans ces trois fichiers ; la CI et les tests du
 backend échouent si la chaîne se rompt.
@@ -135,8 +135,8 @@ Détails dans [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), section 4.
 
 ## Nom du produit
 
-`HomeKeeper` est le nom retenu pour l'instant. Les points de renommage restent listés dans
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Le `DOMAIN` de l'intégration (`homekeeper`)
+`MaBarak` est le nom retenu pour l'instant. Les points de renommage restent listés dans
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Le `DOMAIN` de l'intégration (`mabarak`)
 ne pourra plus changer après la première publication sans casser les installations existantes.
 
 ## Licence

@@ -13,7 +13,7 @@ depuis l'area Home Assistant.
 ## Décision
 
 La V1 écrit et lit `ha_link` pour un lien `device` (ou `entity`) de rôle
-`primary`. Les lieux HomeKeeper restent la source de vérité. L'usure
+`primary`. Les lieux MaBarak restent la source de vérité. L'usure
 (`role = consumable`) reste V4.
 
 ## Conséquences

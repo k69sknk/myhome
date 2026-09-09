@@ -13,7 +13,7 @@ export default function Layout() {
   return (
     <div className="app">
       <header className="app__header">
-        <span className="app__brand">HomeKeeper</span>
+        <span className="app__brand">MaBarak</span>
         <nav className="app__nav">
           {NAV_ITEMS.map(({ to, label, end }) => (
             <NavLink

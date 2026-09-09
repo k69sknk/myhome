@@ -1,4 +1,4 @@
-# ADR-0006 — Lier les fiches HomeKeeper aux appareils Home Assistant
+# ADR-0006 — Lier les fiches MaBarak aux appareils Home Assistant
 
 - Statut : Accepté
 - Date : 2026-09-08
@@ -8,7 +8,7 @@
 
 Quand un équipement existe déjà dans Home Assistant — robot aspirateur Roborock, pompe à chaleur
 connectée, VMC pilotée, onduleur solaire — l'utilisateur doit pouvoir relier sa fiche
-HomeKeeper à cet appareil. L'exemple qui a déclenché cette décision est l'aspirateur robot :
+MaBarak à cet appareil. L'exemple qui a déclenché cette décision est l'aspirateur robot :
 l'intégration officielle Roborock n'expose pas une seule entité, mais un **appareil** qui porte
 une vingtaine d'entités, dont plusieurs sont directement utiles à l'entretien :
 
@@ -43,7 +43,7 @@ Faits vérifiés, pas supposés :
   autour de `config/entity_registry/list`.
 - Si l'intégration source est supprimée, les entrées de registre deviennent orphelines puis
   peuvent disparaître. Un nouvel appairage produit de nouveaux identifiants de registre. Le
-  lien HomeKeeper ne peut donc pas « se réparer tout seul » : il doit se marquer comme
+  lien MaBarak ne peut donc pas « se réparer tout seul » : il doit se marquer comme
   invalide, avec un libellé encore lisible.
 
 ## Options envisagées
@@ -75,7 +75,7 @@ libellé figé au moment de la liaison, et un horodatage de dernière résolutio
 **Option C.**
 
 Le sens de l'accès pour cette exigence est **add-on vers Home Assistant**. L'intégration
-continue de projeter les compteurs HomeKeeper vers le cœur ; elle ne devient pas le lieu où
+continue de projeter les compteurs MaBarak vers le cœur ; elle ne devient pas le lieu où
 l'on relie une fiche à un robot. Les deux directions coexistent, elles ne se remplacent pas.
 
 La cible primaire du lien est l'**appareil** (`device` du registre). Les entités utiles
@@ -136,7 +136,7 @@ Négatives, et comment elles sont traitées :
 
 ## Modification hors schéma, à appliquer sur l'add-on
 
-Dans `addon/homekeeper/config.yaml`, ajouter :
+Dans `addon/mabarak/config.yaml`, ajouter :
 
 ```yaml
 homeassistant_api: true

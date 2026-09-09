@@ -1,4 +1,4 @@
-# Architecture — HomeKeeper
+# Architecture — MaBarak
 
 > Application locale de gestion et d'entretien de la maison, pensée pour Home Assistant.
 >
@@ -6,7 +6,7 @@
 > [DATA_MODEL.md](DATA_MODEL.md), et les décisions structurantes sont justifiées une par une
 > dans [adr/](adr/).
 
-`HomeKeeper` est le nom retenu pour l'instant ; il est centralisé
+`MaBarak` est le nom retenu pour l'instant ; il est centralisé
 dans une constante unique par composant (voir [Renommage du produit](#renommage-du-produit)).
 
 ## 1. Objectif et contraintes
@@ -44,7 +44,7 @@ flowchart TB
     subgraph haos [Home Assistant OS]
         panel["Panneau lateral HA (ingress)"]
 
-        subgraph addon ["Add-on homekeeper (conteneur Docker)"]
+        subgraph addon ["Add-on mabarak (conteneur Docker)"]
             nginx["nginx<br/>ecoute 8099<br/>allow 172.30.32.2 / deny all"]
             static["Build React (fichiers statiques)"]
             api["FastAPI + uvicorn<br/>127.0.0.1:8000"]
@@ -56,7 +56,7 @@ flowchart TB
 
         subgraph core [Home Assistant Core]
             haApi["API REST et WebSocket"]
-            integ["custom_components/homekeeper<br/>DataUpdateCoordinator"]
+            integ["custom_components/mabarak<br/>DataUpdateCoordinator"]
             entities["Capteurs, boutons, calendrier"]
             blueprints["Blueprints de notification"]
             integ --> entities
@@ -104,21 +104,21 @@ structurel sur la durée de vie du projet.
 
 ## 3. Composants
 
-### 3.1 Add-on `homekeeper`
+### 3.1 Add-on `mabarak`
 
 Conteneur Docker basé sur les images de base Home Assistant, avec `s6-overlay` pour la
 supervision des processus. Deux services longue durée :
 
 - `nginx` : filtre les adresses IP, sert directement les assets hashés du frontend et relaie
   tout le reste vers le backend ;
-- `homekeeper-api` : `uvicorn` servant l'application FastAPI sur `127.0.0.1:8000`, non exposé
+- `mabarak-api` : `uvicorn` servant l'application FastAPI sur `127.0.0.1:8000`, non exposé
   hors du conteneur.
 
 Le volume `/data` est le seul emplacement persistant. Il contient :
 
 ```text
 /data
-├── homekeeper.db          # base SQLite
+├── mabarak.db          # base SQLite
 ├── documents/             # documents en mode local_file
 │   └── <asset_id>/<uuid>.<ext>
 └── options.json           # options de l'add-on, injectees par le Supervisor
@@ -155,7 +155,7 @@ React 19, TypeScript, Vite, React Router. Application monopage : les assets sont
 nginx, la coquille `index.html` par le backend qui y injecte le chemin d'ingress. Aucun appel
 réseau sortant : les seules requêtes vont vers l'API locale.
 
-### 3.4 Intégration `custom_components/homekeeper`
+### 3.4 Intégration `custom_components/mabarak`
 
 Intégration en config flow exclusivement, sans configuration YAML, conformément à l'ADR-0010
 de Home Assistant. Un `DataUpdateCoordinator` unique interroge `GET /api/ha/summary` et
@@ -214,7 +214,7 @@ sequenceDiagram
     participant API as FastAPI
     participant DB as SQLite
 
-    U->>HA: ouvre le panneau HomeKeeper
+    U->>HA: ouvre le panneau MaBarak
     HA->>N: requete avec en-tete X-Ingress-Path
     N->>API: relais, en-tete conservee
     API->>API: injecte le chemin de base dans index.html
@@ -290,7 +290,7 @@ Entités prévues pour la V1 :
 - un capteur de statut par équipement, à valeur `ok`, `due_soon` ou `overdue`, pour les
   automatisations ciblées
 - une entité `calendar` regroupant entretiens, interventions planifiées et fins de garantie
-- un service `homekeeper.complete_task` pour valider un entretien depuis une automatisation
+- un service `mabarak.complete_task` pour valider un entretien depuis une automatisation
 
 Les identifiants d'entités ne sont pas fixés en dur : les entités utilisent
 `has_entity_name` et une `translation_key`, et Home Assistant génère l'identifiant à la
@@ -319,8 +319,8 @@ Le local-first n'est pas seulement une propriété de l'hébergement, c'est une 
 
 Le dépôt sert simultanément de dépôt d'add-ons Home Assistant et de dépôt d'intégration HACS :
 
-- Home Assistant lit `repository.yaml` à la racine et découvre l'add-on dans `addon/homekeeper/`
-- HACS lit `hacs.json` à la racine et découvre l'intégration dans `custom_components/homekeeper/`
+- Home Assistant lit `repository.yaml` à la racine et découvre l'add-on dans `addon/mabarak/`
+- HACS lit `hacs.json` à la racine et découvre l'intégration dans `custom_components/mabarak/`
 
 Les deux mécanismes coexistent sans conflit, mais imposent une discipline : l'add-on et
 l'intégration partagent une version unique, et le contrat `/api/ha/summary` doit rester
@@ -338,7 +338,7 @@ Node 22, npm 10, Docker 28 et git sont disponibles.
 # Backend
 cd backend && python3.13 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-uvicorn homekeeper_api.main:app --reload --port 8000
+uvicorn mabarak_api.main:app --reload --port 8000
 
 # Frontend
 cd frontend && npm install && npm run dev
@@ -352,15 +352,20 @@ ingress doit donc être vérifié dans un vrai Home Assistant avant publication.
 
 Le nom apparaît dans un nombre limité d'emplacements, tous à modifier ensemble :
 
-- `addon/homekeeper/config.yaml` : `name`, `slug`, `panel_title`
-- `backend/src/homekeeper_api/config.py` : `APP_NAME`
-- `custom_components/homekeeper/const.py` : `DOMAIN`, `NAME`
-- `custom_components/homekeeper/manifest.json` : `domain`, `name`
-- noms des répertoires `addon/homekeeper/`, `custom_components/homekeeper/`, du package
-  `homekeeper_api`
+- `addon/mabarak/config.yaml` : `name`, `slug`, `panel_title`
+- `backend/src/mabarak_api/config.py` : `APP_NAME`
+- `custom_components/mabarak/const.py` : `DOMAIN`, `NAME`
+- `custom_components/mabarak/manifest.json` : `domain`, `name`
+- noms des répertoires `addon/mabarak/`, `custom_components/mabarak/`, du package
+  `mabarak_api`
 
 Le `DOMAIN` de l'intégration ne peut plus changer une fois publié sans casser les installations
 existantes. Il doit donc être figé avant la première publication.
+
+**Ce n'est plus purement théorique** : le produit s'est appelé HomeKeeper avant MaBarak (0.9.0),
+renommé alors qu'une install réelle existait déjà. Changer `slug`/`domain` orpheline l'install en
+cours (nouveau dossier `/data` vide côté Supervisor) ; la marche à suivre pour migrer les données
+sans perte est documentée dans `addon/mabarak/CHANGELOG.md`, section 0.9.0.
 
 ## Périmètre V1 et évolutions
 

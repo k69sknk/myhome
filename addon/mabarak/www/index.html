@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!--
+      Chemin de base de l'application.
+
+      Le backend remplace ce marqueur par la valeur de l'en-tete X-Ingress-Path
+      a chaque requete (backend/src/mabarak_api/ingress.py). Home Assistant
+      sert l'add-on sous /api/hassio_ingress/<token>/, un prefixe qui change a
+      chaque instance et ne peut donc pas etre connu a la compilation.
+
+      Cette balise fait resoudre toutes les URL relatives de la page contre ce
+      prefixe, y compris quand l'utilisateur recharge une route profonde comme
+      /equipements/7.
+    -->
+    <base href="__MABARAK_BASE__" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <title>MaBarak</title>
+    <script type="module" crossorigin src="./assets/index-YNtxenSq.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CEw0s3AD.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

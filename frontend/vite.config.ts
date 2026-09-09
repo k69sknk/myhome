@@ -4,18 +4,18 @@ import { defineConfig, type Plugin } from 'vite'
 /**
  * Marqueur remplace par le backend a chaque requete, dans la balise `<base>`.
  * Doit rester identique a `BASE_PLACEHOLDER` cote Python
- * (backend/src/homekeeper_api/ingress.py).
+ * (backend/src/mabarak_api/ingress.py).
  */
-const BASE_PLACEHOLDER = '__HOMEKEEPER_BASE__'
+const BASE_PLACEHOLDER = '__MABARAK_BASE__'
 
 /**
  * En developpement, Vite sert `index.html` directement, sans passer par le
  * backend : le marqueur ne serait donc pas remplace et toutes les URL relatives
- * se resoudraient contre `/__HOMEKEEPER_BASE__`.
+ * se resoudraient contre `/__MABARAK_BASE__`.
  */
 function devIngressBase(): Plugin {
   return {
-    name: 'homekeeper-dev-ingress-base',
+    name: 'mabarak-dev-ingress-base',
     apply: 'serve',
     transformIndexHtml(html) {
       return html.replaceAll(BASE_PLACEHOLDER, '/')
