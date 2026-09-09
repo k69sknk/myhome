@@ -516,6 +516,35 @@ textarea {
   position: relative;
 }
 
+.combobox--clearable input {
+  padding-right: 2rem;
+}
+
+.combobox__clear {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  width: 1.6rem;
+  height: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.combobox__clear:hover,
+.combobox__clear:focus-visible {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text);
+}
+
 .combobox__list {
   position: absolute;
   z-index: 10;

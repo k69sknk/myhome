@@ -148,6 +148,7 @@ export default function AssetSelect({
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setQuery(selectedLabel)
@@ -182,6 +183,13 @@ export default function AssetSelect({
     setOpen(false)
   }
 
+  function clear() {
+    onChange('')
+    setQuery('')
+    setOpen(true)
+    inputRef.current?.focus()
+  }
+
   async function createAndSelect() {
     if (!trimmed || creating) return
     setCreating(true)
@@ -212,8 +220,9 @@ export default function AssetSelect({
   }
 
   return (
-    <div className="combobox" ref={containerRef}>
+    <div className="combobox combobox--clearable" ref={containerRef}>
       <input
+        ref={inputRef}
         value={query}
         onChange={(event) => {
           setQuery(event.target.value)
@@ -223,6 +232,11 @@ export default function AssetSelect({
         onFocus={() => setOpen(true)}
         placeholder="Tapez pour chercher un equipement..."
       />
+      {query !== '' && (
+        <button type="button" className="combobox__clear" aria-label="Effacer" onClick={clear}>
+          ×
+        </button>
+      )}
       {open && (
         <ul className="combobox__list">
           {tree.noLocation.length > 0 && (
