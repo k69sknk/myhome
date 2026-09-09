@@ -102,6 +102,37 @@ code {
   padding: 2rem 1.5rem 4rem;
 }
 
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.tabs__tab {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tabs__tab:hover {
+  color: var(--text);
+}
+
+.tabs__tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
 .page__title {
   margin: 0 0 0.35rem;
   font-size: 1.6rem;

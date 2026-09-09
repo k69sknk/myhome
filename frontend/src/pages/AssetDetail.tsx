@@ -43,6 +43,7 @@ export default function AssetDetail() {
   const [haUnavailable, setHaUnavailable] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
+  const [activeTab, setActiveTab] = useState<'entretiens' | 'details' | 'documents'>('entretiens')
 
   async function reload() {
     const next = await api.asset(assetId)
@@ -155,87 +156,123 @@ export default function AssetDetail() {
         />
       )}
 
-      <div className="card">
-        <h2 className="card__title">Entretiens</h2>
-        {asset.tasks.length === 0 ? (
-          <p className="muted">Aucun entretien sur cette fiche.</p>
-        ) : (
-          <ul className="task-list">
-            {asset.tasks.map((task) => (
-              <li key={task.id} className="task">
-                <div className="task__main">
-                  <strong>{task.name}</strong>
-                  <StatusBadge status={task.status} />
-                  <p className="muted">
-                    {formatRecurrence(task)}
-                    {' · dernier '}
-                    {formatDate(task.last_completed_on)}
-                    {' · prochain '}
-                    {formatDate(task.next_due_on)}
-                  </p>
-                  <TaskPrepInfo task={task} />
-                </div>
-                <CompleteTask
-                  task={task}
-                  onCompleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
-                  onDeleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
-        <h3 className="card__subtitle">Ajouter un entretien</h3>
-        <TaskForm
-          onCreate={async (body) => {
-            await api.createTask(asset.id, body)
-            await reload()
-          }}
+      <div className="tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'entretiens'}
+          className={`tabs__tab${activeTab === 'entretiens' ? ' tabs__tab--active' : ''}`}
+          onClick={() => setActiveTab('entretiens')}
+        >
+          Entretiens
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'details'}
+          className={`tabs__tab${activeTab === 'details' ? ' tabs__tab--active' : ''}`}
+          onClick={() => setActiveTab('details')}
+        >
+          Details
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'documents'}
+          className={`tabs__tab${activeTab === 'documents' ? ' tabs__tab--active' : ''}`}
+          onClick={() => setActiveTab('documents')}
+        >
+          Documents
+        </button>
+      </div>
+
+      {activeTab === 'entretiens' && (
+        <div className="card">
+          {asset.tasks.length === 0 ? (
+            <p className="muted">Aucun entretien sur cette fiche.</p>
+          ) : (
+            <ul className="task-list">
+              {asset.tasks.map((task) => (
+                <li key={task.id} className="task">
+                  <div className="task__main">
+                    <strong>{task.name}</strong>
+                    <StatusBadge status={task.status} />
+                    <p className="muted">
+                      {formatRecurrence(task)}
+                      {' · dernier '}
+                      {formatDate(task.last_completed_on)}
+                      {' · prochain '}
+                      {formatDate(task.next_due_on)}
+                    </p>
+                    <TaskPrepInfo task={task} />
+                  </div>
+                  <CompleteTask
+                    task={task}
+                    onCompleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
+                    onDeleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+          <h3 className="card__subtitle">Ajouter un entretien</h3>
+          <TaskForm
+            onCreate={async (body) => {
+              await api.createTask(asset.id, body)
+              await reload()
+            }}
+          />
+        </div>
+      )}
+
+      {activeTab === 'details' && (
+        <>
+          <div className="card">
+            <dl className="facts">
+              <dt>Marque</dt>
+              <dd>{asset.brand || '—'}</dd>
+              <dt>Modele</dt>
+              <dd>{asset.model || '—'}</dd>
+              <dt>N° de serie</dt>
+              <dd>{asset.serial_number || '—'}</dd>
+              <dt>Garantie</dt>
+              <dd>
+                {asset.warranty
+                  ? `${formatDate(asset.warranty.start_date)} → ${formatDate(asset.warranty.end_date)}`
+                  : '—'}{' '}
+                <WarrantyBadge endDate={asset.warranty?.end_date} />
+                {invoiceDocument && (
+                  <>
+                    {' · '}
+                    <a href={api.documentFileUrl(invoiceDocument.id)} target="_blank" rel="noreferrer">
+                      Facture
+                    </a>
+                  </>
+                )}
+              </dd>
+              <dt>Notes</dt>
+              <dd>{asset.notes || '—'}</dd>
+            </dl>
+          </div>
+
+          <HaLinkCard
+            asset={asset}
+            devices={devices}
+            haUnavailable={haUnavailable}
+            onChanged={(next) => setAsset(next)}
+            onError={setError}
+          />
+        </>
+      )}
+
+      {activeTab === 'documents' && (
+        <AssetDocuments
+          assetId={asset.id}
+          documents={documents}
+          onChanged={() => void reloadDocuments().catch((caught) => setError(errorMessage(caught)))}
+          onError={setError}
         />
-      </div>
-
-      <div className="card">
-        <h2 className="card__title">Details</h2>
-        <dl className="facts">
-          <dt>Marque</dt>
-          <dd>{asset.brand || '—'}</dd>
-          <dt>Modele</dt>
-          <dd>{asset.model || '—'}</dd>
-          <dt>N° de serie</dt>
-          <dd>{asset.serial_number || '—'}</dd>
-          <dt>Garantie</dt>
-          <dd>
-            {asset.warranty
-              ? `${formatDate(asset.warranty.start_date)} → ${formatDate(asset.warranty.end_date)}`
-              : '—'}{' '}
-            <WarrantyBadge endDate={asset.warranty?.end_date} />
-            {invoiceDocument && (
-              <>
-                {' · '}
-                <a href={api.documentFileUrl(invoiceDocument.id)} target="_blank" rel="noreferrer">
-                  Facture
-                </a>
-              </>
-            )}
-          </dd>
-          <dt>Notes</dt>
-          <dd>{asset.notes || '—'}</dd>
-        </dl>
-      </div>
-
-      <AssetDocuments
-        assetId={asset.id}
-        documents={documents}
-        onChanged={() => void reloadDocuments().catch((caught) => setError(errorMessage(caught)))}
-        onError={setError}
-      />
-
-      <HaLinkCard
-        asset={asset}
-        devices={devices}
-        haUnavailable={haUnavailable}
-        onChanged={(next) => setAsset(next)}
-        onError={setError}
-      />
+      )}
     </section>
   )
 }
@@ -365,7 +402,6 @@ function AssetDocuments({
 
   return (
     <div className="card">
-      <h2 className="card__title">Documents</h2>
       <p className="muted">Manuel d'utilisation, facture d'achat, ou tout autre document utile.</p>
       {documents.length === 0 ? (
         <p className="muted">Aucun document pour l'instant.</p>
