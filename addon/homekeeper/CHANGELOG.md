@@ -3,6 +3,23 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.5.0
+
+Boutons Modifier/Supprimer homogenes, et suppression enfin possible sur les
+entretiens et l'historique.
+
+- **Boutons Modifier/Supprimer homogenes** : partout dans l'application
+  (lieux, types de lieux, photo et documents d'equipement, entretiens),
+  memes pilules ovales teintees (bleu clair pour editer, rouge clair pour
+  supprimer), meme icone. Les boutons « Supprimer » n'etaient auparavant
+  visuellement pas distingues d'une action neutre.
+- **Entretiens** : un entretien (tache recurrente) peut desormais etre
+  supprime depuis la liste ou la fiche equipement (`DELETE /api/tasks/{id}`).
+  Son historique existant est conserve (detache, non supprime).
+- **Historique** : chaque intervention passee peut desormais etre supprimee
+  individuellement (`DELETE /api/interventions/{id}`), y compris ses
+  documents joints.
+
 ## 0.4.0
 
 La fiche équipement gagne une photo, une alerte de garantie et ses propres
