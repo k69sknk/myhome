@@ -369,10 +369,17 @@ CREATE TABLE maintenance_task (
     home_id             INTEGER          REFERENCES home(id)  ON DELETE CASCADE,
 
     name                TEXT    NOT NULL,
-    description         TEXT,
+    description         TEXT,   -- affiche cote UI comme "Notes"
 
     priority            TEXT    NOT NULL DEFAULT 'normal'
                         CHECK (priority IN ('low', 'normal', 'high', 'critical')),
+
+    -- ---- Preparation (facultatif, pas d'invariant impose : remplissable
+    -- meme si needs_part_replacement = 0) ----
+    needs_part_replacement  INTEGER NOT NULL DEFAULT 0 CHECK (needs_part_replacement IN (0, 1)),
+    replacement_part_name   TEXT,   -- ex. 'Filtre a eau 10 pouces'
+    replacement_part_source TEXT,   -- lien d'achat OU nom d'enseigne
+    preparation_notes       TEXT,   -- outils specifiques, produits, autres a prevoir
 
     -- ---- Planification (section 9) ----
     recurrence_type     TEXT    NOT NULL DEFAULT 'none'
