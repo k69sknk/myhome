@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from .schemas import HaCalendarOut, HaDeviceOut
+from .schemas import HaCalendarOut, HaDeviceOut, HaPersonOut
 
 
 class HaUnavailableError(Exception):
@@ -26,8 +26,8 @@ def _rest_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
 
-def list_ha_calendars() -> list[HaCalendarOut]:
-    """Liste les entites `calendar.*` connues de Home Assistant."""
+def _list_states_by_domain(domain_prefix: str) -> list[tuple[str, str]]:
+    """Entites dont l'`entity_id` commence par `domain_prefix`, triees par nom."""
     headers = _rest_headers()
     try:
         response = httpx.get(f"{_rest_base_url()}/states", headers=headers, timeout=10)
@@ -36,16 +36,49 @@ def list_ha_calendars() -> list[HaCalendarOut]:
     except httpx.HTTPError as exc:
         raise HaUnavailableError(str(exc)) from exc
 
-    calendars: list[HaCalendarOut] = []
+    entities: list[tuple[str, str]] = []
     for state in states:
         entity_id = str(state.get("entity_id") or "")
-        if not entity_id.startswith("calendar."):
+        if not entity_id.startswith(domain_prefix):
             continue
         attributes = state.get("attributes") or {}
         name = str(attributes.get("friendly_name") or entity_id)
-        calendars.append(HaCalendarOut(entity_id=entity_id, name=name))
-    calendars.sort(key=lambda item: item.name.lower())
-    return calendars
+        entities.append((entity_id, name))
+    entities.sort(key=lambda item: item[1].lower())
+    return entities
+
+
+def list_ha_calendars() -> list[HaCalendarOut]:
+    """Liste les entites `calendar.*` connues de Home Assistant."""
+    return [
+        HaCalendarOut(entity_id=entity_id, name=name)
+        for entity_id, name in _list_states_by_domain("calendar.")
+    ]
+
+
+def list_ha_persons() -> list[HaPersonOut]:
+    """Liste les entites `person.*` connues de Home Assistant."""
+    return [
+        HaPersonOut(entity_id=entity_id, name=name)
+        for entity_id, name in _list_states_by_domain("person.")
+    ]
+
+
+def list_ha_notify_services() -> list[str]:
+    """Noms des services `notify.*` disponibles (sans le prefixe `notify.`)."""
+    headers = _rest_headers()
+    try:
+        response = httpx.get(f"{_rest_base_url()}/services", headers=headers, timeout=10)
+        response.raise_for_status()
+        domains = response.json()
+    except httpx.HTTPError as exc:
+        raise HaUnavailableError(str(exc)) from exc
+
+    for entry in domains:
+        if isinstance(entry, dict) and entry.get("domain") == "notify":
+            services = entry.get("services") or {}
+            return sorted(services.keys())
+    return []
 
 
 def get_calendar_events(entity_id: str, start: str, end: str) -> list[dict[str, Any]]:

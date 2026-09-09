@@ -52,7 +52,7 @@ def test_premiere_migration_se_rejoue_si_le_stamp_manque(settings) -> None:
     with engine.connect() as connection:
         version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
         homes = connection.execute(text("SELECT COUNT(*) FROM home")).scalar_one()
-    assert version == "0005_calendar_sync"
+    assert version == "0006_membres_et_pieces"
     assert homes == 0
 
 

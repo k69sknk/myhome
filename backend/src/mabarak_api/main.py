@@ -14,7 +14,7 @@ from .config import APP_NAME, Settings, get_settings
 from .db import create_db_engine, session_factory_for
 from .ingress import INGRESS_HEADER, render_index, resolve_base_path
 from .migrate import upgrade_to_head
-from .routers import assets, ha, health, house
+from .routers import assets, ha, health, house, members
 from .services.home import ensure_home
 
 _LOGGER = logging.getLogger(__name__)
@@ -70,6 +70,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router, prefix="/api")
     app.include_router(ha.router, prefix="/api")
     app.include_router(house.router, prefix="/api")
+    app.include_router(members.router, prefix="/api")
     app.include_router(assets.router, prefix="/api")
 
     _mount_frontend(app, settings)

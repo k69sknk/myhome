@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { api } from '../api/client'
-import type { AssetListItem, Category, Task, TaskStatus } from '../api/types'
+import type { AssetListItem, Category, Member, Task, TaskStatus } from '../api/types'
 import AssetSelect from '../components/AssetSelect'
 import CompleteTask from '../components/CompleteTask'
 import Field from '../components/Field'
@@ -18,6 +18,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState<Task[] | null>(null)
   const [assets, setAssets] = useState<AssetListItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [members, setMembers] = useState<Member[]>([])
   const [selectedAssetId, setSelectedAssetId] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -27,12 +28,13 @@ export default function Tasks() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([api.tasks(), api.assets(), api.categories()])
-      .then(([taskList, assetList, categoryList]) => {
+    Promise.all([api.tasks(), api.assets(), api.categories(), api.members()])
+      .then(([taskList, assetList, categoryList, memberList]) => {
         if (cancelled) return
         setTasks(taskList)
         setAssets(assetList)
         setCategories(categoryList)
+        setMembers(memberList)
       })
       .catch((caught: unknown) => {
         if (!cancelled) setError(errorMessage(caught))
@@ -62,7 +64,8 @@ export default function Tasks() {
         </Field>
         {selectedAssetId && (
           <TaskForm
-            onCreate={async (body) => {
+            members={members}
+            onSubmit={async (body) => {
               await api.createTask(Number(selectedAssetId), body)
               await reload()
             }}
@@ -109,7 +112,9 @@ export default function Tasks() {
                       </div>
                       <CompleteTask
                         task={task}
+                        members={members}
                         onCompleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
+                        onEdited={() => void reload().catch((caught) => setError(errorMessage(caught)))}
                         onDeleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
                       />
                     </li>

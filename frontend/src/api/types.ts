@@ -89,6 +89,7 @@ export interface Home {
   due_soon_threshold_days: number
   ha_calendar_entity_id: string | null
   ha_calendar_sync_enabled: boolean
+  task_notifications_enabled: boolean
 }
 
 export interface HaCalendarOption {
@@ -178,6 +179,41 @@ export interface HaDevice {
   domain: string | null
 }
 
+export interface ReplacementPart {
+  id: number
+  name: string
+  source: string | null
+}
+
+export interface ReplacementPartIn {
+  name: string
+  source?: string | null
+}
+
+export type MemberType = 'household' | 'friend' | 'company'
+
+export interface Member {
+  id: number
+  name: string
+  member_type: MemberType
+  contact: string | null
+  ha_person_entity_id: string | null
+  ha_notify_service: string | null
+}
+
+export interface MemberIn {
+  name: string
+  member_type?: MemberType
+  contact?: string | null
+  ha_person_entity_id?: string | null
+  ha_notify_service?: string | null
+}
+
+export interface HaPersonOption {
+  entity_id: string
+  name: string
+}
+
 export interface Task {
   id: number
   asset_id: number | null
@@ -192,12 +228,13 @@ export interface Task {
   recurrence_interval: number | null
   fixed_month: number | null
   fixed_day: number | null
+  custom_due_date: string | null
   last_intervention_id: number | null
-  needs_part_replacement: boolean
-  replacement_part_name: string | null
-  replacement_part_source: string | null
+  replacement_parts: ReplacementPart[]
   preparation_notes: string | null
   notes: string | null
+  assignee_id: number | null
+  assignee_name: string | null
 }
 
 export interface DocumentMeta {
@@ -238,13 +275,15 @@ export interface TaskIn {
   recurrence_interval?: number | null
   fixed_month?: number | null
   fixed_day?: number | null
+  custom_due_date?: string | null
   last_completed_on?: string | null
-  needs_part_replacement?: boolean
-  replacement_part_name?: string | null
-  replacement_part_source?: string | null
+  replacement_parts?: ReplacementPartIn[]
   preparation_notes?: string | null
   notes?: string | null
+  assignee_id?: number | null
 }
+
+export type TaskPatch = Partial<TaskIn>
 
 export interface CompleteIn {
   performed_on?: string | null

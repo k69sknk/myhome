@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 
 import { api } from '../api/client'
 import type { CalendarSyncResult, HaCalendarOption, Home, LocationType } from '../api/types'
@@ -22,6 +23,8 @@ export default function Settings() {
   const [syncError, setSyncError] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
 
+  const [taskNotificationsEnabled, setTaskNotificationsEnabled] = useState(false)
+
   async function reload() {
     const [nextHome, nextTypes] = await Promise.all([api.home(), api.locationTypes()])
     setHome(nextHome)
@@ -30,6 +33,7 @@ export default function Settings() {
     setTypes(nextTypes)
     setCalendarEntityId(nextHome.ha_calendar_entity_id ?? '')
     setCalendarSyncEnabled(nextHome.ha_calendar_sync_enabled)
+    setTaskNotificationsEnabled(nextHome.task_notifications_enabled)
 
     try {
       setCalendars(await api.haCalendars())
@@ -88,6 +92,17 @@ export default function Settings() {
       setSyncError(errorMessage(caught))
     } finally {
       setSyncing(false)
+    }
+  }
+
+  async function toggleTaskNotifications(enabled: boolean) {
+    setError(null)
+    try {
+      const updated = await api.patchHome({ task_notifications_enabled: enabled })
+      setHome(updated)
+      setTaskNotificationsEnabled(updated.task_notifications_enabled)
+    } catch (caught: unknown) {
+      setError(errorMessage(caught))
     }
   }
 
@@ -204,6 +219,23 @@ export default function Settings() {
             {syncError && <p className="status status--error">{syncError}</p>}
           </>
         )}
+      </div>
+
+      <div className="card">
+        <h2 className="card__title">Notifications</h2>
+        <p className="muted">
+          Prevenir la personne assignee via Home Assistant quand un entretien lui est confie
+          (necessite un service de notification renseigne sur sa fiche dans{' '}
+          <Link to="/membres">Membres</Link>).
+        </p>
+        <label className="complete__checkbox">
+          <input
+            type="checkbox"
+            checked={taskNotificationsEnabled}
+            onChange={(event) => void toggleTaskNotifications(event.target.checked)}
+          />
+          Notifier la personne assignee via Home Assistant
+        </label>
       </div>
 
       <div className="card">

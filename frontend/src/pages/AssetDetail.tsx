@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { api, ApiError } from '../api/client'
-import type { Asset, Category, DocumentMeta, HaDevice, Location } from '../api/types'
+import type { Asset, Category, DocumentMeta, HaDevice, Location, Member } from '../api/types'
 import BackLink from '../components/BackLink'
 import CategorySelect from '../components/CategorySelect'
 import CompleteTask from '../components/CompleteTask'
@@ -41,6 +41,7 @@ export default function AssetDetail() {
   const [locations, setLocations] = useState<Location[]>([])
   const [documents, setDocuments] = useState<DocumentMeta[]>([])
   const [devices, setDevices] = useState<HaDevice[]>([])
+  const [members, setMembers] = useState<Member[]>([])
   const [haUnavailable, setHaUnavailable] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
@@ -61,13 +62,20 @@ export default function AssetDetail() {
       setError('Fiche introuvable')
       return
     }
-    Promise.all([api.asset(assetId), api.categories(), api.locations(), api.assetDocuments(assetId)])
-      .then(([nextAsset, nextCategories, nextLocations, nextDocuments]) => {
+    Promise.all([
+      api.asset(assetId),
+      api.categories(),
+      api.locations(),
+      api.assetDocuments(assetId),
+      api.members(),
+    ])
+      .then(([nextAsset, nextCategories, nextLocations, nextDocuments, nextMembers]) => {
         if (cancelled) return
         setAsset(nextAsset)
         setCategories(equipmentCategories(nextCategories))
         setLocations(nextLocations)
         setDocuments(nextDocuments)
+        setMembers(nextMembers)
       })
       .catch((caught: unknown) => {
         if (!cancelled) setError(errorMessage(caught))
@@ -207,7 +215,9 @@ export default function AssetDetail() {
                   </div>
                   <CompleteTask
                     task={task}
+                    members={members}
                     onCompleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
+                    onEdited={() => void reload().catch((caught) => setError(errorMessage(caught)))}
                     onDeleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
                   />
                 </li>
@@ -216,7 +226,8 @@ export default function AssetDetail() {
           )}
           <h3 className="card__subtitle">Ajouter un entretien</h3>
           <TaskForm
-            onCreate={async (body) => {
+            members={members}
+            onSubmit={async (body) => {
               await api.createTask(asset.id, body)
               await reload()
             }}

@@ -102,6 +102,7 @@ def plan_task(
     interval: int | None,
     fixed_month: int | None,
     fixed_day: int | None,
+    custom_due_date: str | None,
     last_completed_on: str | None,
 ) -> tuple[str, str | None]:
     recurrence = Recurrence(
@@ -110,6 +111,7 @@ def plan_task(
         anchor=hidden_anchor(recurrence_type),
         fixed_month=fixed_month,
         fixed_day=fixed_day,
+        custom_due_date=date.fromisoformat(custom_due_date) if custom_due_date else None,
     )
     last = date.fromisoformat(last_completed_on) if last_completed_on else None
     nxt = initial_next_due(last_completed_on=last, today=utc_today(), recurrence=recurrence)

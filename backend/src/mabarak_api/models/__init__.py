@@ -18,6 +18,7 @@ class Home(Base):
     due_soon_threshold_days: Mapped[int] = mapped_column(Integer, default=30)
     ha_calendar_entity_id: Mapped[str | None] = mapped_column(Text)
     ha_calendar_sync_enabled: Mapped[int] = mapped_column(Integer, default=0)
+    task_notifications_enabled: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(Text)
 
@@ -134,12 +135,10 @@ class MaintenanceTask(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     asset_id: Mapped[int | None] = mapped_column(ForeignKey("asset.id"))
     home_id: Mapped[int | None] = mapped_column(ForeignKey("home.id"))
+    assignee_id: Mapped[int | None] = mapped_column(ForeignKey("member.id", ondelete="SET NULL"))
     name: Mapped[str] = mapped_column(Text)
     description: Mapped[str | None] = mapped_column(Text)
     priority: Mapped[str] = mapped_column(Text, default="normal")
-    needs_part_replacement: Mapped[int] = mapped_column(Integer, default=0)
-    replacement_part_name: Mapped[str | None] = mapped_column(Text)
-    replacement_part_source: Mapped[str | None] = mapped_column(Text)
     preparation_notes: Mapped[str | None] = mapped_column(Text)
     recurrence_type: Mapped[str] = mapped_column(Text, default="none")
     recurrence_interval: Mapped[int | None] = mapped_column(Integer)
@@ -155,6 +154,38 @@ class MaintenanceTask(Base):
     updated_at: Mapped[str] = mapped_column(Text)
 
     asset: Mapped[Asset | None] = relationship(back_populates="tasks")
+    assignee: Mapped[Member | None] = relationship()
+    replacement_parts: Mapped[list[ReplacementPart]] = relationship(
+        back_populates="task",
+        order_by="ReplacementPart.sort_order",
+        cascade="all, delete-orphan",
+    )
+
+
+class Member(Base):
+    __tablename__ = "member"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    home_id: Mapped[int | None] = mapped_column(ForeignKey("home.id"))
+    name: Mapped[str] = mapped_column(Text)
+    member_type: Mapped[str] = mapped_column(Text, default="household")
+    contact: Mapped[str | None] = mapped_column(Text)
+    ha_person_entity_id: Mapped[str | None] = mapped_column(Text)
+    ha_notify_service: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+
+class ReplacementPart(Base):
+    __tablename__ = "replacement_part"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("maintenance_task.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(Text)
+    source: Mapped[str | None] = mapped_column(Text)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    task: Mapped[MaintenanceTask] = relationship(back_populates="replacement_parts")
 
 
 class HaLink(Base):

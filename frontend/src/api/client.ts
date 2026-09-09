@@ -12,6 +12,7 @@ import type {
   HaCalendarOption,
   HaDevice,
   HaLinkIn,
+  HaPersonOption,
   HaSummary,
   HealthResponse,
   HistoryEntry,
@@ -21,8 +22,11 @@ import type {
   LocationIn,
   LocationType,
   LocationTypeIn,
+  Member,
+  MemberIn,
   Task,
   TaskIn,
+  TaskPatch,
 } from './types'
 
 export class ApiError extends Error {
@@ -87,6 +91,7 @@ export const api = {
     due_soon_threshold_days?: number
     ha_calendar_entity_id?: string | null
     ha_calendar_sync_enabled?: boolean
+    task_notifications_enabled?: boolean
   }) => request<Home>('homes/current', { method: 'PATCH', ...jsonBody(body) }),
 
   categories: () => request<Category[]>('categories'),
@@ -116,6 +121,8 @@ export const api = {
 
   createTask: (assetId: number, body: TaskIn) =>
     request<Task>(`assets/${assetId}/tasks`, { method: 'POST', ...jsonBody(body) }),
+  patchTask: (taskId: number, body: TaskPatch) =>
+    request<Task>(`tasks/${taskId}`, { method: 'PATCH', ...jsonBody(body) }),
   tasks: () => request<Task[]>('tasks'),
   completeTask: (taskId: number, body: CompleteIn) =>
     request<Task>(`tasks/${taskId}/complete`, { method: 'POST', ...jsonBody(body) }),
@@ -160,4 +167,15 @@ export const api = {
   haCalendars: () => request<HaCalendarOption[]>('ha/calendars'),
   runCalendarSync: () =>
     request<CalendarSyncResult>('ha/calendar-sync/run', { method: 'POST' }),
+
+  haPersons: () => request<HaPersonOption[]>('ha/persons'),
+  haNotifyServices: () => request<string[]>('ha/notify-services'),
+
+  members: () => request<Member[]>('members'),
+  createMember: (body: MemberIn) =>
+    request<Member>('members', { method: 'POST', ...jsonBody(body) }),
+  patchMember: (memberId: number, body: Partial<MemberIn>) =>
+    request<Member>(`members/${memberId}`, { method: 'PATCH', ...jsonBody(body) }),
+  deleteMember: (memberId: number) =>
+    request<{ ok: boolean }>(`members/${memberId}`, { method: 'DELETE' }),
 }

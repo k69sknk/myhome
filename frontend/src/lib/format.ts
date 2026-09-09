@@ -60,7 +60,7 @@ export function statusLabel(status: TaskStatus): string {
 
 export function formatRecurrence(task: Pick<Task, 'recurrence_type' | 'recurrence_interval' | 'fixed_month' | 'fixed_day'>): string {
   const type = task.recurrence_type as RecurrenceType | string
-  if (type === 'none') return 'Ponctuel'
+  if (type === 'none' || type === 'custom_date') return 'Ponctuel'
   if (type === 'months') {
     const interval = task.recurrence_interval ?? 1
     return interval === 1 ? 'Tous les mois' : `Tous les ${interval} mois`

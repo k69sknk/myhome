@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { to: '/equipements', label: 'Equipements', end: false },
   { to: '/entretiens', label: 'Entretiens', end: false },
   { to: '/lieux', label: 'Lieux', end: false },
+  { to: '/membres', label: 'Membres', end: false },
   { to: '/documents', label: 'Documents', end: false },
   { to: '/parametres', label: 'Parametres', end: false },
 ]

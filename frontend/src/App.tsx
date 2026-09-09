@@ -6,6 +6,7 @@ import AssetNew from './pages/AssetNew'
 import Assets from './pages/Assets'
 import Dashboard from './pages/Dashboard'
 import Locations from './pages/Locations'
+import Members from './pages/Members'
 import Placeholder from './pages/Placeholder'
 import Settings from './pages/Settings'
 import Tasks from './pages/Tasks'
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/equipements/:id" element={<AssetDetail />} />
         <Route path="/entretiens" element={<Tasks />} />
         <Route path="/lieux" element={<Locations />} />
+        <Route path="/membres" element={<Members />} />
         <Route path="/parametres" element={<Settings />} />
         <Route
           path="/documents/*"

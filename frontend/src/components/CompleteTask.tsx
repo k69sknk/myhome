@@ -1,21 +1,27 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 import { ApiError, api } from '../api/client'
-import type { Intervention, Task } from '../api/types'
+import type { Intervention, Member, Task } from '../api/types'
 import { errorMessage, formatAmount, formatDate, todayIso } from '../lib/format'
 import Field from './Field'
-import { TrashIcon } from './icons'
+import TaskForm from './TaskForm'
+import { EditIcon, TrashIcon } from './icons'
 
 export default function CompleteTask({
   task,
+  members,
   onCompleted,
+  onEdited,
   onDeleted,
 }: {
   task: Task
+  members: Member[]
   onCompleted: () => void
+  onEdited: () => void
   onDeleted: () => void
 }) {
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [performedOn, setPerformedOn] = useState(todayIso())
@@ -149,9 +155,24 @@ export default function CompleteTask({
           className={open ? 'btn btn--active' : 'btn btn--primary'}
           disabled={busy}
           aria-expanded={open}
-          onClick={() => setOpen((current) => !current)}
+          onClick={() => {
+            setEditing(false)
+            setOpen((current) => !current)
+          }}
         >
           {open ? 'Annuler' : 'Marquer comme fait'}
+        </button>
+        <button
+          type="button"
+          className={editing ? 'btn btn--small btn--active' : 'btn btn--small btn--edit'}
+          disabled={busy}
+          aria-expanded={editing}
+          onClick={() => {
+            setOpen(false)
+            setEditing((current) => !current)
+          }}
+        >
+          <EditIcon /> {editing ? 'Annuler' : 'Modifier'}
         </button>
         {(task.last_completed_on || historyOpen) && (
           <button
@@ -167,6 +188,18 @@ export default function CompleteTask({
         </button>
       </div>
       {error && <p className="status status--error">{error}</p>}
+      {editing && (
+        <TaskForm
+          members={members}
+          initial={task}
+          onCancel={() => setEditing(false)}
+          onSubmit={async (body) => {
+            await api.patchTask(task.id, body)
+            setEditing(false)
+            onEdited()
+          }}
+        />
+      )}
       {open && (
         <form className="complete__form" onSubmit={(event) => void submitDetails(event)}>
           <p className="complete__form-hint">Qui l'a fait, quand, et une note si besoin.</p>

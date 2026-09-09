@@ -68,89 +68,94 @@ export default function MiniCalendar({ tasks }: { tasks: TaskCalendarEntry[] }) 
 
   return (
     <div className="minical">
-      <div className="minical__header">
-        <button
-          type="button"
-          className="btn btn--small"
-          aria-label="Mois precedent"
-          onClick={() => changeMonth(-1)}
-        >
-          ◀
-        </button>
-        <strong className="minical__month">{monthLabel}</strong>
-        <button
-          type="button"
-          className="btn btn--small"
-          aria-label="Mois suivant"
-          onClick={() => changeMonth(1)}
-        >
-          ▶
-        </button>
-      </div>
-
-      <div className="minical__grid">
-        {WEEKDAYS.map((label) => (
-          <div key={label} className="minical__weekday">
-            {label}
-          </div>
-        ))}
-        {grid.map((cell) => {
-          const dayTasks = tasksByDay.get(cell.key) ?? []
-          const statuses = STATUS_PRIORITY.filter((status) =>
-            dayTasks.some((task) => task.status === status),
-          )
-          return (
-            <button
-              type="button"
-              key={cell.key}
-              className={[
-                'minical__day',
-                cell.inMonth ? '' : 'minical__day--outside',
-                cell.key === todayKey ? 'minical__day--today' : '',
-                cell.key === selectedDay ? 'minical__day--selected' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              onClick={() => setSelectedDay(cell.key === selectedDay ? null : cell.key)}
-            >
-              <span>{cell.date.getDate()}</span>
-              {statuses.length > 0 && (
-                <span className="minical__dots">
-                  {statuses.map((status) => (
-                    <span key={status} className={`minical__dot minical__dot--${status}`} />
-                  ))}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      {selectedDay && (
-        <div className="minical__day-detail">
-          {selectedTasks.length === 0 ? (
-            <p className="muted">Aucun entretien le {formatDate(selectedDay)}.</p>
-          ) : (
-            <ul className="rows">
-              {selectedTasks.map((task) => (
-                <li key={task.id}>
-                  <div className="rows__link">
-                    <span>
-                      {task.asset_id ? (
-                        <Link to={`/equipements/${task.asset_id}`}>{task.name}</Link>
-                      ) : (
-                        task.name
-                      )}
-                      {task.asset_name && <span className="muted">{task.asset_name}</span>}
-                    </span>
-                    <StatusBadge status={task.status} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+      <div className="minical__calendar">
+        <div className="minical__header">
+          <button
+            type="button"
+            className="btn btn--small"
+            aria-label="Mois precedent"
+            onClick={() => changeMonth(-1)}
+          >
+            ◀
+          </button>
+          <strong className="minical__month">{monthLabel}</strong>
+          <button
+            type="button"
+            className="btn btn--small"
+            aria-label="Mois suivant"
+            onClick={() => changeMonth(1)}
+          >
+            ▶
+          </button>
         </div>
-      )}
+
+        <div className="minical__grid">
+          {WEEKDAYS.map((label) => (
+            <div key={label} className="minical__weekday">
+              {label}
+            </div>
+          ))}
+          {grid.map((cell) => {
+            const dayTasks = tasksByDay.get(cell.key) ?? []
+            const statuses = STATUS_PRIORITY.filter((status) =>
+              dayTasks.some((task) => task.status === status),
+            )
+            return (
+              <button
+                type="button"
+                key={cell.key}
+                className={[
+                  'minical__day',
+                  cell.inMonth ? '' : 'minical__day--outside',
+                  cell.key === todayKey ? 'minical__day--today' : '',
+                  cell.key === selectedDay ? 'minical__day--selected' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => setSelectedDay(cell.key === selectedDay ? null : cell.key)}
+              >
+                <span>{cell.date.getDate()}</span>
+                {statuses.length > 0 && (
+                  <span className="minical__dots">
+                    {statuses.map((status) => (
+                      <span key={status} className={`minical__dot minical__dot--${status}`} />
+                    ))}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="minical__day-detail">
+        <strong className="minical__day-detail-title">
+          {selectedDay ? formatDate(selectedDay) : 'Selectionnez un jour'}
+        </strong>
+        {selectedDay && selectedTasks.length === 0 && (
+          <p className="muted">Aucun entretien ce jour-la.</p>
+        )}
+        {!selectedDay && <p className="muted">Cliquez sur un jour pour voir ses entretiens.</p>}
+        {selectedTasks.length > 0 && (
+          <ul className="rows">
+            {selectedTasks.map((task) => (
+              <li key={task.id}>
+                <div className="rows__link">
+                  <span>
+                    {task.asset_id ? (
+                      <Link to={`/equipements/${task.asset_id}`}>{task.name}</Link>
+                    ) : (
+                      task.name
+                    )}
+                    {task.asset_name && <span className="muted">{task.asset_name}</span>}
+                  </span>
+                  <StatusBadge status={task.status} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   )
 }
