@@ -2,9 +2,9 @@ import { NavLink, Outlet } from 'react-router-dom'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Tableau de bord', end: true },
-  { to: '/lieux', label: 'Lieux', end: false },
   { to: '/equipements', label: 'Equipements', end: false },
   { to: '/entretiens', label: 'Entretiens', end: false },
+  { to: '/lieux', label: 'Lieux', end: false },
   { to: '/documents', label: 'Documents', end: false },
   { to: '/parametres', label: 'Parametres', end: false },
 ]

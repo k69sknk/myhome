@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { api, ApiError } from '../api/client'
 import type { Category, HaDevice, Location } from '../api/types'
+import BackLink from '../components/BackLink'
 import CategorySelect from '../components/CategorySelect'
 import Field from '../components/Field'
 import { categoryIcon } from '../lib/categoryIcon'
@@ -136,9 +137,7 @@ export default function AssetNew() {
 
   return (
     <section className="page">
-      <p className="page__crumb">
-        <Link to="/equipements">Equipements</Link>
-      </p>
+      <BackLink to="/equipements" label="Equipements" />
       <h1 className="page__title">Nouvel equipement</h1>
       <p className="page__lead">
         Une fiche par appareil. Le lien Home Assistant est facultatif : il pre-remplit le nom et

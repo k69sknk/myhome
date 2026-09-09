@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 
 import { api, ApiError } from '../api/client'
 import type { Asset, Category, DocumentMeta, HaDevice, Location } from '../api/types'
+import BackLink from '../components/BackLink'
 import CategorySelect from '../components/CategorySelect'
 import CompleteTask from '../components/CompleteTask'
 import Field from '../components/Field'
@@ -91,7 +92,7 @@ export default function AssetDetail() {
     return (
       <section className="page">
         <p className="status status--error">{error}</p>
-        <Link to="/equipements">Retour aux equipements</Link>
+        <BackLink to="/equipements" label="Equipements" />
       </section>
     )
   }
@@ -108,9 +109,7 @@ export default function AssetDetail() {
 
   return (
     <section className="page">
-      <p className="page__crumb">
-        <Link to="/equipements">Equipements</Link>
-      </p>
+      <BackLink to="/equipements" label="Equipements" />
       <div className="page__header">
         <div className="field__row">
           <AssetPhoto
