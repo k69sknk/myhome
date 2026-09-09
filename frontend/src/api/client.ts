@@ -133,10 +133,12 @@ export const api = {
     assetId: number,
     file: File,
     docType: 'manual' | 'invoice' | 'other' | 'photo' = 'manual',
+    name?: string,
   ) => {
     const form = new FormData()
     form.append('file', file)
     form.append('doc_type', docType)
+    if (name) form.append('name', name)
     return request<DocumentMeta>(`assets/${assetId}/documents`, { method: 'POST', body: form })
   },
   assetDocuments: (assetId: number) => request<DocumentMeta[]>(`assets/${assetId}/documents`),

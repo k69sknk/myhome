@@ -372,13 +372,15 @@ function AssetDocuments({
   onError: (message: string | null) => void
 }) {
   const [docType, setDocType] = useState<'manual' | 'invoice' | 'other'>('manual')
+  const [customName, setCustomName] = useState('')
   const [busy, setBusy] = useState(false)
 
   async function upload(file: File) {
     setBusy(true)
     onError(null)
     try {
-      await api.uploadAssetDocument(assetId, file, docType)
+      await api.uploadAssetDocument(assetId, file, docType, customName.trim())
+      setCustomName('')
       onChanged()
     } catch (caught: unknown) {
       onError(errorMessage(caught))
@@ -431,12 +433,23 @@ function AssetDocuments({
       <div className="form form--inline">
         <select
           value={docType}
-          onChange={(event) => setDocType(event.target.value as 'manual' | 'invoice' | 'other')}
+          onChange={(event) => {
+            setDocType(event.target.value as 'manual' | 'invoice' | 'other')
+            setCustomName('')
+          }}
         >
           <option value="manual">Manuel d'utilisation</option>
           <option value="invoice">Facture d'achat</option>
           <option value="other">Autre</option>
         </select>
+        {docType === 'other' && (
+          <input
+            type="text"
+            value={customName}
+            onChange={(event) => setCustomName(event.target.value)}
+            placeholder="Nom du document"
+          />
+        )}
         <input
           type="file"
           accept={DOCUMENT_ACCEPT}
