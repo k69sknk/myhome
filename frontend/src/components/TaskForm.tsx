@@ -1,10 +1,15 @@
 import { useState, type FormEvent } from 'react'
 
 import type { RecurrenceType, TaskIn } from '../api/types'
-import { errorMessage, monthName } from '../lib/format'
+import { errorMessage } from '../lib/format'
 import Field from './Field'
 
 type Frequency = Extract<RecurrenceType, 'none' | 'months' | 'years' | 'annual_fixed'>
+
+function defaultFixedDate(): string {
+  const year = new Date().getFullYear()
+  return `${year}-01-15`
+}
 
 export default function TaskForm({
   onCreate,
@@ -14,8 +19,7 @@ export default function TaskForm({
   const [name, setName] = useState('')
   const [frequency, setFrequency] = useState<Frequency>('months')
   const [interval, setInterval] = useState(3)
-  const [month, setMonth] = useState(1)
-  const [day, setDay] = useState(15)
+  const [fixedDate, setFixedDate] = useState(defaultFixedDate())
   const [lastCompleted, setLastCompleted] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,8 +37,9 @@ export default function TaskForm({
       body.recurrence_interval = interval
     }
     if (frequency === 'annual_fixed') {
-      body.fixed_month = month
-      body.fixed_day = day
+      const [, monthPart, dayPart] = fixedDate.split('-')
+      body.fixed_month = Number(monthPart)
+      body.fixed_day = Number(dayPart)
     }
     setBusy(true)
     setError(null)
@@ -82,26 +87,14 @@ export default function TaskForm({
         </Field>
       )}
       {frequency === 'annual_fixed' && (
-        <>
-          <Field label="Jour">
-            <input
-              type="number"
-              min={1}
-              max={31}
-              value={day}
-              onChange={(event) => setDay(Number(event.target.value))}
-            />
-          </Field>
-          <Field label="Mois">
-            <select value={month} onChange={(event) => setMonth(Number(event.target.value))}>
-              {Array.from({ length: 12 }, (_, index) => index + 1).map((value) => (
-                <option key={value} value={value}>
-                  {monthName(value)}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </>
+        <Field label="Date fixe" hint="Seuls le jour et le mois sont retenus, l'annee saisie n'a pas d'importance.">
+          <input
+            type="date"
+            required
+            value={fixedDate}
+            onChange={(event) => setFixedDate(event.target.value)}
+          />
+        </Field>
       )}
       <Field label="Dernier entretien (facultatif)">
         <input
