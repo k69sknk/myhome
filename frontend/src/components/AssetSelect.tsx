@@ -168,7 +168,11 @@ export default function AssetSelect({
   const matches = trimmed
     ? options.filter((option) => option.label.toLowerCase().includes(trimmed.toLowerCase()))
     : options
-  const hasExactMatch = options.some((option) => option.name.toLowerCase() === trimmed.toLowerCase())
+  const hasExactMatch = options.some(
+    (option) =>
+      option.name.toLowerCase() === trimmed.toLowerCase() ||
+      option.label.toLowerCase() === trimmed.toLowerCase(),
+  )
   const canCreate = trimmed !== '' && !hasExactMatch
   const tree = useMemo(() => buildLocationTree(matches), [matches])
 
