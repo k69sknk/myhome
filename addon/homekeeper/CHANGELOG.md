@@ -3,6 +3,15 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.6.2
+
+Le selecteur d'equipement du formulaire "Ajouter un entretien" n'avait pas
+de moyen rapide de revenir en arriere apres une selection : il fallait
+effacer le texte affiche caractere par caractere pour en choisir un autre.
+
+- **Bouton effacer (×)** dans le champ Equipement : un tap vide la
+  selection et rouvre aussitot la liste complete pour en choisir un autre.
+
 ## 0.6.1
 
 Correctif : le selecteur d'equipement du formulaire "Ajouter un entretien"
