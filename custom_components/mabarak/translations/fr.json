@@ -15,7 +15,7 @@
       },
       "hassio_confirm": {
         "title": "Add-on MaBarak détecté",
-        "description": "Voulez-vous ajouter {name} à Home Assistant ? Ses données d'entretien seront exposées sous forme de capteurs."
+        "description": "Voulez-vous ajouter {name} à Home Assistant ? Ses données d'entretien seront exposées sous forme de capteurs et d'un calendrier."
       }
     },
     "error": {
@@ -37,6 +37,11 @@
       },
       "next_maintenance": {
         "name": "Prochain entretien"
+      }
+    },
+    "calendar": {
+      "entretiens": {
+        "name": "Entretiens"
       }
     }
   }

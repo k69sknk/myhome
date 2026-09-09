@@ -4,10 +4,12 @@ import type {
   AssetIn,
   AssetListItem,
   AssetPatch,
+  CalendarSyncResult,
   Category,
   CategoryIn,
   CompleteIn,
   DocumentMeta,
+  HaCalendarOption,
   HaDevice,
   HaLinkIn,
   HaSummary,
@@ -80,8 +82,12 @@ export const api = {
   summary: () => request<HaSummary>('ha/summary'),
 
   home: () => request<Home>('homes/current'),
-  patchHome: (body: { name?: string; due_soon_threshold_days?: number }) =>
-    request<Home>('homes/current', { method: 'PATCH', ...jsonBody(body) }),
+  patchHome: (body: {
+    name?: string
+    due_soon_threshold_days?: number
+    ha_calendar_entity_id?: string | null
+    ha_calendar_sync_enabled?: boolean
+  }) => request<Home>('homes/current', { method: 'PATCH', ...jsonBody(body) }),
 
   categories: () => request<Category[]>('categories'),
   createCategory: (body: CategoryIn) =>
@@ -150,4 +156,8 @@ export const api = {
     request<Asset>(`assets/${assetId}/ha-link`, { method: 'PUT', ...jsonBody(body) }),
   deleteHaLink: (assetId: number) =>
     request<Asset>(`assets/${assetId}/ha-link`, { method: 'DELETE' }),
+
+  haCalendars: () => request<HaCalendarOption[]>('ha/calendars'),
+  runCalendarSync: () =>
+    request<CalendarSyncResult>('ha/calendar-sync/run', { method: 'POST' }),
 }

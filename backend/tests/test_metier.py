@@ -63,6 +63,16 @@ def test_lieux_arbre_et_fiche_equipement(client: TestClient) -> None:
     assert summary["next_task"] is not None
     assert summary["next_task"]["asset_id"] == asset["id"]
     assert summary["next_task"]["name"] == "Entretien annuel"
+    assert summary["upcoming_tasks"] == [
+        {
+            "id": task["id"],
+            "name": "Entretien annuel",
+            "asset_id": asset["id"],
+            "asset_name": "Pompe a chaleur",
+            "due_date": "2027-01-15",
+            "status": summary["upcoming_tasks"][0]["status"],
+        }
+    ]
 
 
 def test_fait_filtre_vmc_decale_depuis_la_realisation(client: TestClient) -> None:

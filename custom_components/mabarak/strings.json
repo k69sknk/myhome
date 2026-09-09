@@ -15,7 +15,7 @@
       },
       "hassio_confirm": {
         "title": "MaBarak add-on detected",
-        "description": "Do you want to add {name} to Home Assistant? Its maintenance data will be exposed as sensors."
+        "description": "Do you want to add {name} to Home Assistant? Its maintenance data will be exposed as sensors and a calendar."
       }
     },
     "error": {
@@ -37,6 +37,11 @@
       },
       "next_maintenance": {
         "name": "Next maintenance"
+      }
+    },
+    "calendar": {
+      "entretiens": {
+        "name": "Maintenance"
       }
     }
   }

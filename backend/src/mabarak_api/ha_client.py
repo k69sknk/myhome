@@ -6,11 +6,78 @@ import json
 import os
 from typing import Any
 
-from .schemas import HaDeviceOut
+import httpx
+
+from .schemas import HaCalendarOut, HaDeviceOut
 
 
 class HaUnavailableError(Exception):
     """Supervisor ou Core injoignable (dev local, token absent)."""
+
+
+def _rest_base_url() -> str:
+    return os.environ.get("MABARAK_HA_REST_URL", "http://supervisor/core/api")
+
+
+def _rest_headers() -> dict[str, str]:
+    token = os.environ.get("SUPERVISOR_TOKEN")
+    if not token:
+        raise HaUnavailableError("SUPERVISOR_TOKEN absent")
+    return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+
+def list_ha_calendars() -> list[HaCalendarOut]:
+    """Liste les entites `calendar.*` connues de Home Assistant."""
+    headers = _rest_headers()
+    try:
+        response = httpx.get(f"{_rest_base_url()}/states", headers=headers, timeout=10)
+        response.raise_for_status()
+        states = response.json()
+    except httpx.HTTPError as exc:
+        raise HaUnavailableError(str(exc)) from exc
+
+    calendars: list[HaCalendarOut] = []
+    for state in states:
+        entity_id = str(state.get("entity_id") or "")
+        if not entity_id.startswith("calendar."):
+            continue
+        attributes = state.get("attributes") or {}
+        name = str(attributes.get("friendly_name") or entity_id)
+        calendars.append(HaCalendarOut(entity_id=entity_id, name=name))
+    calendars.sort(key=lambda item: item.name.lower())
+    return calendars
+
+
+def get_calendar_events(entity_id: str, start: str, end: str) -> list[dict[str, Any]]:
+    """Evenements existants d'un calendrier HA sur une periode donnee."""
+    headers = _rest_headers()
+    try:
+        response = httpx.get(
+            f"{_rest_base_url()}/calendars/{entity_id}",
+            headers=headers,
+            params={"start": start, "end": end},
+            timeout=10,
+        )
+        response.raise_for_status()
+        events = response.json()
+    except httpx.HTTPError as exc:
+        raise HaUnavailableError(str(exc)) from exc
+    return events if isinstance(events, list) else []
+
+
+def call_ha_service(domain: str, service: str, data: dict[str, Any]) -> None:
+    """Invoque un service Home Assistant (ex: calendar.create_event)."""
+    headers = _rest_headers()
+    try:
+        response = httpx.post(
+            f"{_rest_base_url()}/services/{domain}/{service}",
+            headers=headers,
+            json=data,
+            timeout=10,
+        )
+        response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise HaUnavailableError(str(exc)) from exc
 
 
 def list_ha_devices() -> list[HaDeviceOut]:

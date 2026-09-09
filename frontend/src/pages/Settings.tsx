@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 
 import { api } from '../api/client'
-import type { Home, LocationType } from '../api/types'
+import type { CalendarSyncResult, HaCalendarOption, Home, LocationType } from '../api/types'
 import Field from '../components/Field'
 import { EditIcon, TrashIcon } from '../components/icons'
 import { errorMessage } from '../lib/format'
@@ -14,12 +14,29 @@ export default function Settings() {
   const [newTypeName, setNewTypeName] = useState('')
   const [error, setError] = useState<string | null>(null)
 
+  const [calendars, setCalendars] = useState<HaCalendarOption[]>([])
+  const [calendarsError, setCalendarsError] = useState<string | null>(null)
+  const [calendarEntityId, setCalendarEntityId] = useState('')
+  const [calendarSyncEnabled, setCalendarSyncEnabled] = useState(false)
+  const [syncResult, setSyncResult] = useState<CalendarSyncResult | null>(null)
+  const [syncError, setSyncError] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+
   async function reload() {
     const [nextHome, nextTypes] = await Promise.all([api.home(), api.locationTypes()])
     setHome(nextHome)
     setHomeName(nextHome.name)
     setThreshold(String(nextHome.due_soon_threshold_days))
     setTypes(nextTypes)
+    setCalendarEntityId(nextHome.ha_calendar_entity_id ?? '')
+    setCalendarSyncEnabled(nextHome.ha_calendar_sync_enabled)
+
+    try {
+      setCalendars(await api.haCalendars())
+      setCalendarsError(null)
+    } catch (caught: unknown) {
+      setCalendarsError(errorMessage(caught))
+    }
   }
 
   useEffect(() => {
@@ -44,6 +61,33 @@ export default function Settings() {
       setThreshold(String(updated.due_soon_threshold_days))
     } catch (caught: unknown) {
       setError(errorMessage(caught))
+    }
+  }
+
+  async function saveCalendarSync(event: FormEvent) {
+    event.preventDefault()
+    setError(null)
+    try {
+      const updated = await api.patchHome({
+        ha_calendar_entity_id: calendarEntityId || null,
+        ha_calendar_sync_enabled: calendarSyncEnabled,
+      })
+      setHome(updated)
+    } catch (caught: unknown) {
+      setError(errorMessage(caught))
+    }
+  }
+
+  async function syncNow() {
+    setSyncing(true)
+    setSyncError(null)
+    setSyncResult(null)
+    try {
+      setSyncResult(await api.runCalendarSync())
+    } catch (caught: unknown) {
+      setSyncError(errorMessage(caught))
+    } finally {
+      setSyncing(false)
     }
   }
 
@@ -103,6 +147,64 @@ export default function Settings() {
           </form>
         </div>
       )}
+
+      <div className="card">
+        <h2 className="card__title">Calendrier Home Assistant</h2>
+        <p className="muted">
+          Pousse les entretiens a venir vers un calendrier Home Assistant existant (Local
+          Calendar, CalDAV...). Certains calendriers (Google Calendar, par exemple) ne permettent
+          pas la creation d'evenements depuis Home Assistant : la synchronisation te previendra
+          si c'est le cas.
+        </p>
+        {calendarsError && <p className="status status--error">{calendarsError}</p>}
+        {!calendarsError && (
+          <>
+            <form className="form form--inline" onSubmit={(event) => void saveCalendarSync(event)}>
+              <Field label="Calendrier cible">
+                <select
+                  value={calendarEntityId}
+                  onChange={(event) => setCalendarEntityId(event.target.value)}
+                >
+                  <option value="">Aucun</option>
+                  {calendars.map((calendar) => (
+                    <option key={calendar.entity_id} value={calendar.entity_id}>
+                      {calendar.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Synchronisation active">
+                <input
+                  type="checkbox"
+                  checked={calendarSyncEnabled}
+                  onChange={(event) => setCalendarSyncEnabled(event.target.checked)}
+                />
+              </Field>
+              <button type="submit" className="btn">
+                Enregistrer
+              </button>
+            </form>
+            <button
+              type="button"
+              className="btn btn--small"
+              disabled={syncing || !home?.ha_calendar_sync_enabled || !home?.ha_calendar_entity_id}
+              onClick={() => void syncNow()}
+            >
+              {syncing ? 'Synchronisation...' : 'Synchroniser maintenant'}
+            </button>
+            {syncResult && (
+              <p className="muted">
+                {syncResult.created} cree(s), {syncResult.deleted} supprime(s),{' '}
+                {syncResult.skipped} deja a jour.
+              </p>
+            )}
+            {syncResult && syncResult.errors.length > 0 && (
+              <p className="status status--error">{syncResult.errors.join(' ')}</p>
+            )}
+            {syncError && <p className="status status--error">{syncError}</p>}
+          </>
+        )}
+      </div>
 
       <div className="card">
         <h2 className="card__title">Types de lieux</h2>

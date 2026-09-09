@@ -474,6 +474,96 @@ code {
   gap: 0.15rem;
 }
 
+.minical__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.minical__month {
+  text-transform: capitalize;
+}
+
+.minical__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+}
+
+.minical__weekday {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  padding-bottom: 0.25rem;
+}
+
+.minical__day {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  aspect-ratio: 1;
+  padding: 0.25rem 0.15rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.minical__day:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.minical__day--outside {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.minical__day--today {
+  border-color: var(--accent);
+}
+
+.minical__day--selected {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.minical__dots {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.minical__dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+}
+
+.minical__dot--overdue {
+  background: var(--error);
+}
+
+.minical__dot--due_soon {
+  background: var(--warn);
+}
+
+.minical__dot--ok {
+  background: var(--ok);
+}
+
+.minical__dot--unscheduled {
+  background: var(--text-muted);
+}
+
+.minical__day-detail {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
 .rows__main {
   display: flex;
   align-items: center;

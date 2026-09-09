@@ -62,6 +62,15 @@ export interface ExpiringWarranty {
   end_date: string
 }
 
+export interface TaskCalendarEntry {
+  id: number
+  name: string
+  asset_id: number | null
+  asset_name: string | null
+  due_date: string
+  status: TaskStatus
+}
+
 export interface HaSummary {
   api_schema_version: number
   generated_at: string
@@ -69,6 +78,7 @@ export interface HaSummary {
   next_task: NextTask | null
   assets: AssetStatus[]
   warranties_expiring: ExpiringWarranty[]
+  upcoming_tasks: TaskCalendarEntry[]
 }
 
 export interface Home {
@@ -77,6 +87,20 @@ export interface Home {
   address: string | null
   currency: string
   due_soon_threshold_days: number
+  ha_calendar_entity_id: string | null
+  ha_calendar_sync_enabled: boolean
+}
+
+export interface HaCalendarOption {
+  entity_id: string
+  name: string
+}
+
+export interface CalendarSyncResult {
+  created: number
+  deleted: number
+  skipped: number
+  errors: string[]
 }
 
 export interface Location {

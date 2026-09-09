@@ -15,7 +15,7 @@ from .api import MaBarakClient
 from .const import CONF_HOST, CONF_PORT
 from .coordinator import MaBarakConfigEntry, MaBarakCoordinator
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.CALENDAR]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MaBarakConfigEntry) -> bool:

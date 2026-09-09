@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -10,13 +10,22 @@ from sqlalchemy.orm import Session, selectinload
 from ..clock import utc_today
 from ..config import API_SCHEMA_VERSION
 from ..db import get_session
+from ..ha_client import HaUnavailableError, list_ha_calendars
 from ..models import Asset, TaskStatusRow, Warranty
+from ..schemas import CalendarSyncResult, HaCalendarOut
+from ..services.calendar_sync import CalendarSyncConfigurationError, run_calendar_sync
 from ..services.catalog import worst_status
 from ..services.home import ensure_home
 
 router = APIRouter(prefix="/ha", tags=["home assistant"])
 
 TaskStatus = str
+
+# Fenetre du calendrier expose a Home Assistant : tout le retard, plus les
+# echeances a venir sur les 6 prochains mois. Au-dela, l'entretien n'a pas
+# encore sa place dans un calendrier (et alourdirait le contrat pour rien).
+UPCOMING_WINDOW_DAYS = 180
+UPCOMING_MAX_ENTRIES = 200
 
 
 class SummaryCounts(BaseModel):
@@ -47,6 +56,15 @@ class ExpiringWarranty(BaseModel):
     end_date: str
 
 
+class TaskCalendarEntry(BaseModel):
+    id: int
+    name: str
+    asset_id: int | None = None
+    asset_name: str | None = None
+    due_date: str
+    status: str
+
+
 class HaSummary(BaseModel):
     api_schema_version: int = Field(default=API_SCHEMA_VERSION)
     generated_at: datetime
@@ -54,6 +72,7 @@ class HaSummary(BaseModel):
     next_task: NextTask | None = None
     assets: list[AssetStatus] = Field(default_factory=list)
     warranties_expiring: list[ExpiringWarranty] = Field(default_factory=list)
+    upcoming_tasks: list[TaskCalendarEntry] = Field(default_factory=list)
 
 
 @router.get("/summary", response_model=HaSummary, summary="Synthese pour Home Assistant")
@@ -108,6 +127,26 @@ def summary(session: Session = Depends(get_session)) -> HaSummary:
     ]
 
     today = utc_today()
+    asset_name_by_id = {asset.id: asset.name for asset in assets}
+    upcoming_limit = (today + timedelta(days=UPCOMING_WINDOW_DAYS)).isoformat()
+    upcoming = [
+        row
+        for row in rows
+        if row.next_due_on is not None and row.next_due_on <= upcoming_limit
+    ]
+    upcoming.sort(key=lambda row: row.next_due_on or "")
+    upcoming_tasks = [
+        TaskCalendarEntry(
+            id=row.task_id,
+            name=row.name,
+            asset_id=row.asset_id,
+            asset_name=asset_name_by_id.get(row.asset_id) if row.asset_id else None,
+            due_date=row.next_due_on or "",
+            status=row.status,
+        )
+        for row in upcoming[:UPCOMING_MAX_ENTRIES]
+    ]
+
     limit = (today + timedelta(days=30)).isoformat()
     warranties: list[ExpiringWarranty] = []
     for warranty in session.scalars(select(Warranty).where(Warranty.end_date.is_not(None))).all():
@@ -129,4 +168,23 @@ def summary(session: Session = Depends(get_session)) -> HaSummary:
         next_task=next_task,
         assets=asset_statuses,
         warranties_expiring=warranties,
+        upcoming_tasks=upcoming_tasks,
     )
+
+
+@router.get("/calendars", response_model=list[HaCalendarOut])
+def calendars() -> list[HaCalendarOut]:
+    try:
+        return list_ha_calendars()
+    except HaUnavailableError as exc:
+        raise HTTPException(503, f"Home Assistant injoignable : {exc}") from exc
+
+
+@router.post("/calendar-sync/run", response_model=CalendarSyncResult)
+def calendar_sync_run(session: Session = Depends(get_session)) -> CalendarSyncResult:
+    try:
+        return run_calendar_sync(session)
+    except CalendarSyncConfigurationError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except HaUnavailableError as exc:
+        raise HTTPException(503, f"Home Assistant injoignable : {exc}") from exc

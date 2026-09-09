@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 
 import { api } from '../api/client'
 import type { HaSummary, HealthResponse } from '../api/types'
+import MiniCalendar from '../components/MiniCalendar'
 import StatusBadge from '../components/StatusBadge'
 import { errorMessage, formatDate } from '../lib/format'
 
@@ -98,6 +99,11 @@ function Ready({ summary, health }: { summary: HaSummary; health: HealthResponse
                 : ` (dans ${nextTask.days_until} j)`}
           </p>
         )}
+      </div>
+
+      <div className="card">
+        <h2 className="card__title">Calendrier des entretiens</h2>
+        <MiniCalendar tasks={summary.upcoming_tasks} />
       </div>
 
       <div className="card">

@@ -31,4 +31,5 @@ def test_summary_a_la_forme_attendue_sans_donnees(client: TestClient) -> None:
     assert payload["next_task"] is None
     assert payload["assets"] == []
     assert payload["warranties_expiring"] == []
+    assert payload["upcoming_tasks"] == []
     assert payload["generated_at"]
