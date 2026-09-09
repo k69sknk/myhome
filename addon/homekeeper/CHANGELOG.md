@@ -3,6 +3,28 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.6.0
+
+Preparation des entretiens : ne plus perdre l'info d'une echeance a l'autre,
+parfois espacees de plusieurs mois ou annees. Et une page Entretiens enfin
+claire : ajouter, voir ce qui est planifie, consulter l'historique.
+
+- **Piece a remplacer** : case a cocher sur un entretien, avec nom de la
+  piece et lien ou magasin d'achat. Affiche sur la fiche equipement et la
+  page Entretiens des que l'entretien revient a echeance.
+- **A prevoir lors de l'entretien** : outils specifiques, produits ou autres
+  a preparer avant de s'y mettre.
+- **Notes** : remarque libre sur l'entretien.
+- **Page Entretiens reorganisee** en trois sections : ajouter un entretien
+  (avec choix de l'equipement, sans repasser par sa fiche), a faire (groupe
+  par en retard / bientot / a jour / non planifie), et un historique global
+  de toutes les interventions passees, tous equipements confondus, avec
+  pagination (nouvel endpoint `GET /api/interventions`).
+- **Recherche d'equipement** dans le formulaire "Ajouter un entretien" :
+  on tape pour filtrer, les equipements sont regroupes en arbre par lieu
+  (categorie affichee en complement), et si l'equipement cherche n'existe
+  pas encore, un bouton propose de le creer a la volee.
+
 ## 0.5.0
 
 Boutons Modifier/Supprimer homogenes, et suppression enfin possible sur les
