@@ -3,7 +3,7 @@
 # Reference : https://developers.home-assistant.io/docs/add-ons/configuration
 
 name: HomeKeeper
-version: "0.2.1"
+version: "0.3.0"
 slug: homekeeper
 description: >-
   Gestion et entretien de la maison : equipements, elements de construction,

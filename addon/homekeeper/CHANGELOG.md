@@ -3,6 +3,36 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.3.0
+
+Lieux, catégories et entretiens gagnent en souplesse.
+
+- **Lieux** : le champ de lieu parent est renommé et explicité (indentation
+  selon la profondeur, texte d'aide), et un lieu existant peut désormais être
+  déplacé dans l'arborescence — la protection anti-cycle déjà présente côté
+  API est maintenant utilisable depuis l'interface.
+- **Types de lieux personnalisables** : nouvel onglet **Paramètres**
+  regroupant le nom de la maison et la gestion des types de lieux (ajouter,
+  renommer, supprimer un type ; les six types intégrés restent protégés
+  contre la suppression). Migration `0002_location_types` : la colonne texte
+  `location.location_type` devient une référence vers une nouvelle table
+  `location_type`, sans perte de données sur une install existante.
+- **Catégories d'équipement à la volée** : le champ Catégorie du formulaire
+  Nouvel équipement devient un champ texte avec prédiction ; une catégorie
+  absente de la liste peut être créée directement depuis ce champ
+  (`POST /api/categories`).
+- **Entretiens** :
+  - la fréquence « une fois par an, à date fixe » utilise maintenant un
+    unique champ date (jour/mois) au lieu de deux champs séparés ;
+  - le bouton **Préciser** devient **Éditer** (et **Annuler** une fois
+    ouvert), avec un formulaire plus lisible ;
+  - possibilité de consigner qu'un entretien a été réalisé par un pro
+    (entreprise, montant, facture/document joint) ; nouvelles tables
+    exploitées côté API : `cost` et `document` (déjà présentes dans le
+    schéma, jusqu'ici inutilisées) ;
+  - un bouton **Historique** affiche les entretiens passés d'une tâche
+    (date, qui, note, montant, documents téléchargeables).
+
 ## 0.2.1
 
 Correctif : `GET /locations` renvoyait une erreur 500 (« Internal Server Error »)

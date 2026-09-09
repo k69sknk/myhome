@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..clock import utc_now_iso, utc_today
-from ..models import Asset, HaLink, Intervention, Location, MaintenanceTask, TaskStatusRow
+from ..models import (
+    Asset,
+    Category,
+    HaLink,
+    Intervention,
+    Location,
+    LocationType,
+    MaintenanceTask,
+    TaskStatusRow,
+)
 from .recurrence import (
     Recurrence,
     RecurrenceType,
@@ -34,6 +45,32 @@ def location_path(session: Session, location_id: int | None) -> str | None:
     if not parts:
         return None
     return " > ".join(reversed(parts))
+
+
+def slugify(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-z0-9]+", "_", normalized.lower()).strip("_")
+    return slug or "type"
+
+
+def unique_location_type_slug(session: Session, name: str) -> str:
+    base = slugify(name)
+    slug = base
+    suffix = 2
+    while session.scalar(select(LocationType).where(LocationType.slug == slug)) is not None:
+        slug = f"{base}_{suffix}"
+        suffix += 1
+    return slug
+
+
+def unique_category_slug(session: Session, name: str) -> str:
+    base = slugify(name)
+    slug = base
+    suffix = 2
+    while session.scalar(select(Category).where(Category.slug == slug)) is not None:
+        slug = f"{base}_{suffix}"
+        suffix += 1
+    return slug
 
 
 def would_create_cycle(session: Session, location_id: int, new_parent_id: int) -> bool:
@@ -86,22 +123,21 @@ def complete_task(
     performed_on: str,
     performed_by: str | None,
     notes: str | None,
-) -> None:
+) -> Intervention:
     if task.asset_id is None:
         raise ValueError("tache sans equipement")
     now = utc_now_iso()
-    session.add(
-        Intervention(
-            asset_id=task.asset_id,
-            task_id=task.id,
-            intervention_type="maintenance",
-            performed_on=performed_on,
-            performed_by=performed_by,
-            notes=notes,
-            created_at=now,
-            updated_at=now,
-        )
+    intervention = Intervention(
+        asset_id=task.asset_id,
+        task_id=task.id,
+        intervention_type="maintenance",
+        performed_on=performed_on,
+        performed_by=performed_by,
+        notes=notes,
+        created_at=now,
+        updated_at=now,
     )
+    session.add(intervention)
     previous = date.fromisoformat(task.next_due_on) if task.next_due_on else None
     nxt = compute_next_due(
         completed_on=date.fromisoformat(performed_on),
@@ -112,6 +148,8 @@ def complete_task(
     task.last_completed_on = performed_on
     task.next_due_on = nxt.isoformat() if nxt else None
     task.updated_at = now
+    session.flush()
+    return intervention
 
 
 def primary_ha_link(asset: Asset) -> HaLink | None:

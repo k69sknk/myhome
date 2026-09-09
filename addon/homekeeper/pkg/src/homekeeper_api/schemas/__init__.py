@@ -4,7 +4,6 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-LocationType = Literal["building", "floor", "room", "zone", "outdoor", "technical"]
 RecurrenceType = Literal["none", "days", "months", "years", "annual_fixed", "custom_date"]
 TaskStatus = Literal["ok", "due_soon", "overdue", "unscheduled"]
 AssetStatus = Literal["planned", "active", "inactive", "removed"]
@@ -28,7 +27,7 @@ class HomePatch(BaseModel):
 class LocationIn(BaseModel):
     name: str = Field(min_length=1)
     parent_id: int | None = None
-    location_type: LocationType = "room"
+    location_type_id: int | None = None
     sort_order: int = 0
     notes: str | None = None
 
@@ -36,7 +35,7 @@ class LocationIn(BaseModel):
 class LocationPatch(BaseModel):
     name: str | None = Field(default=None, min_length=1)
     parent_id: int | None = None
-    location_type: LocationType | None = None
+    location_type_id: int | None = None
     sort_order: int | None = None
     notes: str | None = None
 
@@ -45,11 +44,28 @@ class LocationOut(BaseModel):
     id: int
     name: str
     parent_id: int | None
-    location_type: str
+    location_type_id: int
+    location_type_name: str
     sort_order: int
     notes: str | None
     path: str
     asset_count: int
+
+
+class LocationTypeOut(BaseModel):
+    id: int
+    slug: str
+    name: str
+    is_builtin: bool
+    sort_order: int
+
+
+class LocationTypeIn(BaseModel):
+    name: str = Field(min_length=1)
+
+
+class LocationTypePatch(BaseModel):
+    name: str = Field(min_length=1)
 
 
 class CategoryOut(BaseModel):
@@ -60,6 +76,10 @@ class CategoryOut(BaseModel):
     icon: str | None
     is_builtin: bool
     sort_order: int
+
+
+class CategoryIn(BaseModel):
+    name: str = Field(min_length=1)
 
 
 class WarrantyIn(BaseModel):
@@ -108,6 +128,7 @@ class TaskOut(BaseModel):
     recurrence_interval: int | None
     fixed_month: int | None
     fixed_day: int | None
+    last_intervention_id: int | None = None
 
 
 class TaskIn(BaseModel):
@@ -123,6 +144,32 @@ class CompleteIn(BaseModel):
     performed_on: str | None = None
     performed_by: str | None = None
     notes: str | None = None
+    amount_cents: int | None = Field(default=None, ge=1)
+
+
+class DocumentOut(BaseModel):
+    id: int
+    name: str
+    doc_type: str
+    file_size: int | None
+    mime_type: str | None
+    created_at: str
+
+
+class CostOut(BaseModel):
+    id: int
+    amount_cents: int
+    currency: str
+    incurred_on: str
+
+
+class InterventionOut(BaseModel):
+    id: int
+    performed_on: str
+    performed_by: str | None
+    notes: str | None
+    cost: CostOut | None
+    documents: list[DocumentOut]
 
 
 class AssetIn(BaseModel):
