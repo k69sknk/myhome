@@ -1,7 +1,7 @@
 {
   "name": "homekeeper-frontend",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "Interface web de HomeKeeper, servie dans le panneau lateral de Home Assistant",
   "scripts": {

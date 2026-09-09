@@ -3,6 +3,14 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.2.1
+
+Correctif : `GET /locations` renvoyait une erreur 500 (« Internal Server Error »)
+au chargement de la liste des lieux, par exemple depuis le formulaire
+« Nouvel équipement ». En cause, `dict(session.execute(...).tuples())` : `dict()`
+traitait le résultat SQLAlchemy comme un mapping au lieu de l'itérer comme une
+séquence de paires. Aucune migration de données requise.
+
 ## 0.2.0
 
 Premier morceau métier : fiche équipement, lieux, entretiens.
