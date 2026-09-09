@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "homekeeper-api"
-version = "0.8.1"
+version = "0.8.2"
 description = "Backend de HomeKeeper — gestion et entretien de la maison, local-first"
 readme = "README.md"
 requires-python = ">=3.13"

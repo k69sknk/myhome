@@ -3,6 +3,14 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.8.2
+
+- **Onglets de navigation reordonnes** : Tableau de bord, Equipements,
+  Entretiens, Lieux, Documents, Parametres.
+- **Retours** plus clairs pour naviguer entre les pages : les fiches
+  equipement (existante et nouvelle) affichent desormais un lien "← Equipements"
+  explicite plutot qu'un simple lien texte.
+
 ## 0.8.1
 
 Un document de type "Autre" gardait le nom du fichier tel quel (souvent
