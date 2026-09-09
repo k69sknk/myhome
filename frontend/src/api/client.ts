@@ -114,6 +114,9 @@ export const api = {
     request<Task>(`tasks/${taskId}/complete`, { method: 'POST', ...jsonBody(body) }),
   taskInterventions: (taskId: number) =>
     request<Intervention[]>(`tasks/${taskId}/interventions`),
+  deleteTask: (taskId: number) => request<{ ok: boolean }>(`tasks/${taskId}`, { method: 'DELETE' }),
+  deleteIntervention: (interventionId: number) =>
+    request<{ ok: boolean }>(`interventions/${interventionId}`, { method: 'DELETE' }),
   uploadInterventionDocument: async (interventionId: number, file: File) => {
     const form = new FormData()
     form.append('file', file)

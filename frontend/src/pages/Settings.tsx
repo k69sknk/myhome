@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import type { Home, LocationType } from '../api/types'
 import Field from '../components/Field'
+import { EditIcon, TrashIcon } from '../components/icons'
 import { errorMessage } from '../lib/format'
 
 export default function Settings() {
@@ -151,17 +152,21 @@ function LocationTypeRow({
       <div className="tree__row">
         <strong>{type.name}</strong>
         {type.is_builtin && <span className="muted">integre</span>}
-        <button type="button" className="btn btn--small" onClick={() => setRenaming((v) => !v)}>
-          Renommer
+        <button
+          type="button"
+          className="btn btn--small btn--edit"
+          onClick={() => setRenaming((v) => !v)}
+        >
+          <EditIcon /> Renommer
         </button>
         <button
           type="button"
-          className="btn btn--small"
+          className="btn btn--small btn--delete"
           disabled={type.is_builtin}
           title={type.is_builtin ? 'Un type integre ne peut pas etre supprime, seulement renomme' : undefined}
           onClick={onDelete}
         >
-          Supprimer
+          <TrashIcon /> Supprimer
         </button>
       </div>
       {renaming && (

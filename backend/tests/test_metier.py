@@ -317,3 +317,44 @@ def test_upload_document_equipement_type_refuse(client: TestClient) -> None:
         files={"file": ("virus.exe", BytesIO(b"MZ"), "application/octet-stream")},
     )
     assert response.status_code == 415
+
+
+def test_suppression_entretien(client: TestClient) -> None:
+    asset_id = client.post("/api/assets", json={"name": "Chaudiere"}).json()["id"]
+    task = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Revision", "recurrence_type": "months", "recurrence_interval": 12},
+    ).json()
+
+    deleted = client.delete(f"/api/tasks/{task['id']}")
+    assert deleted.status_code == 200
+    assert deleted.json() == {"ok": True}
+
+    assert all(row["id"] != task["id"] for row in client.get("/api/tasks").json())
+    assert client.delete(f"/api/tasks/{task['id']}").status_code == 404
+
+
+def test_suppression_intervention_historique(client: TestClient) -> None:
+    asset_id = client.post("/api/assets", json={"name": "Chaudiere"}).json()["id"]
+    task = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Revision", "recurrence_type": "months", "recurrence_interval": 12},
+    ).json()
+    completed = client.post(
+        f"/api/tasks/{task['id']}/complete", json={"performed_on": "2026-03-01"}
+    ).json()
+    intervention_id = completed["last_intervention_id"]
+
+    uploaded = client.post(
+        f"/api/interventions/{intervention_id}/documents",
+        files={"file": ("facture.pdf", BytesIO(b"%PDF-1.4 fake"), "application/pdf")},
+    )
+    document_id = uploaded.json()["id"]
+
+    deleted = client.delete(f"/api/interventions/{intervention_id}")
+    assert deleted.status_code == 200
+    assert deleted.json() == {"ok": True}
+
+    assert client.get(f"/api/tasks/{task['id']}/interventions").json() == []
+    assert client.get(f"/api/documents/{document_id}/file").status_code == 404
+    assert client.delete(f"/api/interventions/{intervention_id}").status_code == 404

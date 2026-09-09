@@ -6,6 +6,7 @@ import type { Asset, Category, DocumentMeta, HaDevice, Location } from '../api/t
 import CategorySelect from '../components/CategorySelect'
 import CompleteTask from '../components/CompleteTask'
 import Field from '../components/Field'
+import { EditIcon, TrashIcon } from '../components/icons'
 import StatusBadge from '../components/StatusBadge'
 import TaskForm from '../components/TaskForm'
 import { categoryIcon } from '../lib/categoryIcon'
@@ -123,8 +124,14 @@ export default function AssetDetail() {
             </p>
           </div>
         </div>
-        <button type="button" className="btn" onClick={() => setEditing((value) => !value)}>
-          {editing ? 'Fermer' : 'Modifier'}
+        <button type="button" className="btn btn--edit" onClick={() => setEditing((value) => !value)}>
+          {editing ? (
+            'Fermer'
+          ) : (
+            <>
+              <EditIcon /> Modifier
+            </>
+          )}
         </button>
       </div>
 
@@ -163,7 +170,11 @@ export default function AssetDetail() {
                     {formatDate(task.next_due_on)}
                   </p>
                 </div>
-                <CompleteTask task={task} onCompleted={() => void reload().catch((caught) => setError(errorMessage(caught)))} />
+                <CompleteTask
+                  task={task}
+                  onCompleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
+                  onDeleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
+                />
               </li>
             ))}
           </ul>
@@ -278,15 +289,20 @@ function AssetPhoto({
       <div className="asset-photo__actions">
         <button
           type="button"
-          className="btn btn--small"
+          className="btn btn--small btn--edit"
           disabled={busy}
           onClick={() => inputRef.current?.click()}
         >
-          Changer l'image
+          <EditIcon /> Changer l'image
         </button>
         {asset.photo_document_id !== null && (
-          <button type="button" className="btn btn--small" disabled={busy} onClick={() => void remove()}>
-            Supprimer
+          <button
+            type="button"
+            className="btn btn--small btn--delete"
+            disabled={busy}
+            onClick={() => void remove()}
+          >
+            <TrashIcon /> Supprimer
           </button>
         )}
       </div>
@@ -352,11 +368,11 @@ function AssetDocuments({
               </div>
               <button
                 type="button"
-                className="btn btn--small"
+                className="btn btn--small btn--delete"
                 disabled={busy}
                 onClick={() => void remove(document.id)}
               >
-                Supprimer
+                <TrashIcon /> Supprimer
               </button>
             </li>
           ))}

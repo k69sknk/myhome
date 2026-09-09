@@ -4,13 +4,16 @@ import { api } from '../api/client'
 import type { Intervention, Task } from '../api/types'
 import { errorMessage, formatAmount, formatDate, todayIso } from '../lib/format'
 import Field from './Field'
+import { EditIcon, TrashIcon } from './icons'
 
 export default function CompleteTask({
   task,
   onCompleted,
+  onDeleted,
 }: {
   task: Task
   onCompleted: () => void
+  onDeleted: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -99,6 +102,32 @@ export default function CompleteTask({
     }
   }
 
+  async function removeTask() {
+    if (inflight.current) return
+    inflight.current = true
+    setBusy(true)
+    setError(null)
+    try {
+      await api.deleteTask(task.id)
+      onDeleted()
+    } catch (caught: unknown) {
+      setError(errorMessage(caught))
+    } finally {
+      inflight.current = false
+      setBusy(false)
+    }
+  }
+
+  async function removeIntervention(interventionId: number) {
+    setHistoryError(null)
+    try {
+      await api.deleteIntervention(interventionId)
+      setHistory(await api.taskInterventions(task.id))
+    } catch (caught: unknown) {
+      setHistoryError(errorMessage(caught))
+    }
+  }
+
   return (
     <div className="complete">
       <div className="complete__actions">
@@ -107,12 +136,18 @@ export default function CompleteTask({
         </button>
         <button
           type="button"
-          className={open ? 'btn btn--active' : 'btn'}
+          className={open ? 'btn btn--active' : 'btn btn--edit'}
           disabled={busy}
           aria-expanded={open}
           onClick={() => setOpen((current) => !current)}
         >
-          {open ? 'Annuler' : 'Editer'}
+          {open ? (
+            'Annuler'
+          ) : (
+            <>
+              <EditIcon /> Editer
+            </>
+          )}
         </button>
         {(task.last_completed_on || historyOpen) && (
           <button
@@ -123,6 +158,9 @@ export default function CompleteTask({
             {historyOpen ? 'Masquer l\'historique' : 'Historique'}
           </button>
         )}
+        <button type="button" className="btn btn--small btn--delete" disabled={busy} onClick={() => void removeTask()}>
+          <TrashIcon /> Supprimer
+        </button>
       </div>
       {error && <p className="status status--error">{error}</p>}
       {open && (
@@ -199,25 +237,38 @@ export default function CompleteTask({
             <ul className="complete__history-list">
               {history.map((entry) => (
                 <li key={entry.id}>
-                  <strong>{formatDate(entry.performed_on)}</strong>
-                  {entry.performed_by && <span> · {entry.performed_by}</span>}
-                  {entry.cost && <span> · {formatAmount(entry.cost.amount_cents, entry.cost.currency)}</span>}
-                  {entry.notes && <p className="muted">{entry.notes}</p>}
-                  {entry.documents.length > 0 && (
-                    <p>
-                      {entry.documents.map((document) => (
-                        <a
-                          key={document.id}
-                          href={api.documentFileUrl(document.id)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="complete__history-doc"
-                        >
-                          {document.name}
-                        </a>
-                      ))}
-                    </p>
-                  )}
+                  <div className="complete__history-row">
+                    <div>
+                      <strong>{formatDate(entry.performed_on)}</strong>
+                      {entry.performed_by && <span> · {entry.performed_by}</span>}
+                      {entry.cost && (
+                        <span> · {formatAmount(entry.cost.amount_cents, entry.cost.currency)}</span>
+                      )}
+                      {entry.notes && <p className="muted">{entry.notes}</p>}
+                      {entry.documents.length > 0 && (
+                        <p>
+                          {entry.documents.map((document) => (
+                            <a
+                              key={document.id}
+                              href={api.documentFileUrl(document.id)}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="complete__history-doc"
+                            >
+                              {document.name}
+                            </a>
+                          ))}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn--small btn--delete"
+                      onClick={() => void removeIntervention(entry.id)}
+                    >
+                      <TrashIcon /> Supprimer
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>

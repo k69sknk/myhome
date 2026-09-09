@@ -403,6 +403,36 @@ def list_task_interventions(
     ]
 
 
+@router.delete("/tasks/{task_id}")
+def delete_task(task_id: int, session: Session = Depends(get_session)) -> dict[str, bool]:
+    task = session.get(MaintenanceTask, task_id)
+    if task is None or task.asset_id is None:
+        raise HTTPException(404, "Entretien introuvable")
+    _get_asset(session, task.asset_id)
+    session.delete(task)
+    session.flush()
+    return {"ok": True}
+
+
+@router.delete("/interventions/{intervention_id}")
+def delete_intervention(
+    intervention_id: int,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_app_settings),
+) -> dict[str, bool]:
+    intervention = session.get(
+        Intervention, intervention_id, options=(selectinload(Intervention.documents),)
+    )
+    if intervention is None:
+        raise HTTPException(404, "Intervention introuvable")
+    _get_asset(session, intervention.asset_id)
+    for document in list(intervention.documents):
+        _delete_document(session, settings, document)
+    session.delete(intervention)
+    session.flush()
+    return {"ok": True}
+
+
 _ALLOWED_DOCUMENT_EXTENSIONS = {
     ".pdf",
     ".jpg",

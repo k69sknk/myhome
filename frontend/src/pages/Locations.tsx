@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import type { Location, LocationType } from '../api/types'
 import Field from '../components/Field'
+import { EditIcon, TrashIcon } from '../components/icons'
 import { errorMessage } from '../lib/format'
 
 interface TreeNode {
@@ -264,8 +265,12 @@ function LocationNode({
         <span className="muted">
           {node.location.asset_count} appareil{node.location.asset_count === 1 ? '' : 's'}
         </span>
-        <button type="button" className="btn btn--small" onClick={() => setRenaming((value) => !value)}>
-          Renommer
+        <button
+          type="button"
+          className="btn btn--small btn--edit"
+          onClick={() => setRenaming((value) => !value)}
+        >
+          <EditIcon /> Renommer
         </button>
         <button type="button" className="btn btn--small" onClick={() => setAdding((value) => !value)}>
           Ajouter un lieu
@@ -280,8 +285,8 @@ function LocationNode({
         >
           Deplacer
         </button>
-        <button type="button" className="btn btn--small" onClick={() => void remove()}>
-          Supprimer
+        <button type="button" className="btn btn--small btn--delete" onClick={() => void remove()}>
+          <TrashIcon /> Supprimer
         </button>
       </div>
       {renaming && (

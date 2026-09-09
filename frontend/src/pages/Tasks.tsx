@@ -63,6 +63,7 @@ export default function Tasks() {
               <CompleteTask
                 task={task}
                 onCompleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
+                onDeleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
               />
             </li>
           ))}
