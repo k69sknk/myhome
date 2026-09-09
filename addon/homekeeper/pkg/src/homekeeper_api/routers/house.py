@@ -74,7 +74,9 @@ def list_locations(session: Session = Depends(get_session)) -> list[LocationOut]
             select(Asset.location_id, func.count())
             .where(Asset.location_id.is_not(None))
             .group_by(Asset.location_id)
-        ).tuples().all()
+        )
+        .tuples()
+        .all()
     )
     return [
         LocationOut(
