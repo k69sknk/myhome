@@ -10,9 +10,14 @@ from sqlalchemy.orm import Session, selectinload
 from ..clock import utc_today
 from ..config import API_SCHEMA_VERSION
 from ..db import get_session
-from ..ha_client import HaUnavailableError, list_ha_calendars
+from ..ha_client import (
+    HaUnavailableError,
+    list_ha_calendars,
+    list_ha_notify_services,
+    list_ha_persons,
+)
 from ..models import Asset, TaskStatusRow, Warranty
-from ..schemas import CalendarSyncResult, HaCalendarOut
+from ..schemas import CalendarSyncResult, HaCalendarOut, HaPersonOut
 from ..services.calendar_sync import CalendarSyncConfigurationError, run_calendar_sync
 from ..services.catalog import worst_status
 from ..services.home import ensure_home
@@ -174,6 +179,22 @@ def summary(session: Session = Depends(get_session)) -> HaSummary:
 def calendars() -> list[HaCalendarOut]:
     try:
         return list_ha_calendars()
+    except HaUnavailableError as exc:
+        raise HTTPException(503, f"Home Assistant injoignable : {exc}") from exc
+
+
+@router.get("/persons", response_model=list[HaPersonOut])
+def persons() -> list[HaPersonOut]:
+    try:
+        return list_ha_persons()
+    except HaUnavailableError as exc:
+        raise HTTPException(503, f"Home Assistant injoignable : {exc}") from exc
+
+
+@router.get("/notify-services", response_model=list[str])
+def notify_services() -> list[str]:
+    try:
+        return list_ha_notify_services()
     except HaUnavailableError as exc:
         raise HTTPException(503, f"Home Assistant injoignable : {exc}") from exc
 

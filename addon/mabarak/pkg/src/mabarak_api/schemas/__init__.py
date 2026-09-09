@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 RecurrenceType = Literal["none", "days", "months", "years", "annual_fixed", "custom_date"]
 TaskStatus = Literal["ok", "due_soon", "overdue", "unscheduled"]
 AssetStatus = Literal["planned", "active", "inactive", "removed"]
+MemberType = Literal["household", "friend", "company"]
 
 
 class HomeOut(BaseModel):
@@ -17,6 +18,7 @@ class HomeOut(BaseModel):
     due_soon_threshold_days: int
     ha_calendar_entity_id: str | None
     ha_calendar_sync_enabled: bool
+    task_notifications_enabled: bool
 
 
 class HomePatch(BaseModel):
@@ -26,6 +28,7 @@ class HomePatch(BaseModel):
     due_soon_threshold_days: int | None = Field(default=None, ge=0)
     ha_calendar_entity_id: str | None = None
     ha_calendar_sync_enabled: bool | None = None
+    task_notifications_enabled: bool | None = None
 
 
 class LocationIn(BaseModel):
@@ -118,6 +121,17 @@ class HaLinkIn(BaseModel):
     area_name: str | None = None
 
 
+class ReplacementPartIn(BaseModel):
+    name: str = Field(min_length=1)
+    source: str | None = None
+
+
+class ReplacementPartOut(BaseModel):
+    id: int
+    name: str
+    source: str | None = None
+
+
 class TaskOut(BaseModel):
     id: int
     asset_id: int | None
@@ -132,12 +146,13 @@ class TaskOut(BaseModel):
     recurrence_interval: int | None
     fixed_month: int | None
     fixed_day: int | None
+    custom_due_date: str | None = None
     last_intervention_id: int | None = None
-    needs_part_replacement: bool = False
-    replacement_part_name: str | None = None
-    replacement_part_source: str | None = None
+    replacement_parts: list[ReplacementPartOut] = Field(default_factory=list)
     preparation_notes: str | None = None
     notes: str | None = None
+    assignee_id: int | None = None
+    assignee_name: str | None = None
 
 
 class TaskIn(BaseModel):
@@ -146,12 +161,26 @@ class TaskIn(BaseModel):
     recurrence_interval: int | None = Field(default=None, ge=1)
     fixed_month: int | None = Field(default=None, ge=1, le=12)
     fixed_day: int | None = Field(default=None, ge=1, le=31)
+    custom_due_date: str | None = None
     last_completed_on: str | None = None
-    needs_part_replacement: bool = False
-    replacement_part_name: str | None = None
-    replacement_part_source: str | None = None
+    replacement_parts: list[ReplacementPartIn] = Field(default_factory=list)
     preparation_notes: str | None = None
     notes: str | None = None
+    assignee_id: int | None = None
+
+
+class TaskPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    recurrence_type: RecurrenceType | None = None
+    recurrence_interval: int | None = Field(default=None, ge=1)
+    fixed_month: int | None = Field(default=None, ge=1, le=12)
+    fixed_day: int | None = Field(default=None, ge=1, le=31)
+    custom_due_date: str | None = None
+    last_completed_on: str | None = None
+    replacement_parts: list[ReplacementPartIn] | None = None
+    preparation_notes: str | None = None
+    notes: str | None = None
+    assignee_id: int | None = None
 
 
 class CompleteIn(BaseModel):
@@ -284,3 +313,33 @@ class CalendarSyncResult(BaseModel):
     deleted: int = 0
     skipped: int = 0
     errors: list[str] = Field(default_factory=list)
+
+
+class HaPersonOut(BaseModel):
+    entity_id: str
+    name: str
+
+
+class MemberOut(BaseModel):
+    id: int
+    name: str
+    member_type: MemberType
+    contact: str | None = None
+    ha_person_entity_id: str | None = None
+    ha_notify_service: str | None = None
+
+
+class MemberIn(BaseModel):
+    name: str = Field(min_length=1)
+    member_type: MemberType = "household"
+    contact: str | None = None
+    ha_person_entity_id: str | None = None
+    ha_notify_service: str | None = None
+
+
+class MemberPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    member_type: MemberType | None = None
+    contact: str | None = None
+    ha_person_entity_id: str | None = None
+    ha_notify_service: str | None = None

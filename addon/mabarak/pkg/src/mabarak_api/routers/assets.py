@@ -23,6 +23,8 @@ from ..models import (
     Intervention,
     Location,
     MaintenanceTask,
+    Member,
+    ReplacementPart,
     TaskStatusRow,
     Warranty,
 )
@@ -39,8 +41,11 @@ from ..schemas import (
     HaLinkOut,
     HistoryEntryOut,
     InterventionOut,
+    ReplacementPartIn,
+    ReplacementPartOut,
     TaskIn,
     TaskOut,
+    TaskPatch,
     TaskStatus,
     WarrantyIn,
     WarrantyOut,
@@ -54,6 +59,7 @@ from ..services.catalog import (
     worst_status,
 )
 from ..services.home import ensure_home
+from ..services.notifications import notify_assignee
 from ..services.recurrence import RecurrenceType
 
 router = APIRouter(tags=["equipements"])
@@ -69,7 +75,8 @@ def _get_asset(session: Session, asset_id: int) -> Asset:
         Asset,
         asset_id,
         options=(
-            selectinload(Asset.tasks),
+            selectinload(Asset.tasks).selectinload(MaintenanceTask.replacement_parts),
+            selectinload(Asset.tasks).selectinload(MaintenanceTask.assignee),
             selectinload(Asset.warranty),
             selectinload(Asset.ha_links),
             selectinload(Asset.category),
@@ -120,12 +127,16 @@ def _task_out(
         recurrence_interval=task.recurrence_interval,
         fixed_month=task.fixed_month,
         fixed_day=task.fixed_day,
+        custom_due_date=task.custom_due_date,
         last_intervention_id=last_intervention_id,
-        needs_part_replacement=bool(task.needs_part_replacement),
-        replacement_part_name=task.replacement_part_name,
-        replacement_part_source=task.replacement_part_source,
+        replacement_parts=[
+            ReplacementPartOut(id=part.id, name=part.name, source=part.source)
+            for part in task.replacement_parts
+        ],
         preparation_notes=task.preparation_notes,
         notes=task.description,
+        assignee_id=task.assignee_id,
+        assignee_name=task.assignee.name if task.assignee is not None else None,
     )
 
 
@@ -298,42 +309,147 @@ def patch_asset(
     return _asset_out(session, _get_asset(session, asset.id))
 
 
+def _get_member(session: Session, member_id: int) -> Member:
+    member = session.get(Member, member_id)
+    if member is None:
+        raise HTTPException(404, "Membre introuvable")
+    return member
+
+
+def _replacement_part_rows(parts: list[ReplacementPartIn]) -> list[ReplacementPart]:
+    return [
+        ReplacementPart(
+            name=part.name.strip(),
+            source=(part.source or "").strip() or None,
+            sort_order=index,
+        )
+        for index, part in enumerate(parts)
+    ]
+
+
 @router.post("/assets/{asset_id}/tasks", response_model=TaskOut, status_code=201)
 def create_task(asset_id: int, body: TaskIn, session: Session = Depends(get_session)) -> TaskOut:
     asset = _get_asset(session, asset_id)
-    _validate_recurrence(body)
+    _validate_recurrence(
+        body.recurrence_type,
+        body.recurrence_interval,
+        body.fixed_month,
+        body.fixed_day,
+        body.custom_due_date,
+    )
+    assignee = _get_member(session, body.assignee_id) if body.assignee_id is not None else None
     anchor, next_due = plan_task(
         recurrence_type=body.recurrence_type,
         interval=body.recurrence_interval,
         fixed_month=body.fixed_month,
         fixed_day=body.fixed_day,
+        custom_due_date=body.custom_due_date,
         last_completed_on=body.last_completed_on,
     )
     now = utc_now_iso()
     task = MaintenanceTask(
         asset_id=asset.id,
         home_id=None,
+        assignee_id=assignee.id if assignee is not None else None,
         name=body.name.strip(),
         recurrence_type=body.recurrence_type,
         recurrence_interval=body.recurrence_interval,
         recurrence_anchor=anchor,
         fixed_month=body.fixed_month,
         fixed_day=body.fixed_day,
+        custom_due_date=body.custom_due_date,
         last_completed_on=body.last_completed_on,
         next_due_on=next_due,
         is_active=1,
-        needs_part_replacement=1 if body.needs_part_replacement else 0,
-        replacement_part_name=(body.replacement_part_name or "").strip() or None,
-        replacement_part_source=(body.replacement_part_source or "").strip() or None,
         preparation_notes=(body.preparation_notes or "").strip() or None,
         description=(body.notes or "").strip() or None,
+        replacement_parts=_replacement_part_rows(body.replacement_parts),
         created_at=now,
         updated_at=now,
     )
     session.add(task)
     session.flush()
+    if assignee is not None:
+        notify_assignee(_home(session), task, assignee)
     statuses = task_status_map(session, [task.id])
     return _task_out(task, statuses.get(task.id), asset_name=asset.name)
+
+
+@router.patch("/tasks/{task_id}", response_model=TaskOut)
+def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_session)) -> TaskOut:
+    task = session.get(MaintenanceTask, task_id)
+    if task is None or task.asset_id is None:
+        raise HTTPException(404, "Entretien introuvable")
+    asset = _get_asset(session, task.asset_id)
+    data = body.model_dump(exclude_unset=True)
+    replace_parts = "replacement_parts" in data
+    data.pop("replacement_parts", None)
+
+    recurrence_fields = {
+        "recurrence_type",
+        "recurrence_interval",
+        "fixed_month",
+        "fixed_day",
+        "custom_due_date",
+        "last_completed_on",
+    }
+    if recurrence_fields & data.keys():
+        rec_type = data.get("recurrence_type", task.recurrence_type)
+        interval = data.get("recurrence_interval", task.recurrence_interval)
+        fixed_month = data.get("fixed_month", task.fixed_month)
+        fixed_day = data.get("fixed_day", task.fixed_day)
+        custom_due_date = data.get("custom_due_date", task.custom_due_date)
+        last_completed_on = data.get("last_completed_on", task.last_completed_on)
+        _validate_recurrence(rec_type, interval, fixed_month, fixed_day, custom_due_date)
+        anchor, next_due = plan_task(
+            recurrence_type=rec_type,
+            interval=interval,
+            fixed_month=fixed_month,
+            fixed_day=fixed_day,
+            custom_due_date=custom_due_date,
+            last_completed_on=last_completed_on,
+        )
+        task.recurrence_type = rec_type
+        task.recurrence_interval = interval
+        task.recurrence_anchor = anchor
+        task.fixed_month = fixed_month
+        task.fixed_day = fixed_day
+        task.custom_due_date = custom_due_date
+        task.last_completed_on = last_completed_on
+        task.next_due_on = next_due
+        for key in recurrence_fields:
+            data.pop(key, None)
+
+    new_assignee: Member | None = None
+    assignee_changed = "assignee_id" in data
+    if assignee_changed:
+        assignee_id = data.pop("assignee_id")
+        new_assignee = _get_member(session, assignee_id) if assignee_id is not None else None
+        task.assignee_id = assignee_id
+
+    if "name" in data and isinstance(data["name"], str):
+        data["name"] = data["name"].strip()
+    if "notes" in data:
+        task.description = (data.pop("notes") or "").strip() or None
+    for key, value in data.items():
+        setattr(task, key, value)
+
+    if replace_parts:
+        task.replacement_parts = _replacement_part_rows(body.replacement_parts or [])
+
+    task.updated_at = utc_now_iso()
+    session.flush()
+
+    if assignee_changed and new_assignee is not None:
+        notify_assignee(_home(session), task, new_assignee)
+
+    statuses = task_status_map(session, [task.id])
+    return _task_out(
+        task,
+        statuses.get(task.id),
+        asset_name=asset.name,
+        loc_path=location_path(session, asset.location_id),
+    )
 
 
 @router.post("/tasks/{task_id}/complete", response_model=TaskOut)
@@ -670,6 +786,10 @@ def list_tasks(session: Session = Depends(get_session)) -> list[TaskOut]:
         select(MaintenanceTask)
         .join(Asset, MaintenanceTask.asset_id == Asset.id)
         .where(Asset.home_id == home.id, Asset.status != "removed", MaintenanceTask.is_active == 1)
+        .options(
+            selectinload(MaintenanceTask.replacement_parts),
+            selectinload(MaintenanceTask.assignee),
+        )
         .order_by(MaintenanceTask.next_due_on.is_(None), MaintenanceTask.next_due_on)
     ).all()
     statuses = task_status_map(session, [task.id for task in tasks])
@@ -772,9 +892,16 @@ def _assign_area_location(session: Session, asset: Asset, area_name: str) -> Non
     asset.location_id = match.id
 
 
-def _validate_recurrence(body: TaskIn) -> None:
-    rec_type: RecurrenceType = body.recurrence_type
-    if rec_type in {"days", "months", "years"} and body.recurrence_interval is None:
+def _validate_recurrence(
+    rec_type: RecurrenceType,
+    interval: int | None,
+    fixed_month: int | None,
+    fixed_day: int | None,
+    custom_due_date: str | None,
+) -> None:
+    if rec_type in {"days", "months", "years"} and interval is None:
         raise HTTPException(422, "Indiquez l'intervalle (tous les X mois/ans/jours)")
-    if rec_type == "annual_fixed" and (body.fixed_month is None or body.fixed_day is None):
+    if rec_type == "annual_fixed" and (fixed_month is None or fixed_day is None):
         raise HTTPException(422, "Indiquez le jour et le mois pour un entretien annuel")
+    if rec_type == "custom_date" and custom_due_date is None:
+        raise HTTPException(422, "Indiquez la date de l'entretien ponctuel")

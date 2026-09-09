@@ -54,6 +54,9 @@ CREATE TABLE home (
     ha_calendar_entity_id     TEXT,
     ha_calendar_sync_enabled  INTEGER NOT NULL DEFAULT 0,
 
+    -- Notifier via Home Assistant (notify.*) la personne assignee a un entretien.
+    task_notifications_enabled INTEGER NOT NULL DEFAULT 0,
+
     created_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
@@ -364,6 +367,34 @@ CREATE INDEX ix_warranty_end_date ON warranty(end_date);
 
 
 -- =============================================================================
+-- 6b. member — annuaire des personnes/entreprises delegataires
+-- =============================================================================
+-- Foyer, ami ou entreprise a qui un entretien peut etre delegue. `ha_person_entity_id`
+-- lie facultativement le membre a une entite `person.*` de Home Assistant (juste pour
+-- l'affichage) ; `ha_notify_service` est le nom du service `notify.*` a appeler pour le
+-- notifier (distinct de l'entite personne : HA ne fournit pas de resolution fiable et
+-- generique de "personne" vers "service de notification").
+
+CREATE TABLE member (
+    id                  INTEGER PRIMARY KEY,
+    home_id             INTEGER REFERENCES home(id) ON DELETE CASCADE,
+
+    name                TEXT    NOT NULL,
+    member_type         TEXT    NOT NULL DEFAULT 'household'
+                        CHECK (member_type IN ('household', 'friend', 'company')),
+    contact             TEXT,   -- telephone/email libre
+
+    ha_person_entity_id TEXT,
+    ha_notify_service   TEXT,   -- ex. 'mobile_app_alice', sans le prefixe 'notify.'
+
+    created_at          TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at          TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+CREATE INDEX ix_member_home ON member(home_id);
+
+
+-- =============================================================================
 -- 7. maintenance_task — taches d'entretien
 -- =============================================================================
 
@@ -374,6 +405,7 @@ CREATE TABLE maintenance_task (
     -- equipement, soit globale a la maison ('verifier les detecteurs de fumee').
     asset_id            INTEGER          REFERENCES asset(id) ON DELETE CASCADE,
     home_id             INTEGER          REFERENCES home(id)  ON DELETE CASCADE,
+    assignee_id         INTEGER          REFERENCES member(id) ON DELETE SET NULL,
 
     name                TEXT    NOT NULL,
     description         TEXT,   -- affiche cote UI comme "Notes"
@@ -381,11 +413,14 @@ CREATE TABLE maintenance_task (
     priority            TEXT    NOT NULL DEFAULT 'normal'
                         CHECK (priority IN ('low', 'normal', 'high', 'critical')),
 
-    -- ---- Preparation (facultatif, pas d'invariant impose : remplissable
-    -- meme si needs_part_replacement = 0) ----
+    -- DEPRECIEES : remplacees par la table `replacement_part` (plusieurs pieces
+    -- possibles par entretien). Laissees en place pour ne pas recreer cette table
+    -- sous SQLite (voir alembic/versions/0004_relative_due_soon.py : recreer une
+    -- table referencee par `document.maintenance_task_id ON DELETE CASCADE`
+    -- declenche une suppression en cascade). Plus lues ni ecrites par l'API.
     needs_part_replacement  INTEGER NOT NULL DEFAULT 0 CHECK (needs_part_replacement IN (0, 1)),
-    replacement_part_name   TEXT,   -- ex. 'Filtre a eau 10 pouces'
-    replacement_part_source TEXT,   -- lien d'achat OU nom d'enseigne
+    replacement_part_name   TEXT,
+    replacement_part_source TEXT,
     preparation_notes       TEXT,   -- outils specifiques, produits, autres a prevoir
 
     -- ---- Planification (section 9) ----
@@ -443,9 +478,28 @@ CREATE TABLE maintenance_task (
     )
 );
 
-CREATE INDEX ix_task_asset    ON maintenance_task(asset_id);
-CREATE INDEX ix_task_home     ON maintenance_task(home_id);
-CREATE INDEX ix_task_next_due ON maintenance_task(next_due_on) WHERE is_active = 1;
+CREATE INDEX ix_task_asset     ON maintenance_task(asset_id);
+CREATE INDEX ix_task_home      ON maintenance_task(home_id);
+CREATE INDEX ix_task_next_due  ON maintenance_task(next_due_on) WHERE is_active = 1;
+CREATE INDEX ix_task_assignee  ON maintenance_task(assignee_id);
+
+
+-- =============================================================================
+-- 7b. replacement_part — pieces a remplacer lors d'un entretien
+-- =============================================================================
+-- Plusieurs pieces possibles par entretien (remplace les colonnes
+-- needs_part_replacement/replacement_part_name/replacement_part_source ci-dessus).
+
+CREATE TABLE replacement_part (
+    id         INTEGER PRIMARY KEY,
+    task_id    INTEGER NOT NULL REFERENCES maintenance_task(id) ON DELETE CASCADE,
+
+    name       TEXT    NOT NULL,   -- ex. 'Filtre a eau 10 pouces'
+    source     TEXT,               -- lien d'achat OU nom d'enseigne
+    sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX ix_replacement_part_task ON replacement_part(task_id);
 
 
 -- =============================================================================

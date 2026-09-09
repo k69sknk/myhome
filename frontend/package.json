@@ -1,7 +1,7 @@
 {
   "name": "mabarak-frontend",
   "private": true,
-  "version": "0.10.1",
+  "version": "0.11.0",
   "type": "module",
   "description": "Interface web de MaBarak, servie dans le panneau lateral de Home Assistant",
   "scripts": {

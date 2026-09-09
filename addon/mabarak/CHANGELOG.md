@@ -3,6 +3,20 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.11.0
+
+- Mini-calendrier du tableau de bord : mise en page compacte, detail du jour
+  selectionne affiche a cote du calendrier (plus besoin de scroller).
+- Entretiens ponctuels : la frequence "Ponctuel" porte desormais une vraie
+  date et apparait sur les calendriers (tableau de bord, calendrier HA).
+- Edition d'un entretien existant (nom, frequence, pieces, notes,
+  assignation) sans avoir a le supprimer et le recreer.
+- Plusieurs pieces a remplacer possibles par entretien (au lieu d'une seule).
+- Delegation : nouvel onglet "Membres" pour deleguer un entretien a une
+  personne du foyer, un ami ou une entreprise, avec lien facultatif vers une
+  personne Home Assistant et notification optionnelle (reglable dans
+  Parametres) a l'assignation, via un service `notify.*` Home Assistant.
+
 ## 0.10.1
 
 Correctif : `httpx` (utilisé par le nouvel accès REST à Home Assistant depuis
