@@ -53,30 +53,51 @@ CREATE TABLE home (
 
 
 -- =============================================================================
+-- 1b. location_type — types de lieux personnalisables
+-- =============================================================================
+-- Purement indicatif : sert a choisir une icone et grouper l'affichage, jamais
+-- a contraindre la hierarchie. Pre-alimente avec is_builtin = 1 (voir la
+-- section 'Donnees de reference' en fin de fichier) ; l'utilisateur peut en
+-- creer d'autres et renommer ou supprimer les siens.
+
+CREATE TABLE location_type (
+    id         INTEGER PRIMARY KEY,
+    slug       TEXT    NOT NULL UNIQUE,   -- stable, sert aux mises a jour du seed
+    name       TEXT    NOT NULL,
+
+    -- Les types integres ne sont pas supprimables (evite qu'une mise a jour ne
+    -- les recree), mais peuvent etre renommes.
+    is_builtin INTEGER NOT NULL DEFAULT 0 CHECK (is_builtin IN (0, 1)),
+
+    sort_order INTEGER NOT NULL DEFAULT 0,
+
+    created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+
+-- =============================================================================
 -- 2. location — arborescence des lieux
 -- =============================================================================
 -- Auto-referencee, profondeur libre : couvre 'Maison > Rez-de-chaussee > Cuisine'
 -- comme les cas plats ('Jardin').
 
 CREATE TABLE location (
-    id            INTEGER PRIMARY KEY,
-    home_id       INTEGER NOT NULL REFERENCES home(id) ON DELETE CASCADE,
-    parent_id     INTEGER          REFERENCES location(id) ON DELETE RESTRICT,
+    id                INTEGER PRIMARY KEY,
+    home_id           INTEGER NOT NULL REFERENCES home(id) ON DELETE CASCADE,
+    parent_id         INTEGER          REFERENCES location(id) ON DELETE RESTRICT,
 
-    name          TEXT    NOT NULL,
+    name              TEXT    NOT NULL,
 
-    -- Purement indicatif : sert a choisir une icone et grouper l'affichage,
-    -- jamais a contraindre la hierarchie. L'utilisateur organise sa maison
-    -- comme il l'entend.
-    location_type TEXT    NOT NULL DEFAULT 'room'
-                  CHECK (location_type IN ('building', 'floor', 'room', 'zone',
-                                           'outdoor', 'technical')),
+    -- RESTRICT : un type utilise par au moins un lieu ne peut pas etre supprime
+    -- sans reaffecter ces lieux au prealable.
+    location_type_id  INTEGER NOT NULL REFERENCES location_type(id) ON DELETE RESTRICT,
 
-    sort_order    INTEGER NOT NULL DEFAULT 0,   -- ordre explicite, pas alphabetique
-    notes         TEXT,
+    sort_order        INTEGER NOT NULL DEFAULT 0,   -- ordre explicite, pas alphabetique
+    notes             TEXT,
 
-    created_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    updated_at    TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    created_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
 
     -- Un lieu ne peut pas etre son propre parent. Les cycles plus longs ne sont
     -- pas detectables par CHECK : la couche service les refuse.
@@ -85,8 +106,9 @@ CREATE TABLE location (
     UNIQUE (home_id, parent_id, name)
 );
 
-CREATE INDEX ix_location_home   ON location(home_id);
-CREATE INDEX ix_location_parent ON location(parent_id);
+CREATE INDEX ix_location_home          ON location(home_id);
+CREATE INDEX ix_location_parent        ON location(parent_id);
+CREATE INDEX ix_location_location_type ON location(location_type_id);
 
 
 -- =============================================================================
@@ -729,6 +751,21 @@ CREATE VIEW v_task_status AS
     -- La maison provient soit de l'equipement, soit du rattachement direct.
     LEFT JOIN  home  h ON h.id = COALESCE(a.home_id, t.home_id)
     WHERE      t.is_active = 1;
+
+
+-- =============================================================================
+-- DONNEES DE REFERENCE — types de lieux
+-- =============================================================================
+-- Pre-alimentes avec is_builtin = 1 : renommables mais jamais supprimables.
+-- L'utilisateur peut en creer d'autres avec is_builtin = 0.
+
+INSERT INTO location_type (slug, name, is_builtin, sort_order) VALUES
+    ('room',      'Piece',      1, 10),
+    ('floor',     'Etage',      1, 20),
+    ('zone',      'Zone',       1, 30),
+    ('building',  'Batiment',   1, 40),
+    ('outdoor',   'Exterieur',  1, 50),
+    ('technical', 'Technique',  1, 60);
 
 
 -- =============================================================================

@@ -36,6 +36,12 @@ def session_factory_for(engine: Engine) -> sessionmaker[Session]:
     return sessionmaker(bind=engine, expire_on_commit=False)
 
 
+def get_app_settings(request: Request) -> Settings:
+    """Reglages de l'application en cours, poses sur app.state par create_app."""
+    settings: Settings = request.app.state.settings
+    return settings
+
+
 def get_session(request: Request) -> Iterator[Session]:
     """Session par requete, liee aux reglages de l'application FastAPI."""
     factory: sessionmaker[Session] = request.app.state.session_factory

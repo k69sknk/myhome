@@ -1,17 +1,25 @@
 """Fiches d'equipements et taches d'entretien."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from pathlib import Path
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from ..clock import utc_now_iso, utc_today
-from ..db import get_session
+from ..config import Settings
+from ..db import get_app_settings, get_session
 from ..ha_client import HaUnavailableError, list_ha_devices
 from ..models import (
     Asset,
     Category,
+    Cost,
+    Document,
     HaLink,
     Home,
+    Intervention,
     Location,
     MaintenanceTask,
     TaskStatusRow,
@@ -23,9 +31,12 @@ from ..schemas import (
     AssetOut,
     AssetPatch,
     CompleteIn,
+    CostOut,
+    DocumentOut,
     HaDeviceOut,
     HaLinkIn,
     HaLinkOut,
+    InterventionOut,
     TaskIn,
     TaskOut,
     TaskStatus,
@@ -86,6 +97,7 @@ def _task_out(
     *,
     asset_name: str | None = None,
     loc_path: str | None = None,
+    last_intervention_id: int | None = None,
 ) -> TaskOut:
     status: TaskStatus = "unscheduled"
     days: int | None = None
@@ -106,6 +118,7 @@ def _task_out(
         recurrence_interval=task.recurrence_interval,
         fixed_month=task.fixed_month,
         fixed_day=task.fixed_day,
+        last_intervention_id=last_intervention_id,
     )
 
 
@@ -299,13 +312,28 @@ def mark_task_done(
         raise HTTPException(404, "Entretien introuvable")
     asset = _get_asset(session, task.asset_id)
     performed_on = body.performed_on or utc_today().isoformat()
-    complete_task(
+    intervention = complete_task(
         session,
         task,
         performed_on=performed_on,
         performed_by=body.performed_by,
         notes=body.notes,
     )
+    if body.amount_cents is not None:
+        home = _home(session)
+        now = utc_now_iso()
+        session.add(
+            Cost(
+                asset_id=asset.id,
+                intervention_id=intervention.id,
+                cost_type="maintenance",
+                amount_cents=body.amount_cents,
+                currency=home.currency,
+                incurred_on=performed_on,
+                created_at=now,
+                updated_at=now,
+            )
+        )
     session.flush()
     statuses = task_status_map(session, [task.id])
     return _task_out(
@@ -313,6 +341,133 @@ def mark_task_done(
         statuses.get(task.id),
         asset_name=asset.name,
         loc_path=location_path(session, asset.location_id),
+        last_intervention_id=intervention.id,
+    )
+
+
+@router.get("/tasks/{task_id}/interventions", response_model=list[InterventionOut])
+def list_task_interventions(
+    task_id: int, session: Session = Depends(get_session)
+) -> list[InterventionOut]:
+    task = session.get(MaintenanceTask, task_id)
+    if task is None or task.asset_id is None:
+        raise HTTPException(404, "Entretien introuvable")
+    _get_asset(session, task.asset_id)
+    interventions = session.scalars(
+        select(Intervention)
+        .where(Intervention.task_id == task_id)
+        .options(selectinload(Intervention.costs), selectinload(Intervention.documents))
+        .order_by(Intervention.performed_on.desc(), Intervention.id.desc())
+    ).all()
+    return [
+        InterventionOut(
+            id=row.id,
+            performed_on=row.performed_on,
+            performed_by=row.performed_by,
+            notes=row.notes,
+            cost=(
+                CostOut(
+                    id=row.costs[0].id,
+                    amount_cents=row.costs[0].amount_cents,
+                    currency=row.costs[0].currency,
+                    incurred_on=row.costs[0].incurred_on,
+                )
+                if row.costs
+                else None
+            ),
+            documents=[
+                DocumentOut(
+                    id=doc.id,
+                    name=doc.name,
+                    doc_type=doc.doc_type,
+                    file_size=doc.file_size,
+                    mime_type=doc.mime_type,
+                    created_at=doc.created_at,
+                )
+                for doc in row.documents
+            ],
+        )
+        for row in interventions
+    ]
+
+
+_ALLOWED_DOCUMENT_EXTENSIONS = {
+    ".pdf",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".heic",
+    ".doc",
+    ".docx",
+}
+_MAX_DOCUMENT_SIZE = 10 * 1024 * 1024
+
+
+@router.post(
+    "/interventions/{intervention_id}/documents", response_model=DocumentOut, status_code=201
+)
+async def upload_intervention_document(
+    intervention_id: int,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_app_settings),
+) -> DocumentOut:
+    intervention = session.get(Intervention, intervention_id)
+    if intervention is None:
+        raise HTTPException(404, "Intervention introuvable")
+    _get_asset(session, intervention.asset_id)
+
+    original_name = file.filename or "document"
+    extension = Path(original_name).suffix.lower()
+    if extension not in _ALLOWED_DOCUMENT_EXTENSIONS:
+        raise HTTPException(415, "Type de fichier non accepte")
+    content = await file.read()
+    if len(content) > _MAX_DOCUMENT_SIZE:
+        raise HTTPException(413, "Fichier trop volumineux (10 Mo maximum)")
+
+    asset_dir = settings.documents_dir / str(intervention.asset_id)
+    asset_dir.mkdir(parents=True, exist_ok=True)
+    stored_name = f"{uuid4().hex}{extension}"
+    (asset_dir / stored_name).write_bytes(content)
+
+    now = utc_now_iso()
+    row = Document(
+        intervention_id=intervention.id,
+        name=original_name,
+        doc_type="invoice",
+        storage_mode="local_file",
+        file_path=f"{intervention.asset_id}/{stored_name}",
+        file_size=len(content),
+        mime_type=file.content_type,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(row)
+    session.flush()
+    return DocumentOut(
+        id=row.id,
+        name=row.name,
+        doc_type=row.doc_type,
+        file_size=row.file_size,
+        mime_type=row.mime_type,
+        created_at=row.created_at,
+    )
+
+
+@router.get("/documents/{document_id}/file")
+def download_document(
+    document_id: int,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_app_settings),
+) -> FileResponse:
+    row = session.get(Document, document_id)
+    if row is None or row.storage_mode != "local_file" or row.file_path is None:
+        raise HTTPException(404, "Document introuvable")
+    full_path = settings.documents_dir / row.file_path
+    if not full_path.is_file():
+        raise HTTPException(404, "Fichier introuvable")
+    return FileResponse(
+        full_path, media_type=row.mime_type or "application/octet-stream", filename=row.name
     )
 
 

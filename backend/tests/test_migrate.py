@@ -50,5 +50,5 @@ def test_premiere_migration_se_rejoue_si_le_stamp_manque(settings) -> None:
     with engine.connect() as connection:
         version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
         homes = connection.execute(text("SELECT COUNT(*) FROM home")).scalar_one()
-    assert version == "0001_schema"
+    assert version == "0002_location_types"
     assert homes == 0

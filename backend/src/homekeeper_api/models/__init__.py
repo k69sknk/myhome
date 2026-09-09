@@ -23,6 +23,18 @@ class Home(Base):
     assets: Mapped[list[Asset]] = relationship(back_populates="home")
 
 
+class LocationType(Base):
+    __tablename__ = "location_type"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(Text, unique=True)
+    name: Mapped[str] = mapped_column(Text)
+    is_builtin: Mapped[int] = mapped_column(Integer, default=0)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+
 class Location(Base):
     __tablename__ = "location"
 
@@ -30,7 +42,7 @@ class Location(Base):
     home_id: Mapped[int] = mapped_column(ForeignKey("home.id"))
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("location.id"))
     name: Mapped[str] = mapped_column(Text)
-    location_type: Mapped[str] = mapped_column(Text, default="room")
+    location_type_id: Mapped[int] = mapped_column(ForeignKey("location_type.id"))
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)
@@ -38,6 +50,7 @@ class Location(Base):
 
     home: Mapped[Home] = relationship(back_populates="locations")
     parent: Mapped[Location | None] = relationship(remote_side=[id])
+    location_type: Mapped[LocationType] = relationship()
     assets: Mapped[list[Asset]] = relationship(back_populates="location")
 
 
@@ -172,6 +185,52 @@ class Intervention(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(Text)
+
+    costs: Mapped[list[Cost]] = relationship(back_populates="intervention")
+    documents: Mapped[list[Document]] = relationship(back_populates="intervention")
+
+
+class Cost(Base):
+    __tablename__ = "cost"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("asset.id"))
+    intervention_id: Mapped[int | None] = mapped_column(ForeignKey("intervention.id"))
+    cost_type: Mapped[str] = mapped_column(Text)
+    label: Mapped[str | None] = mapped_column(Text)
+    amount_cents: Mapped[int] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(Text, default="EUR")
+    incurred_on: Mapped[str] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+    intervention: Mapped[Intervention | None] = relationship(back_populates="costs")
+
+
+class Document(Base):
+    __tablename__ = "document"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    home_id: Mapped[int | None] = mapped_column(ForeignKey("home.id"))
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey("asset.id"))
+    maintenance_task_id: Mapped[int | None] = mapped_column(ForeignKey("maintenance_task.id"))
+    intervention_id: Mapped[int | None] = mapped_column(ForeignKey("intervention.id"))
+    issue_id: Mapped[int | None] = mapped_column(Integer)
+    name: Mapped[str] = mapped_column(Text)
+    doc_type: Mapped[str] = mapped_column(Text, default="other")
+    storage_mode: Mapped[str] = mapped_column(Text)
+    file_path: Mapped[str | None] = mapped_column(Text)
+    file_size: Mapped[int | None] = mapped_column(Integer)
+    mime_type: Mapped[str | None] = mapped_column(Text)
+    url: Mapped[str | None] = mapped_column(Text)
+    reference_note: Mapped[str | None] = mapped_column(Text)
+    is_primary_photo: Mapped[int] = mapped_column(Integer, default=0)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+    intervention: Mapped[Intervention | None] = relationship(back_populates="documents")
 
 
 class TaskStatusRow(Base):
