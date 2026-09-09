@@ -3,6 +3,12 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.7.1
+
+La fiche equipement gagne des onglets (Entretiens, Details, Documents) pour
+rester lisible a mesure que les infos s'accumulent, plutot que tout empiler
+sur une seule page.
+
 ## 0.7.0
 
 Joindre la facture d'achat d'un equipement, pratique pour la garantie.
