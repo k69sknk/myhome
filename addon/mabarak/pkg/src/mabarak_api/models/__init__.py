@@ -16,6 +16,8 @@ class Home(Base):
     address: Mapped[str | None] = mapped_column(Text)
     currency: Mapped[str] = mapped_column(Text, default="EUR")
     due_soon_threshold_days: Mapped[int] = mapped_column(Integer, default=30)
+    ha_calendar_entity_id: Mapped[str | None] = mapped_column(Text)
+    ha_calendar_sync_enabled: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(Text)
 

@@ -15,6 +15,8 @@ class HomeOut(BaseModel):
     address: str | None
     currency: str
     due_soon_threshold_days: int
+    ha_calendar_entity_id: str | None
+    ha_calendar_sync_enabled: bool
 
 
 class HomePatch(BaseModel):
@@ -22,6 +24,8 @@ class HomePatch(BaseModel):
     address: str | None = None
     currency: str | None = None
     due_soon_threshold_days: int | None = Field(default=None, ge=0)
+    ha_calendar_entity_id: str | None = None
+    ha_calendar_sync_enabled: bool | None = None
 
 
 class LocationIn(BaseModel):
@@ -268,3 +272,15 @@ class HaDeviceOut(BaseModel):
     area_name: str | None = None
     entity_id: str | None = None
     domain: str | None = None
+
+
+class HaCalendarOut(BaseModel):
+    entity_id: str
+    name: str
+
+
+class CalendarSyncResult(BaseModel):
+    created: int = 0
+    deleted: int = 0
+    skipped: int = 0
+    errors: list[str] = Field(default_factory=list)

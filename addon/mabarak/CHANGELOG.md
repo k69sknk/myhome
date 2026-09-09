@@ -3,6 +3,18 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.10.0
+
+- Mini-calendrier mensuel sur le tableau de bord : les entretiens à venir et
+  en retard s'affichent directement sur un calendrier, avec le détail du jour
+  sélectionné.
+- L'intégration HACS expose désormais un calendrier Home Assistant natif
+  (`calendar.mabarak_entretiens`), en lecture seule, ajoutable à n'importe
+  quelle vue Calendrier.
+- Nouveau réglage "Calendrier Home Assistant" : possibilité de pousser
+  manuellement les entretiens à venir vers un calendrier HA existant (Local
+  Calendar, CalDAV...) via un bouton "Synchroniser maintenant".
+
 ## 0.9.0
 
 L'application s'appelle desormais **MaBarak** (avant : HomeKeeper) — partout :

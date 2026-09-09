@@ -49,6 +49,11 @@ CREATE TABLE home (
     due_soon_threshold_days INTEGER NOT NULL DEFAULT 30
                             CHECK (due_soon_threshold_days >= 0),
 
+    -- Calendrier Home Assistant (calendar.*) choisi pour y pousser les
+    -- entretiens a venir. NULL tant que l'utilisateur n'a rien choisi.
+    ha_calendar_entity_id     TEXT,
+    ha_calendar_sync_enabled  INTEGER NOT NULL DEFAULT 0,
+
     created_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
