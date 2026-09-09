@@ -3,6 +3,14 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.7.0
+
+Joindre la facture d'achat d'un equipement, pratique pour la garantie.
+
+- **Facture d'achat** : nouveau type de document sur la fiche equipement,
+  aux cotes du manuel d'utilisation. Un lien "Facture" apparait directement
+  a cote de la garantie des qu'une facture est jointe.
+
 ## 0.6.3
 
 Correctif : supprimer une intervention deja supprimee (double-tap, ou liste

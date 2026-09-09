@@ -585,7 +585,7 @@ async def upload_intervention_document(
 async def upload_asset_document(
     asset_id: int,
     file: UploadFile = File(...),
-    doc_type: Literal["manual", "other", "photo"] = Form("manual"),
+    doc_type: Literal["manual", "invoice", "other", "photo"] = Form("manual"),
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_app_settings),
 ) -> DocumentOut:
