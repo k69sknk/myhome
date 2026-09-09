@@ -3,6 +3,27 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.4.0
+
+La fiche équipement gagne une photo, une alerte de garantie et ses propres
+documents.
+
+- **Photo d'équipement** : repli automatique sur un emoji selon la catégorie
+  (visible dans la liste et la fiche) ; possibilité d'uploader une petite
+  image qui la remplace, comme un avatar. Réutilise la table `document`
+  existante (`doc_type = 'photo'`), aucune migration necessaire.
+- **Garantie** : le champ « Début de garantie » du formulaire Nouvel
+  équipement devient « Date d'achat (début de garantie) », une durée de
+  24 mois est proposée par défaut, et la fin de garantie estimée s'affiche
+  en direct pendant la saisie. Un badge « Garantie bientôt expirée » /
+  « Garantie expirée » apparaît sur la fiche et dans la liste des
+  équipements dès qu'il reste moins de 6 mois.
+- **Documents d'équipement** : possibilité d'attacher un manuel
+  d'utilisation (ou tout autre document) directement sur la fiche —
+  liste, téléchargement, suppression — sans passer par un entretien.
+  Nouveaux endpoints `POST/GET /api/assets/{id}/documents` et
+  `DELETE /api/documents/{id}`.
+
 ## 0.3.0
 
 Lieux, catégories et entretiens gagnent en souplesse.
