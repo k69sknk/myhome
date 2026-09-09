@@ -3,6 +3,13 @@
 L'add-on et l'intégration HomeKeeper partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.6.3
+
+Correctif : supprimer une intervention deja supprimee (double-tap, ou liste
+pas encore rafraichie) affichait "Intervention introuvable" au lieu de
+simplement faire disparaitre la ligne, aussi bien dans l'historique global
+de la page Entretiens que dans l'historique d'un entretien.
+
 ## 0.6.2
 
 Le selecteur d'equipement du formulaire "Ajouter un entretien" n'avait pas

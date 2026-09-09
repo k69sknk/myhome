@@ -431,7 +431,12 @@ def list_interventions(
     )
     task_ids = {row.task_id for row in rows if row.task_id is not None}
     tasks = (
-        {t.id: t for t in session.scalars(select(MaintenanceTask).where(MaintenanceTask.id.in_(task_ids))).all()}
+        {
+            t.id: t
+            for t in session.scalars(
+                select(MaintenanceTask).where(MaintenanceTask.id.in_(task_ids))
+            ).all()
+        }
         if task_ids
         else {}
     )
@@ -511,7 +516,10 @@ def _cost_out(intervention: Intervention) -> CostOut | None:
         return None
     cost = intervention.costs[0]
     return CostOut(
-        id=cost.id, amount_cents=cost.amount_cents, currency=cost.currency, incurred_on=cost.incurred_on
+        id=cost.id,
+        amount_cents=cost.amount_cents,
+        currency=cost.currency,
+        incurred_on=cost.incurred_on,
     )
 
 
@@ -590,9 +598,7 @@ async def upload_asset_document(
             _delete_document(session, settings, existing_photo)
             session.flush()
 
-    file_path, size, mime_type, original_name = await _store_uploaded_file(
-        asset.id, file, settings
-    )
+    file_path, size, mime_type, original_name = await _store_uploaded_file(asset.id, file, settings)
     now = utc_now_iso()
     row = Document(
         asset_id=asset.id,
