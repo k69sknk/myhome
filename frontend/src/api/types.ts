@@ -299,6 +299,7 @@ export interface CompleteIn {
 export interface AssetListItem {
   id: number
   name: string
+  kind: string
   category_name: string | null
   category_slug: string | null
   location_path: string | null
@@ -334,6 +335,7 @@ export interface Asset {
 
 export interface AssetIn {
   name: string
+  kind?: 'equipment' | 'building_element'
   category_id?: number | null
   location_id?: number | null
   brand?: string | null

@@ -113,7 +113,8 @@ export const api = {
     request<Location>(`locations/${id}`, { method: 'PATCH', ...jsonBody(body) }),
   deleteLocation: (id: number) => request<{ ok: boolean }>(`locations/${id}`, { method: 'DELETE' }),
 
-  assets: () => request<AssetListItem[]>('assets'),
+  assets: (kind?: 'equipment' | 'building_element') =>
+    request<AssetListItem[]>(`assets${kind ? `?kind=${kind}` : ''}`),
   asset: (id: number) => request<Asset>(`assets/${id}`),
   createAsset: (body: AssetIn) => request<Asset>('assets', { method: 'POST', ...jsonBody(body) }),
   patchAsset: (id: number, body: AssetPatch) =>

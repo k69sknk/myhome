@@ -103,6 +103,37 @@ def test_entretien_mensuel_sans_dernier_a_une_prochaine_date(client: TestClient)
     assert task["status"] in {"ok", "due_soon"}
 
 
+def test_element_de_la_maison_avec_entretien(client: TestClient) -> None:
+    """Un joint de douche n'est pas un equipement : fiche kind=building_element,
+    exclue de la liste des equipements, avec ses propres entretiens."""
+    categories = client.get("/api/categories").json()
+    sealant = next(row for row in categories if row["slug"] == "sealant")
+    bathroom = client.post("/api/locations", json={"name": "Salle de bain"}).json()
+
+    created = client.post(
+        "/api/assets",
+        json={
+            "name": "Joints de douche",
+            "kind": "building_element",
+            "category_id": sealant["id"],
+            "location_id": bathroom["id"],
+        },
+    )
+    assert created.status_code == 201
+    element = created.json()
+    assert element["kind"] == "building_element"
+
+    assert element["id"] not in {row["id"] for row in client.get("/api/assets").json()}
+    elements = client.get("/api/assets?kind=building_element").json()
+    assert element["id"] in {row["id"] for row in elements}
+
+    task = client.post(
+        f"/api/assets/{element['id']}/tasks",
+        json={"name": "Nettoyage", "recurrence_type": "months", "recurrence_interval": 3},
+    )
+    assert task.status_code == 201
+
+
 def test_supprimer_un_lieu_occupe_est_refuse(client: TestClient) -> None:
     location = client.post("/api/locations", json={"name": "Atelier"}).json()
     client.post("/api/assets", json={"name": "Perceuse", "location_id": location["id"]})
