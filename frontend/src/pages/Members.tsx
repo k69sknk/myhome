@@ -5,6 +5,7 @@ import { ApiError, api } from '../api/client'
 import type { HaPersonOption, Member, MemberIn, MemberType, Task } from '../api/types'
 import Field from '../components/Field'
 import StatusBadge from '../components/StatusBadge'
+import { useToast } from '../components/Toast'
 import { EditIcon, TrashIcon } from '../components/icons'
 import { errorMessage, formatDate, formatRecurrence } from '../lib/format'
 
@@ -27,6 +28,7 @@ export default function Members() {
   const [contact, setContact] = useState('')
   const [personEntityId, setPersonEntityId] = useState('')
   const [notifyService, setNotifyService] = useState('')
+  const { showToast } = useToast()
 
   async function reload() {
     const [memberList, taskList] = await Promise.all([api.members(), api.tasks()])
@@ -76,6 +78,7 @@ export default function Members() {
       setContact('')
       setPersonEntityId('')
       setNotifyService('')
+      showToast('Membre ajouté')
       await reload()
     } catch (caught: unknown) {
       setError(errorMessage(caught))
@@ -86,6 +89,7 @@ export default function Members() {
     setError(null)
     try {
       await api.deleteMember(id)
+      showToast('Membre supprimé')
       await reload()
     } catch (caught: unknown) {
       setError(errorMessage(caught))
@@ -211,6 +215,7 @@ function MemberRow({
   const [contact, setContact] = useState(member.contact ?? '')
   const [personEntityId, setPersonEntityId] = useState(member.ha_person_entity_id ?? '')
   const [notifyService, setNotifyService] = useState(member.ha_notify_service ?? '')
+  const { showToast } = useToast()
 
   async function save(event: FormEvent) {
     event.preventDefault()
@@ -224,6 +229,7 @@ function MemberRow({
         ha_notify_service: notifyService || null,
       })
       setRenaming(false)
+      showToast('Membre modifié')
       onChanged()
     } catch (caught: unknown) {
       onError(errorMessage(caught))

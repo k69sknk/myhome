@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { CalendarSyncResult, HaCalendarOption, Home, LocationType } from '../api/types'
 import Field from '../components/Field'
+import { useToast } from '../components/Toast'
 import { EditIcon, TrashIcon } from '../components/icons'
 import { errorMessage } from '../lib/format'
 
@@ -24,6 +25,7 @@ export default function Settings() {
   const [syncing, setSyncing] = useState(false)
 
   const [taskNotificationsEnabled, setTaskNotificationsEnabled] = useState(false)
+  const { showToast } = useToast()
 
   async function reload() {
     const [nextHome, nextTypes] = await Promise.all([api.home(), api.locationTypes()])
@@ -63,6 +65,7 @@ export default function Settings() {
       })
       setHome(updated)
       setThreshold(String(updated.due_soon_threshold_days))
+      showToast('Réglages enregistrés')
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     }
@@ -77,6 +80,7 @@ export default function Settings() {
         ha_calendar_sync_enabled: calendarSyncEnabled,
       })
       setHome(updated)
+      showToast('Réglages enregistrés')
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     }
@@ -101,6 +105,7 @@ export default function Settings() {
       const updated = await api.patchHome({ task_notifications_enabled: enabled })
       setHome(updated)
       setTaskNotificationsEnabled(updated.task_notifications_enabled)
+      showToast(enabled ? 'Notifications activées' : 'Notifications désactivées')
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     }
@@ -114,6 +119,7 @@ export default function Settings() {
     try {
       await api.createLocationType({ name })
       setNewTypeName('')
+      showToast('Type ajouté')
       await reload()
     } catch (caught: unknown) {
       setError(errorMessage(caught))
@@ -124,6 +130,7 @@ export default function Settings() {
     setError(null)
     try {
       await api.deleteLocationType(id)
+      showToast('Type supprimé')
       await reload()
     } catch (caught: unknown) {
       setError(errorMessage(caught))
@@ -286,6 +293,7 @@ function LocationTypeRow({
 }) {
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(type.name)
+  const { showToast } = useToast()
 
   async function rename(event: FormEvent) {
     event.preventDefault()
@@ -293,6 +301,7 @@ function LocationTypeRow({
     try {
       await api.patchLocationType(type.id, { name: name.trim() })
       setRenaming(false)
+      showToast('Type renommé')
       onChanged()
     } catch (caught: unknown) {
       onError(errorMessage(caught))

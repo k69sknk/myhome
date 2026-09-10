@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import type { Location, LocationType } from '../api/types'
 import Field from '../components/Field'
+import { useToast } from '../components/Toast'
 import { EditIcon, TrashIcon } from '../components/icons'
 import { errorMessage } from '../lib/format'
 
@@ -61,6 +62,7 @@ export default function Locations() {
   const [newName, setNewName] = useState('')
   const [newTypeId, setNewTypeId] = useState('')
   const [newParent, setNewParent] = useState('')
+  const { showToast } = useToast()
 
   async function reload() {
     const [nextLocations, nextTypes] = await Promise.all([api.locations(), api.locationTypes()])
@@ -100,6 +102,7 @@ export default function Locations() {
         parent_id: newParent === '' ? null : Number(newParent),
       })
       setNewName('')
+      showToast('Lieu ajouté')
       await reload()
     } catch (caught: unknown) {
       setError(errorMessage(caught))
@@ -196,6 +199,7 @@ function LocationNode({
   const [childName, setChildName] = useState('')
   const [moving, setMoving] = useState(false)
   const [newParent, setNewParent] = useState('')
+  const { showToast } = useToast()
 
   const moveOptions = useMemo(
     () => flattenExcludingSubtree(fullTree, node.location.id),
@@ -208,6 +212,7 @@ function LocationNode({
     try {
       await api.patchLocation(node.location.id, { name: name.trim() })
       setRenaming(false)
+      showToast('Lieu renommé')
       onChanged()
     } catch (caught: unknown) {
       onError(errorMessage(caught))
@@ -227,6 +232,7 @@ function LocationNode({
       })
       setChildName('')
       setAdding(false)
+      showToast('Lieu ajouté')
       onChanged()
     } catch (caught: unknown) {
       onError(errorMessage(caught))
@@ -241,6 +247,7 @@ function LocationNode({
         parent_id: newParent === '' ? null : Number(newParent),
       })
       setMoving(false)
+      showToast('Lieu déplacé')
       onChanged()
     } catch (caught: unknown) {
       onError(errorMessage(caught))
@@ -251,6 +258,7 @@ function LocationNode({
     onError(null)
     try {
       await api.deleteLocation(node.location.id)
+      showToast('Lieu supprimé')
       onChanged()
     } catch (caught: unknown) {
       onError(errorMessage(caught))
