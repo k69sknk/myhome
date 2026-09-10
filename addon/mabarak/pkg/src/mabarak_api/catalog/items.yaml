@@ -444,6 +444,52 @@
       label: Vidanger et nettoyer la cuve
       recurrence: { type: months, interval: 6 }
 
+- key: eclairage_exterieur
+  label: Éclairage extérieur
+  kind: equipment
+  category: electricity
+  maintenances:
+    - key: eclairage_exterieur_controle
+      label: Nettoyer les hublots et vérifier les détecteurs
+      description: Un détecteur de mouvement encrassé ou embué finit par ne plus déclencher.
+      recurrence: { type: months, interval: 12 }
+
+- key: abri_jardin
+  label: Abri de jardin
+  kind: building_element
+  maintenances:
+    - key: abri_jardin_traitement
+      label: Traiter le bois (lasure ou saturateur)
+      recurrence: { type: years, interval: 2 }
+    - key: abri_jardin_toiture
+      label: Vérifier l'étanchéité de la toiture
+      recurrence: { type: months, interval: 12 }
+
+- key: recuperateur_eau
+  label: Récupérateur d'eau de pluie
+  kind: equipment
+  category: water
+  maintenances:
+    - key: recuperateur_eau_purge
+      label: Vidanger avant les gelées
+      description: Une cuve pleine qui gèle se fend.
+      recurrence: { type: annual_fixed, month: 11, day: 15 }
+    - key: recuperateur_eau_nettoyage
+      label: Nettoyer la cuve et la crépine
+      recurrence: { type: months, interval: 12 }
+
+- key: pelouse
+  label: Pelouse
+  kind: building_element
+  # Rien dans les categories du bati ne couvre le vegetal.
+  maintenances:
+    - key: pelouse_scarification
+      label: Scarifier
+      recurrence: { type: annual_fixed, month: 4, day: 1 }
+    - key: pelouse_regarnissage
+      label: Regarnir et fertiliser
+      recurrence: { type: annual_fixed, month: 9, day: 15 }
+
 - key: haie
   label: Haie
   kind: building_element

@@ -99,18 +99,50 @@
     - vmc
     - panneaux_solaires
 
-- key: exterieur
-  label: Extérieur
+# L'exterieur se parcourt comme l'interieur : en zones successives, pas en un
+# seul bloc. Personne ne coche « exterieur » puis trie quinze objets ; on fait
+# le tour de l'enveloppe, puis le jardin, puis la terrasse.
+
+- key: facade_toiture
+  label: Façade et toiture
   location_type: outdoor
   items:
     - toiture
     - gouttieres
     - facade
-    - terrasse
-    - cloture
+    - volets
+    - fenetres
+
+- key: acces
+  label: Entrée et accès
+  location_type: outdoor
+  items:
     - portail
+    - cloture
+    - porte_garage
+    - eclairage_exterieur
+
+- key: jardin
+  label: Jardin
+  location_type: outdoor
+  items:
     - haie
+    - pelouse
     - robot_tondeuse
     - arrosage_automatique
+    - abri_jardin
+    - recuperateur_eau
+
+- key: terrasse_exterieure
+  label: Terrasse
+  location_type: outdoor
+  items:
+    - terrasse
+    - eclairage_exterieur
+
+- key: piscine_spa
+  label: Piscine et spa
+  location_type: outdoor
+  items:
     - piscine
     - spa
