@@ -3,6 +3,14 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.13.0
+
+- **Notifications de confirmation** : un toast confirme desormais chaque
+  action qui aboutit (equipement ajoute, entretien ajoute ou marque comme
+  fait, document supprime, lieu deplace, membre modifie...), au lieu de
+  laisser deviner si l'action a reussi. Disparait tout seul apres quelques
+  secondes, ou se ferme d'un clic.
+
 ## 0.12.1
 
 Correctif : la 0.12.0 avait le bon numero de version mais les artefacts
