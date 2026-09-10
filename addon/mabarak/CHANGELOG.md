@@ -3,6 +3,14 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.12.0
+
+- Priorité des entretiens (faible / normale / haute / urgente) : tri par
+  défaut de la liste par priorité décroissante puis échéance croissante,
+  édition rapide en un clic depuis la liste des entretiens et la fiche
+  équipement, badge "urgente" forcé côté affichage pour un entretien en
+  retard quelle que soit la priorité enregistrée.
+
 ## 0.11.0
 
 - Mini-calendrier du tableau de bord : mise en page compacte, detail du jour
