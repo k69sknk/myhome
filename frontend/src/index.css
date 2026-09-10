@@ -721,6 +721,20 @@ textarea {
   width: 100%;
 }
 
+/* « Tous les [3] mois » sur une seule ligne : l'input ne doit pas prendre
+   toute la largeur comme dans un formulaire classique. */
+.interval {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.interval input {
+  width: 4.5rem;
+  flex: 0 0 auto;
+}
+
 .combobox {
   position: relative;
 }

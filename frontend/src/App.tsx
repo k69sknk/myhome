@@ -10,6 +10,7 @@ import HouseElementNew from './pages/HouseElementNew'
 import HouseElements from './pages/HouseElements'
 import Locations from './pages/Locations'
 import Members from './pages/Members'
+import Onboarding from './pages/Onboarding'
 import Placeholder from './pages/Placeholder'
 import Settings from './pages/Settings'
 import Tasks from './pages/Tasks'
@@ -20,6 +21,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/demarrage" element={<Onboarding />} />
           <Route path="/equipements" element={<Assets />} />
           <Route path="/equipements/nouveau" element={<AssetNew />} />
           <Route path="/equipements/:id" element={<AssetDetail />} />

@@ -358,3 +358,61 @@ export interface AssetPatch {
   install_date?: string | null
   notes?: string | null
 }
+
+/** Catalogue de demarrage : contenu livre avec l'application (ADR-0008). */
+export interface CatalogRecurrence {
+  type: 'days' | 'months' | 'years' | 'annual_fixed'
+  interval: number | null
+  month: number | null
+  day: number | null
+}
+
+export interface CatalogMaintenance {
+  key: string
+  label: string
+  description: string | null
+  recurrence: CatalogRecurrence
+  anchor: 'from_completion' | 'from_due_date'
+  preparation_notes: string | null
+}
+
+export interface CatalogItem {
+  key: string
+  label: string
+  kind: 'equipment' | 'building_element'
+  category: string | null
+  deprecated: boolean
+  maintenances: CatalogMaintenance[]
+}
+
+export interface CatalogRoom {
+  key: string
+  label: string
+  location_type: string
+  deprecated: boolean
+  items: string[]
+}
+
+export interface Catalog {
+  rooms: CatalogRoom[]
+  items: CatalogItem[]
+  home_maintenances: CatalogMaintenance[]
+}
+
+export interface CatalogProposal {
+  maintenance: CatalogMaintenance
+  asset_id: number | null
+  asset_name: string | null
+}
+
+export interface ApplyRoomResult {
+  location_id: number
+  location_name: string
+  created: { id: number; name: string; catalog_key: string }[]
+}
+
+export interface MaintenanceSelection {
+  key: string
+  asset_id?: number | null
+  recurrence?: CatalogRecurrence | null
+}

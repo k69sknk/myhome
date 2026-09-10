@@ -1,0 +1,148 @@
+# Pieces types proposees a la premiere etape du didacticiel.
+#
+# L'ordre est celui du parcours propose : on suit le trajet naturel d'un tour de
+# maison (pieces de vie, puis annexes, puis exterieur), pour que l'utilisateur
+# n'ait pas l'impression de sauter d'un bout a l'autre de chez lui.
+#
+# `location_type` est le slug d'un type de lieu pre-alimente de schema.sql.
+# `items` ne liste que des cles definies dans items.yaml : un meme objet peut
+# etre propose dans plusieurs pieces (un siphon, des volets), il n'est defini
+# qu'une seule fois.
+
+- key: cuisine
+  label: Cuisine
+  location_type: room
+  items:
+    - refrigerateur
+    - lave_vaisselle
+    - four
+    - hotte
+    - evier_siphon
+    - volets
+    - fenetres
+
+- key: salle_de_bain
+  label: Salle de bain
+  location_type: room
+  items:
+    - joints_douche
+    - douche_siphon
+    - bouche_extraction
+    - robinetterie
+    - chauffe_eau
+    - fenetres
+
+- key: wc
+  label: WC
+  location_type: room
+  items:
+    - wc
+    - bouche_extraction
+
+- key: buanderie
+  label: Buanderie / lingerie
+  location_type: room
+  items:
+    - lave_linge
+    - seche_linge
+    - evier_siphon
+    - bouche_extraction
+
+- key: sejour
+  label: Séjour
+  location_type: room
+  items:
+    - poele
+    - climatisation
+    - radiateur
+    - volets
+    - fenetres
+
+- key: chambre
+  label: Chambre
+  location_type: room
+  items:
+    - radiateur
+    - volets
+    - fenetres
+
+- key: garage
+  label: Garage
+  location_type: room
+  items:
+    - porte_garage
+    - tableau_electrique
+
+- key: cave
+  label: Cave
+  location_type: room
+  items:
+    - pompe_relevage
+    - chauffe_eau
+
+- key: grenier
+  label: Grenier / combles
+  location_type: room
+  items:
+    - vmc
+
+- key: local_technique
+  label: Local technique / chaufferie
+  location_type: technical
+  items:
+    - chaudiere
+    - pompe_a_chaleur
+    - chauffe_eau
+    - adoucisseur
+    - filtre_eau
+    - tableau_electrique
+    - vmc
+    - panneaux_solaires
+
+# L'exterieur se parcourt comme l'interieur : en zones successives, pas en un
+# seul bloc. Personne ne coche « exterieur » puis trie quinze objets ; on fait
+# le tour de l'enveloppe, puis le jardin, puis la terrasse.
+
+- key: facade_toiture
+  label: Façade et toiture
+  location_type: outdoor
+  items:
+    - toiture
+    - gouttieres
+    - facade
+    - volets
+    - fenetres
+
+- key: acces
+  label: Entrée et accès
+  location_type: outdoor
+  items:
+    - portail
+    - cloture
+    - porte_garage
+    - eclairage_exterieur
+
+- key: jardin
+  label: Jardin
+  location_type: outdoor
+  items:
+    - haie
+    - pelouse
+    - robot_tondeuse
+    - arrosage_automatique
+    - abri_jardin
+    - recuperateur_eau
+
+- key: terrasse_exterieure
+  label: Terrasse
+  location_type: outdoor
+  items:
+    - terrasse
+    - eclairage_exterieur
+
+- key: piscine_spa
+  label: Piscine et spa
+  location_type: outdoor
+  items:
+    - piscine
+    - spa

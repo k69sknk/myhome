@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..clock import utc_now_iso, utc_today
@@ -789,9 +789,23 @@ def download_document(
 def list_tasks(session: Session = Depends(get_session)) -> list[TaskOut]:
     home = _home(session)
     tasks = session.scalars(
+        # Jointure externe : un entretien peut etre rattache a la maison plutot
+        # qu'a une fiche (« tester les detecteurs de fumee »). Une jointure
+        # interne les faisait disparaitre du planning alors que le modele les
+        # prevoit depuis l'origine.
         select(MaintenanceTask)
-        .join(Asset, MaintenanceTask.asset_id == Asset.id)
-        .where(Asset.home_id == home.id, Asset.status != "removed", MaintenanceTask.is_active == 1)
+        .join(Asset, MaintenanceTask.asset_id == Asset.id, isouter=True)
+        .where(
+            MaintenanceTask.is_active == 1,
+            or_(
+                and_(
+                    MaintenanceTask.asset_id.is_not(None),
+                    Asset.home_id == home.id,
+                    Asset.status != "removed",
+                ),
+                MaintenanceTask.home_id == home.id,
+            ),
+        )
         .options(
             selectinload(MaintenanceTask.replacement_parts),
             selectinload(MaintenanceTask.assignee),

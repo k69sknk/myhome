@@ -1,0 +1,29 @@
+# Entretiens rattaches a la maison et non a un objet precis.
+#
+# `maintenance_task` accepte les deux (contrainte : asset_id OU home_id). Ces
+# entretiens sont proposes en fin de didacticiel, independamment des pieces
+# saisies, parce qu'ils concernent tout foyer.
+
+- key: maison_detecteurs_fumee
+  label: Tester les détecteurs de fumée
+  description: >-
+    Un détecteur par logement au minimum est obligatoire. Le test se fait avec
+    le bouton de l'appareil ; la pile se remplace dès le premier bip d'alerte.
+  recurrence: { type: months, interval: 6 }
+
+- key: maison_purge_radiateurs
+  label: Purger les radiateurs
+  description: Avant la remise en chauffe, pour évacuer l'air accumulé l'été.
+  recurrence: { type: annual_fixed, month: 10, day: 1 }
+
+- key: maison_releve_compteurs
+  label: Relever les compteurs (eau, électricité)
+  description: Un relevé régulier permet de repérer une fuite ou une dérive de consommation.
+  recurrence: { type: months, interval: 12 }
+
+- key: maison_coupure_generale
+  label: Vérifier les coupures générales (eau, gaz, électricité)
+  description: >-
+    S'assurer que chacun sait où elles sont et qu'elles manœuvrent encore. Une
+    vanne d'arrêt grippée transforme une fuite en sinistre.
+  recurrence: { type: months, interval: 12 }
