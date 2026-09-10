@@ -1,4 +1,4 @@
-import type { Category, RecurrenceType, Task, TaskStatus } from '../api/types'
+import type { Category, RecurrenceType, Task, TaskPriority, TaskStatus } from '../api/types'
 
 const MONTHS = [
   'janvier',
@@ -55,6 +55,19 @@ export function statusLabel(status: TaskStatus): string {
       return 'A jour'
     case 'unscheduled':
       return 'Non planifie'
+  }
+}
+
+export function priorityLabel(priority: TaskPriority): string {
+  switch (priority) {
+    case 'critical':
+      return 'Urgente'
+    case 'high':
+      return 'Haute'
+    case 'normal':
+      return 'Normale'
+    case 'low':
+      return 'Faible'
   }
 }
 

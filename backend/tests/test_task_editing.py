@@ -163,6 +163,69 @@ def test_assignation_declenche_une_notification_best_effort(
     assert calls[0][1] == task["id"]
 
 
+def test_priorite_par_defaut_normale_et_editable(client: TestClient) -> None:
+    asset_id = _create_asset(client)
+    task = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Filtres"},
+    ).json()
+    assert task["priority"] == "normal"
+
+    task_haute = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Detartrage", "priority": "high"},
+    ).json()
+    assert task_haute["priority"] == "high"
+
+    patched = client.patch(
+        f"/api/tasks/{task['id']}", json={"priority": "critical"}
+    ).json()
+    assert patched["priority"] == "critical"
+
+
+def test_priorite_invalide_est_refusee(client: TestClient) -> None:
+    asset_id = _create_asset(client)
+    response = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Filtres", "priority": "extreme"},
+    )
+    assert response.status_code == 422
+
+
+def test_liste_des_taches_triee_par_priorite_puis_echeance(client: TestClient) -> None:
+    asset_id = _create_asset(client)
+    low = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={
+            "name": "Faible",
+            "priority": "low",
+            "recurrence_type": "custom_date",
+            "custom_due_date": "2026-01-01",
+        },
+    ).json()
+    critical_late = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={
+            "name": "Urgente tardive",
+            "priority": "critical",
+            "recurrence_type": "custom_date",
+            "custom_due_date": "2026-06-01",
+        },
+    ).json()
+    critical_early = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={
+            "name": "Urgente proche",
+            "priority": "critical",
+            "recurrence_type": "custom_date",
+            "custom_due_date": "2026-03-01",
+        },
+    ).json()
+
+    ordered = [row["id"] for row in client.get("/api/tasks").json()]
+    assert ordered == [critical_early["id"], critical_late["id"], low["id"]]
+
+
 def test_assignation_notification_indisponible_ne_bloque_pas(client: TestClient) -> None:
     """`notify_assignee` est best-effort : HA injoignable ne doit jamais faire
     echouer la creation/edition de l'entretien (pas de SUPERVISOR_TOKEN en test)."""

@@ -21,6 +21,8 @@ export interface HealthResponse {
 /** Statut derive d'une tache, calcule par le backend (vue SQL `v_task_status`). */
 export type TaskStatus = 'ok' | 'due_soon' | 'overdue' | 'unscheduled'
 
+export type TaskPriority = 'low' | 'normal' | 'high' | 'critical'
+
 export type RecurrenceType =
   | 'none'
   | 'days'
@@ -220,6 +222,7 @@ export interface Task {
   asset_name: string | null
   location_path: string | null
   name: string
+  priority: TaskPriority
   last_completed_on: string | null
   next_due_on: string | null
   status: TaskStatus
@@ -271,6 +274,7 @@ export interface HistoryEntry extends Intervention {
 
 export interface TaskIn {
   name: string
+  priority?: TaskPriority
   recurrence_type: RecurrenceType
   recurrence_interval?: number | null
   fixed_month?: number | null

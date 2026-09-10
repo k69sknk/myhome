@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 RecurrenceType = Literal["none", "days", "months", "years", "annual_fixed", "custom_date"]
 TaskStatus = Literal["ok", "due_soon", "overdue", "unscheduled"]
+TaskPriority = Literal["low", "normal", "high", "critical"]
 AssetStatus = Literal["planned", "active", "inactive", "removed"]
 MemberType = Literal["household", "friend", "company"]
 
@@ -138,6 +139,7 @@ class TaskOut(BaseModel):
     asset_name: str | None = None
     location_path: str | None = None
     name: str
+    priority: TaskPriority
     last_completed_on: str | None
     next_due_on: str | None
     status: TaskStatus
@@ -157,6 +159,7 @@ class TaskOut(BaseModel):
 
 class TaskIn(BaseModel):
     name: str = Field(min_length=1)
+    priority: TaskPriority = "normal"
     recurrence_type: RecurrenceType = "none"
     recurrence_interval: int | None = Field(default=None, ge=1)
     fixed_month: int | None = Field(default=None, ge=1, le=12)
@@ -171,6 +174,7 @@ class TaskIn(BaseModel):
 
 class TaskPatch(BaseModel):
     name: str | None = Field(default=None, min_length=1)
+    priority: TaskPriority | None = None
     recurrence_type: RecurrenceType | None = None
     recurrence_interval: int | None = Field(default=None, ge=1)
     fixed_month: int | None = Field(default=None, ge=1, le=12)
