@@ -48,6 +48,7 @@ class Location(Base):
     location_type_id: Mapped[int] = mapped_column(ForeignKey("location_type.id"))
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     notes: Mapped[str | None] = mapped_column(Text)
+    catalog_key: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(Text)
 
@@ -95,6 +96,7 @@ class Asset(Base):
     support_url: Mapped[str | None] = mapped_column(Text)
     parts_url: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
+    catalog_key: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(Text)
 
@@ -150,6 +152,7 @@ class MaintenanceTask(Base):
     next_due_on: Mapped[str | None] = mapped_column(Text)
     lead_time_days: Mapped[int | None] = mapped_column(Integer)
     is_active: Mapped[int] = mapped_column(Integer, default=1)
+    catalog_key: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(Text)
 

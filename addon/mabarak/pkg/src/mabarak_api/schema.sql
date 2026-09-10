@@ -106,6 +106,12 @@ CREATE TABLE location (
     sort_order        INTEGER NOT NULL DEFAULT 0,   -- ordre explicite, pas alphabetique
     notes             TEXT,
 
+    -- PROVENANCE, PAS UN LIEN. Cle de la zone du catalogue de demarrage dont ce
+    -- lieu est issu. Jamais relue pour mettre le lieu a jour depuis le catalogue
+    -- (voir adr/0008) : elle sert uniquement a ne pas reproposer une zone deja
+    -- creee si l'utilisateur reprend le didacticiel.
+    catalog_key       TEXT,
+
     created_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
 
@@ -220,6 +226,10 @@ CREATE TABLE asset (
     parts_url       TEXT,
 
     notes           TEXT,
+
+    -- PROVENANCE, PAS UN LIEN. Cle de l'objet type du catalogue dont cette fiche
+    -- est issue. Voir la note sur `location.catalog_key` et adr/0008.
+    catalog_key     TEXT,
 
     created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -459,6 +469,11 @@ CREATE TABLE maintenance_task (
     lead_time_days      INTEGER CHECK (lead_time_days IS NULL OR lead_time_days >= 0),
 
     is_active           INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+
+    -- PROVENANCE, PAS UN LIEN. Cle de l'entretien type du catalogue dont celui-ci
+    -- est issu. Voir la note sur `location.catalog_key` et adr/0008 : la frequence
+    -- reste celle que l'utilisateur a validee, meme si le catalogue change d'avis.
+    catalog_key         TEXT,
 
     created_at          TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at          TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
