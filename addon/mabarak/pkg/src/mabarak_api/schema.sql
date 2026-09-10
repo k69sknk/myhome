@@ -850,11 +850,11 @@ CREATE VIEW v_task_status AS
 -- L'utilisateur peut en creer d'autres avec is_builtin = 0.
 
 INSERT INTO location_type (slug, name, is_builtin, sort_order) VALUES
-    ('room',      'Piece',      1, 10),
-    ('floor',     'Etage',      1, 20),
+    ('room',      'Pièce',      1, 10),
+    ('floor',     'Étage',      1, 20),
     ('zone',      'Zone',       1, 30),
-    ('building',  'Batiment',   1, 40),
-    ('outdoor',   'Exterieur',  1, 50),
+    ('building',  'Bâtiment',   1, 40),
+    ('outdoor',   'Extérieur',  1, 50),
     ('technical', 'Technique',  1, 60);
 
 
@@ -866,21 +866,21 @@ INSERT INTO location_type (slug, name, is_builtin, sort_order) VALUES
 -- Les sous-categories sont rattachees par slug pour rester independantes des id.
 
 INSERT INTO category (slug, name, icon, is_builtin, sort_order) VALUES
-    ('heating',     'Chauffage',    'mdi:radiator',        1, 10),
-    ('ventilation', 'Ventilation',  'mdi:air-filter',      1, 20),
-    ('water',       'Eau',          'mdi:water-pump',      1, 30),
-    ('electricity', 'Electricite',  'mdi:flash',           1, 40),
-    ('outdoor',     'Exterieur',    'mdi:home-outline',    1, 50),
-    ('appliances',  'Electromenager','mdi:fridge-outline', 1, 55),
-    ('structure',   'Batiment',     'mdi:home-roof',       1, 60);
+    ('heating',     'Chauffage',      'mdi:radiator',        1, 10),
+    ('ventilation', 'Ventilation',    'mdi:air-filter',      1, 20),
+    ('water',       'Eau',            'mdi:water-pump',      1, 30),
+    ('electricity', 'Électricité',    'mdi:flash',           1, 40),
+    ('outdoor',     'Extérieur',      'mdi:home-outline',    1, 50),
+    ('appliances',  'Électroménager', 'mdi:fridge-outline',  1, 55),
+    ('structure',   'Bâtiment',       'mdi:home-roof',       1, 60);
 
 INSERT INTO category (parent_id, slug, name, icon, is_builtin, sort_order)
 SELECT p.id, v.slug, v.name, v.icon, 1, v.sort_order
 FROM (
-    SELECT 'heating'     AS parent, 'heat_pump'        AS slug, 'Pompe a chaleur'      AS name, 'mdi:heat-pump'          AS icon, 10 AS sort_order
-    UNION ALL SELECT 'heating',     'boiler',            'Chaudiere',             'mdi:water-boiler',        20
+    SELECT 'heating'     AS parent, 'heat_pump'        AS slug, 'Pompe à chaleur'      AS name, 'mdi:heat-pump'          AS icon, 10 AS sort_order
+    UNION ALL SELECT 'heating',     'boiler',            'Chaudière',             'mdi:water-boiler',        20
     UNION ALL SELECT 'heating',     'radiator',          'Radiateur',             'mdi:radiator',            30
-    UNION ALL SELECT 'heating',     'stove',             'Poele',                 'mdi:fireplace',           40
+    UNION ALL SELECT 'heating',     'stove',             'Poêle',                 'mdi:fireplace',           40
     UNION ALL SELECT 'heating',     'air_conditioning',  'Climatisation',         'mdi:air-conditioner',     50
 
     UNION ALL SELECT 'ventilation', 'vmc',               'VMC',                   'mdi:hvac',                10
@@ -892,10 +892,10 @@ FROM (
     UNION ALL SELECT 'water',       'water_softener',    'Adoucisseur',           'mdi:water-opacity',       30
     UNION ALL SELECT 'water',       'filtration',        'Filtration',            'mdi:filter',              40
 
-    UNION ALL SELECT 'electricity', 'electrical_panel',  'Tableau electrique',    'mdi:electric-switch',     10
+    UNION ALL SELECT 'electricity', 'electrical_panel',  'Tableau électrique',    'mdi:electric-switch',     10
     UNION ALL SELECT 'electricity', 'solar_inverter',    'Onduleur solaire',      'mdi:solar-power',         20
     UNION ALL SELECT 'electricity', 'battery',           'Batterie',              'mdi:battery',             30
-    UNION ALL SELECT 'electricity', 'generator',         'Groupe electrogene',    'mdi:engine',              40
+    UNION ALL SELECT 'electricity', 'generator',         'Groupe électrogène',    'mdi:engine',              40
 
     UNION ALL SELECT 'outdoor',     'gate',              'Portail',               'mdi:gate',                10
     UNION ALL SELECT 'outdoor',     'pool',              'Piscine',               'mdi:pool',                20
@@ -906,18 +906,18 @@ FROM (
     UNION ALL SELECT 'appliances',  'vacuum',            'Aspirateur',            'mdi:robot-vacuum',        10
     UNION ALL SELECT 'appliances',  'washing_machine',   'Lave-linge',            'mdi:washing-machine',     20
     UNION ALL SELECT 'appliances',  'dishwasher',        'Lave-vaisselle',        'mdi:dishwasher',          30
-    UNION ALL SELECT 'appliances',  'fridge',            'Refrigerateur',         'mdi:fridge',              40
+    UNION ALL SELECT 'appliances',  'fridge',            'Réfrigérateur',         'mdi:fridge',              40
     UNION ALL SELECT 'appliances',  'oven',              'Four',                  'mdi:stove',               50
 
     -- Elements de construction (section 8) : meme table category, utilises par les
     -- assets de kind = 'building_element'.
     UNION ALL SELECT 'structure',   'roof',              'Toiture',               'mdi:home-roof',           10
-    UNION ALL SELECT 'structure',   'gutters',           'Gouttieres',            'mdi:water-outline',       20
-    UNION ALL SELECT 'structure',   'facade',            'Facade',                'mdi:wall',                30
+    UNION ALL SELECT 'structure',   'gutters',           'Gouttières',            'mdi:water-outline',       20
+    UNION ALL SELECT 'structure',   'facade',            'Façade',                'mdi:wall',                30
     UNION ALL SELECT 'structure',   'terrace',           'Terrasse',              'mdi:floor-plan',          40
-    UNION ALL SELECT 'structure',   'windows',           'Fenetres',              'mdi:window-closed',       50
+    UNION ALL SELECT 'structure',   'windows',           'Fenêtres',              'mdi:window-closed',       50
     UNION ALL SELECT 'structure',   'shutters',          'Volets',                'mdi:window-shutter',      60
-    UNION ALL SELECT 'structure',   'fence',             'Cloture',               'mdi:fence',               70
+    UNION ALL SELECT 'structure',   'fence',             'Clôture',               'mdi:fence',               70
     UNION ALL SELECT 'structure',   'sealant',           'Joints',                'mdi:blur-linear',         80
 ) v
 JOIN category p ON p.slug = v.parent;

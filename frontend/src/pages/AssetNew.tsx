@@ -140,8 +140,8 @@ export default function AssetNew() {
 
   return (
     <section className="page">
-      <BackLink to="/equipements" label="Equipements" />
-      <h1 className="page__title">Nouvel equipement</h1>
+      <BackLink to="/equipements" label="Équipements" />
+      <h1 className="page__title">Nouvel équipement</h1>
       <p className="page__lead">
         Une fiche par appareil. Le lien Home Assistant est facultatif : il pre-remplit le nom et
         peut proposer un lieu.
@@ -178,7 +178,7 @@ export default function AssetNew() {
         <Field label="Nom">
           <input required value={name} onChange={(event) => setName(event.target.value)} />
         </Field>
-        <Field label="Categorie">
+        <Field label="Catégorie">
           <div className="field__row">
             <span className="asset-avatar" aria-hidden="true">
               {categoryIcon(categories.find((row) => String(row.id) === categoryId)?.slug)}
@@ -193,7 +193,7 @@ export default function AssetNew() {
         </Field>
         <Field label="Lieu">
           <select value={locationId} onChange={(event) => setLocationId(event.target.value)}>
-            <option value="">Non range</option>
+            <option value="">Non rangé</option>
             {locations.map((location) => (
               <option key={location.id} value={location.id}>
                 {location.path}
@@ -211,10 +211,10 @@ export default function AssetNew() {
         <Field label="Marque">
           <input value={brand} onChange={(event) => setBrand(event.target.value)} />
         </Field>
-        <Field label="Modele">
+        <Field label="Modèle">
           <input value={model} onChange={(event) => setModel(event.target.value)} />
         </Field>
-        <Field label="Numero de serie">
+        <Field label="Numéro de série">
           <input value={serial} onChange={(event) => setSerial(event.target.value)} />
         </Field>
         <Field label="Notes">
@@ -228,7 +228,7 @@ export default function AssetNew() {
           />
         </Field>
         <Field
-          label="Duree de garantie (mois)"
+          label="Durée de garantie (mois)"
           hint={
             warrantyStart && warrantyMonths
               ? `Fin de garantie estimee : ${formatDate(addMonthsIso(warrantyStart, Number(warrantyMonths)))}`
@@ -244,7 +244,7 @@ export default function AssetNew() {
         </Field>
         <div className="form__actions">
           <button type="submit" className="btn btn--primary" disabled={busy}>
-            Creer la fiche
+            Créer la fiche
           </button>
           <Link to="/equipements" className="btn">
             Annuler

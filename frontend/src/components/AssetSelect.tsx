@@ -234,7 +234,7 @@ export default function AssetSelect({
           if (event.target.value.trim() === '') onChange('')
         }}
         onFocus={() => setOpen(true)}
-        placeholder="Tapez pour chercher un equipement..."
+        placeholder="Tapez pour chercher un équipement..."
       />
       {query !== '' && (
         <button type="button" className="combobox__clear" aria-label="Effacer" onClick={clear}>
@@ -253,7 +253,7 @@ export default function AssetSelect({
           {tree.roots.map((node) => (
             <GroupRow key={node.segment} node={node} depth={0} onSelect={select} />
           ))}
-          {matches.length === 0 && !canCreate && <li className="combobox__empty">Aucun equipement</li>}
+          {matches.length === 0 && !canCreate && <li className="combobox__empty">Aucun équipement</li>}
           {canCreate && (
             <li>
               <button
@@ -262,7 +262,7 @@ export default function AssetSelect({
                 disabled={creating}
                 onClick={() => void createAndSelect()}
               >
-                + Creer l'equipement « {trimmed} »
+                + Créer l'équipement « {trimmed} »
               </button>
             </li>
           )}

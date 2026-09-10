@@ -41,7 +41,7 @@ export default function AssetDetail() {
   const location = useLocation()
   const isElement = location.pathname.startsWith('/elements')
   const basePath = isElement ? '/elements' : '/equipements'
-  const baseLabel = isElement ? 'Éléments de la maison' : 'Equipements'
+  const baseLabel = isElement ? 'Éléments de la maison' : 'Équipements'
   const assetId = Number(id)
   const [asset, setAsset] = useState<Asset | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
@@ -259,7 +259,7 @@ export default function AssetDetail() {
                 <>
                   <dt>Marque</dt>
                   <dd>{asset.brand || '—'}</dd>
-                  <dt>Modele</dt>
+                  <dt>Modèle</dt>
                   <dd>{asset.model || '—'}</dd>
                   <dt>N° de serie</dt>
                   <dd>{asset.serial_number || '—'}</dd>
@@ -559,7 +559,7 @@ function EditAsset({
       <Field label="Nom">
         <input required value={name} onChange={(event) => setName(event.target.value)} />
       </Field>
-      <Field label="Categorie">
+      <Field label="Catégorie">
         <CategorySelect
           categories={categories}
           value={categoryId}
@@ -569,7 +569,7 @@ function EditAsset({
       </Field>
       <Field label="Lieu">
         <select value={locationId} onChange={(event) => setLocationId(event.target.value)}>
-          <option value="">Non range</option>
+          <option value="">Non rangé</option>
           {locations.map((location) => (
             <option key={location.id} value={location.id}>
               {location.path}
@@ -589,10 +589,10 @@ function EditAsset({
           <Field label="Marque">
             <input value={brand} onChange={(event) => setBrand(event.target.value)} />
           </Field>
-          <Field label="Modele">
+          <Field label="Modèle">
             <input value={model} onChange={(event) => setModel(event.target.value)} />
           </Field>
-          <Field label="Numero de serie">
+          <Field label="Numéro de série">
             <input value={serial} onChange={(event) => setSerial(event.target.value)} />
           </Field>
         </>
