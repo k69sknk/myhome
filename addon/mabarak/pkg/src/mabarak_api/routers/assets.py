@@ -209,11 +209,14 @@ def _upsert_warranty(session: Session, asset: Asset, body: WarrantyIn | None) ->
 
 
 @router.get("/assets", response_model=list[AssetListItem])
-def list_assets(session: Session = Depends(get_session)) -> list[AssetListItem]:
+def list_assets(
+    kind: Literal["equipment", "building_element"] = "equipment",
+    session: Session = Depends(get_session),
+) -> list[AssetListItem]:
     home = _home(session)
     rows = session.scalars(
         select(Asset)
-        .where(Asset.home_id == home.id, Asset.kind == "equipment", Asset.status != "removed")
+        .where(Asset.home_id == home.id, Asset.kind == kind, Asset.status != "removed")
         .options(
             selectinload(Asset.category), selectinload(Asset.tasks), selectinload(Asset.warranty)
         )
@@ -236,6 +239,7 @@ def list_assets(session: Session = Depends(get_session)) -> list[AssetListItem]:
             AssetListItem(
                 id=asset.id,
                 name=asset.name,
+                kind=asset.kind,  # type: ignore[arg-type]
                 category_name=asset.category.name if asset.category is not None else None,
                 category_slug=asset.category.slug if asset.category is not None else None,
                 location_path=location_path(session, asset.location_id),
@@ -261,7 +265,7 @@ def create_asset(body: AssetIn, session: Session = Depends(get_session)) -> Asse
     now = utc_now_iso()
     asset = Asset(
         home_id=home.id,
-        kind="equipment",
+        kind=body.kind,
         name=body.name.strip(),
         category_id=body.category_id,
         location_id=body.location_id,

@@ -8,6 +8,7 @@ RecurrenceType = Literal["none", "days", "months", "years", "annual_fixed", "cus
 TaskStatus = Literal["ok", "due_soon", "overdue", "unscheduled"]
 TaskPriority = Literal["low", "normal", "high", "critical"]
 AssetStatus = Literal["planned", "active", "inactive", "removed"]
+AssetKind = Literal["equipment", "building_element"]
 MemberType = Literal["household", "friend", "company"]
 
 
@@ -234,6 +235,7 @@ class HistoryEntryOut(BaseModel):
 
 class AssetIn(BaseModel):
     name: str = Field(min_length=1)
+    kind: AssetKind = "equipment"
     category_id: int | None = None
     location_id: int | None = None
     brand: str | None = None
@@ -264,6 +266,7 @@ class AssetPatch(BaseModel):
 class AssetListItem(BaseModel):
     id: int
     name: str
+    kind: AssetKind
     category_name: str | None
     category_slug: str | None = None
     location_path: str | None

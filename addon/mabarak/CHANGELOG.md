@@ -3,6 +3,15 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.14.0
+
+- **Éléments de la maison** : les fiches qui ne sont pas des équipements
+  (joints, toiture, façade, volets...) ont enfin leur propre section, séparée
+  des équipements, avec leurs catégories dédiées. Leur fiche de détail masque
+  marque, modèle, garantie et lien Home Assistant, qui n'ont pas de sens pour
+  un élément de construction, et reprend les mêmes entretiens, documents et
+  historique que pour un équipement.
+
 ## 0.13.0
 
 - **Notifications de confirmation** : un toast confirme desormais chaque
