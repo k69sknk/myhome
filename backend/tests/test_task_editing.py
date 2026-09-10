@@ -177,9 +177,7 @@ def test_priorite_par_defaut_normale_et_editable(client: TestClient) -> None:
     ).json()
     assert task_haute["priority"] == "high"
 
-    patched = client.patch(
-        f"/api/tasks/{task['id']}", json={"priority": "critical"}
-    ).json()
+    patched = client.patch(f"/api/tasks/{task['id']}", json={"priority": "critical"}).json()
     assert patched["priority"] == "critical"
 
 
