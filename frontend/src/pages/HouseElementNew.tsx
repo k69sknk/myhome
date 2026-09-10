@@ -81,7 +81,7 @@ export default function HouseElementNew() {
             placeholder="Joints de douche..."
           />
         </Field>
-        <Field label="Categorie">
+        <Field label="Catégorie">
           <div className="field__row">
             <span className="asset-avatar" aria-hidden="true">
               {categoryIcon(categories.find((row) => String(row.id) === categoryId)?.slug)}
@@ -96,7 +96,7 @@ export default function HouseElementNew() {
         </Field>
         <Field label="Lieu">
           <select value={locationId} onChange={(event) => setLocationId(event.target.value)}>
-            <option value="">Non range</option>
+            <option value="">Non rangé</option>
             {locations.map((location) => (
               <option key={location.id} value={location.id}>
                 {location.path}
@@ -116,7 +116,7 @@ export default function HouseElementNew() {
         </Field>
         <div className="form__actions">
           <button type="submit" className="btn btn--primary" disabled={busy}>
-            Creer la fiche
+            Créer la fiche
           </button>
           <Link to="/elements" className="btn">
             Annuler

@@ -97,13 +97,13 @@ export default function CategorySelect({
           if (event.target.value.trim() === '') onChange('')
         }}
         onFocus={() => setOpen(true)}
-        placeholder="Sans categorie, ou tapez pour chercher..."
+        placeholder="Sans catégorie, ou tapez pour chercher..."
       />
       {open && (
         <ul className="combobox__list">
           <li>
             <button type="button" className="combobox__option" onClick={() => select(null)}>
-              Sans categorie
+              Sans catégorie
             </button>
           </li>
           {matches.map((option) => (
@@ -121,7 +121,7 @@ export default function CategorySelect({
                 disabled={creating}
                 onClick={() => void createAndSelect()}
               >
-                + Creer la categorie « {trimmed} »
+                + Créer la catégorie « {trimmed} »
               </button>
             </li>
           )}

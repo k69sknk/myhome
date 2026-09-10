@@ -30,8 +30,11 @@ export default function Assets() {
     <section className="page">
       <div className="page__header">
         <div>
-          <h1 className="page__title">Equipements</h1>
-          <p className="page__lead">PAC, VMC, electromenager, tableau electrique...</p>
+          <h1 className="page__title">Équipements</h1>
+          <p className="page__lead">
+            PAC, VMC, électroménager, tableau électrique... Pour la toiture, la façade, les
+            joints, voir <Link to="/elements">Éléments de la maison</Link>.
+          </p>
         </div>
         <Link to="/equipements/nouveau" className="btn btn--primary">
           Ajouter
@@ -42,7 +45,7 @@ export default function Assets() {
       {assets === null && !error && <p className="muted">Chargement...</p>}
       {assets && assets.length === 0 && (
         <p className="muted">
-          Aucun appareil. <Link to="/equipements/nouveau">Creer la premiere fiche</Link>.
+          Aucun appareil. <Link to="/equipements/nouveau">Créer la première fiche</Link>.
         </p>
       )}
       {assets && assets.length > 0 && (

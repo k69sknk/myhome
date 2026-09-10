@@ -3,6 +3,14 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.15.0
+
+- **Clarté équipements / éléments de la maison** : accents manquants corrigés
+  dans les catégories, types de lieux et libellés d'interface (Bâtiment,
+  Électricité, Chaudière, Façade, Clôture, Catégorie, Créer, Modèle...).
+  Les listes d'équipements et d'éléments de la maison renvoient désormais
+  l'une vers l'autre pour aider à choisir la bonne section.
+
 ## 0.14.0
 
 - **Éléments de la maison** : les fiches qui ne sont pas des équipements

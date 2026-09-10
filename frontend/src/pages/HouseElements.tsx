@@ -31,7 +31,11 @@ export default function HouseElements() {
       <div className="page__header">
         <div>
           <h1 className="page__title">Éléments de la maison</h1>
-          <p className="page__lead">Joints, toiture, façade, volets... tout ce qui n'est pas un appareil.</p>
+          <p className="page__lead">
+            Joints, toiture, façade, volets... tout ce qui fait partie du bâti, sans marque,
+            modèle ni garantie. Pour les appareils, voir{' '}
+            <Link to="/equipements">Équipements</Link>.
+          </p>
         </div>
         <Link to="/elements/nouveau" className="btn btn--primary">
           Ajouter
@@ -42,7 +46,7 @@ export default function HouseElements() {
       {elements === null && !error && <p className="muted">Chargement...</p>}
       {elements && elements.length === 0 && (
         <p className="muted">
-          Aucun élément. <Link to="/elements/nouveau">Creer la premiere fiche</Link>.
+          Aucun élément. <Link to="/elements/nouveau">Créer la première fiche</Link>.
         </p>
       )}
       {elements && elements.length > 0 && (

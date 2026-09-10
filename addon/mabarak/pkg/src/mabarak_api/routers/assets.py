@@ -261,7 +261,7 @@ def create_asset(body: AssetIn, session: Session = Depends(get_session)) -> Asse
         if location is None or location.home_id != home.id:
             raise HTTPException(404, "Lieu introuvable")
     if body.category_id is not None and session.get(Category, body.category_id) is None:
-        raise HTTPException(404, "Categorie introuvable")
+        raise HTTPException(404, "Catégorie introuvable")
     now = utc_now_iso()
     asset = Asset(
         home_id=home.id,
