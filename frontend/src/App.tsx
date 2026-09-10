@@ -6,6 +6,8 @@ import AssetDetail from './pages/AssetDetail'
 import AssetNew from './pages/AssetNew'
 import Assets from './pages/Assets'
 import Dashboard from './pages/Dashboard'
+import HouseElementNew from './pages/HouseElementNew'
+import HouseElements from './pages/HouseElements'
 import Locations from './pages/Locations'
 import Members from './pages/Members'
 import Placeholder from './pages/Placeholder'
@@ -21,6 +23,9 @@ export default function App() {
           <Route path="/equipements" element={<Assets />} />
           <Route path="/equipements/nouveau" element={<AssetNew />} />
           <Route path="/equipements/:id" element={<AssetDetail />} />
+          <Route path="/elements" element={<HouseElements />} />
+          <Route path="/elements/nouveau" element={<HouseElementNew />} />
+          <Route path="/elements/:id" element={<AssetDetail />} />
           <Route path="/entretiens" element={<Tasks />} />
           <Route path="/lieux" element={<Locations />} />
           <Route path="/membres" element={<Members />} />

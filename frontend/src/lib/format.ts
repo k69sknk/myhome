@@ -102,7 +102,7 @@ export function formatAmount(cents: number, currency: string): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(cents / 100)
 }
 
-/** Categories d'appareils seulement : le batiment reste hors UI (fiche construction plus tard). */
+/** Categories d'appareils seulement : les categories du bati sont reservees aux elements de la maison. */
 export function equipmentCategories(all: Category[]): Category[] {
   const structure = all.find((row) => row.slug === 'structure')
   if (structure === undefined) return all
@@ -111,6 +111,17 @@ export function equipmentCategories(all: Category[]): Category[] {
     if (row.parent_id !== null && hidden.has(row.parent_id)) hidden.add(row.id)
   }
   return all.filter((row) => !hidden.has(row.id))
+}
+
+/** Categories du bati (joints, toiture, facade...), pour les elements de la maison. */
+export function structureCategories(all: Category[]): Category[] {
+  const structure = all.find((row) => row.slug === 'structure')
+  if (structure === undefined) return []
+  const kept = new Set<number>([structure.id])
+  for (const row of all) {
+    if (row.parent_id !== null && kept.has(row.parent_id)) kept.add(row.id)
+  }
+  return all.filter((row) => kept.has(row.id) && row.id !== structure.id)
 }
 
 export function emptyToNull(value: string): string | null {

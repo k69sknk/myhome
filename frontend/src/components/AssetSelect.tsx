@@ -201,6 +201,7 @@ export default function AssetSelect({
       const listItem: AssetListItem = {
         id: created.id,
         name: created.name,
+        kind: created.kind,
         category_name: created.category_name,
         category_slug: created.category_slug,
         location_path: created.location_path,

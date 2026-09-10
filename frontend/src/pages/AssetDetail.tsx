@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 
 import { api, ApiError } from '../api/client'
 import type { Asset, Category, DocumentMeta, HaDevice, Location, Member } from '../api/types'
@@ -22,6 +22,7 @@ import {
   formatDate,
   formatRecurrence,
   optionalId,
+  structureCategories,
   warrantyAlert,
   warrantyAlertLabel,
 } from '../lib/format'
@@ -37,6 +38,10 @@ function WarrantyBadge({ endDate }: { endDate: string | null | undefined }) {
 
 export default function AssetDetail() {
   const { id } = useParams()
+  const location = useLocation()
+  const isElement = location.pathname.startsWith('/elements')
+  const basePath = isElement ? '/elements' : '/equipements'
+  const baseLabel = isElement ? 'Éléments de la maison' : 'Equipements'
   const assetId = Number(id)
   const [asset, setAsset] = useState<Asset | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
@@ -74,7 +79,11 @@ export default function AssetDetail() {
       .then(([nextAsset, nextCategories, nextLocations, nextDocuments, nextMembers]) => {
         if (cancelled) return
         setAsset(nextAsset)
-        setCategories(equipmentCategories(nextCategories))
+        setCategories(
+          nextAsset.kind === 'building_element'
+            ? structureCategories(nextCategories)
+            : equipmentCategories(nextCategories),
+        )
         setLocations(nextLocations)
         setDocuments(nextDocuments)
         setMembers(nextMembers)
@@ -102,7 +111,7 @@ export default function AssetDetail() {
     return (
       <section className="page">
         <p className="status status--error">{error}</p>
-        <BackLink to="/equipements" label="Equipements" />
+        <BackLink to={basePath} label={baseLabel} />
       </section>
     )
   }
@@ -116,10 +125,11 @@ export default function AssetDetail() {
   }
 
   const invoiceDocument = documents.find((document) => document.doc_type === 'invoice')
+  const isEquipment = asset.kind === 'equipment'
 
   return (
     <section className="page">
-      <BackLink to="/equipements" label="Equipements" />
+      <BackLink to={basePath} label={baseLabel} />
       <div className="page__header">
         <div className="field__row">
           <AssetPhoto
@@ -129,12 +139,12 @@ export default function AssetDetail() {
           />
           <div>
             <h1 className="page__title">
-              {asset.name} <WarrantyBadge endDate={asset.warranty?.end_date} />
+              {asset.name} {isEquipment && <WarrantyBadge endDate={asset.warranty?.end_date} />}
             </h1>
             <p className="page__lead">
               {[asset.category_name, asset.location_path, formatDate(asset.install_date)]
                 .filter((part) => part && part !== '—')
-                .join(' · ') || 'Fiche appareil'}
+                .join(' · ') || (isEquipment ? 'Fiche appareil' : 'Fiche élément')}
             </p>
           </div>
         </div>
@@ -245,39 +255,45 @@ export default function AssetDetail() {
         <>
           <div className="card">
             <dl className="facts">
-              <dt>Marque</dt>
-              <dd>{asset.brand || '—'}</dd>
-              <dt>Modele</dt>
-              <dd>{asset.model || '—'}</dd>
-              <dt>N° de serie</dt>
-              <dd>{asset.serial_number || '—'}</dd>
-              <dt>Garantie</dt>
-              <dd>
-                {asset.warranty
-                  ? `${formatDate(asset.warranty.start_date)} → ${formatDate(asset.warranty.end_date)}`
-                  : '—'}{' '}
-                <WarrantyBadge endDate={asset.warranty?.end_date} />
-                {invoiceDocument && (
-                  <>
-                    {' · '}
-                    <a href={api.documentFileUrl(invoiceDocument.id)} target="_blank" rel="noreferrer">
-                      Facture
-                    </a>
-                  </>
-                )}
-              </dd>
+              {isEquipment && (
+                <>
+                  <dt>Marque</dt>
+                  <dd>{asset.brand || '—'}</dd>
+                  <dt>Modele</dt>
+                  <dd>{asset.model || '—'}</dd>
+                  <dt>N° de serie</dt>
+                  <dd>{asset.serial_number || '—'}</dd>
+                  <dt>Garantie</dt>
+                  <dd>
+                    {asset.warranty
+                      ? `${formatDate(asset.warranty.start_date)} → ${formatDate(asset.warranty.end_date)}`
+                      : '—'}{' '}
+                    <WarrantyBadge endDate={asset.warranty?.end_date} />
+                    {invoiceDocument && (
+                      <>
+                        {' · '}
+                        <a href={api.documentFileUrl(invoiceDocument.id)} target="_blank" rel="noreferrer">
+                          Facture
+                        </a>
+                      </>
+                    )}
+                  </dd>
+                </>
+              )}
               <dt>Notes</dt>
               <dd>{asset.notes || '—'}</dd>
             </dl>
           </div>
 
-          <HaLinkCard
-            asset={asset}
-            devices={devices}
-            haUnavailable={haUnavailable}
-            onChanged={(next) => setAsset(next)}
-            onError={setError}
-          />
+          {isEquipment && (
+            <HaLinkCard
+              asset={asset}
+              devices={devices}
+              haUnavailable={haUnavailable}
+              onChanged={(next) => setAsset(next)}
+              onError={setError}
+            />
+          )}
         </>
       )}
 
@@ -512,6 +528,7 @@ function EditAsset({
   const [notes, setNotes] = useState(asset.notes ?? '')
   const [busy, setBusy] = useState(false)
   const { showToast } = useToast()
+  const isEquipment = asset.kind === 'equipment'
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -567,15 +584,19 @@ function EditAsset({
           onChange={(event) => setInstallDate(event.target.value)}
         />
       </Field>
-      <Field label="Marque">
-        <input value={brand} onChange={(event) => setBrand(event.target.value)} />
-      </Field>
-      <Field label="Modele">
-        <input value={model} onChange={(event) => setModel(event.target.value)} />
-      </Field>
-      <Field label="Numero de serie">
-        <input value={serial} onChange={(event) => setSerial(event.target.value)} />
-      </Field>
+      {isEquipment && (
+        <>
+          <Field label="Marque">
+            <input value={brand} onChange={(event) => setBrand(event.target.value)} />
+          </Field>
+          <Field label="Modele">
+            <input value={model} onChange={(event) => setModel(event.target.value)} />
+          </Field>
+          <Field label="Numero de serie">
+            <input value={serial} onChange={(event) => setSerial(event.target.value)} />
+          </Field>
+        </>
+      )}
       <Field label="Notes">
         <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} />
       </Field>
