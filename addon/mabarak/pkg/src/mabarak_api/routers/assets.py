@@ -119,6 +119,7 @@ def _task_out(
         asset_name=asset_name,
         location_path=loc_path,
         name=task.name,
+        priority=task.priority,  # type: ignore[arg-type]
         last_completed_on=task.last_completed_on,
         next_due_on=task.next_due_on,
         status=status,
@@ -352,6 +353,7 @@ def create_task(asset_id: int, body: TaskIn, session: Session = Depends(get_sess
         home_id=None,
         assignee_id=assignee.id if assignee is not None else None,
         name=body.name.strip(),
+        priority=body.priority,
         recurrence_type=body.recurrence_type,
         recurrence_interval=body.recurrence_interval,
         recurrence_anchor=anchor,
@@ -811,8 +813,11 @@ def list_tasks(session: Session = Depends(get_session)) -> list[TaskOut]:
         )
         for task in tasks
     ]
-    rank = {"overdue": 0, "due_soon": 1, "ok": 2, "unscheduled": 3}
-    result.sort(key=lambda item: (rank.get(item.status, 9), item.next_due_on or "9999"))
+    # Priorite decroissante puis echeance croissante (spec ClickUp 869ezy08h).
+    # Le statut 'overdue' force le badge 'urgente' cote affichage (voir frontend),
+    # mais l'ordre par defaut reste base sur la priorite telle que stockee.
+    priority_rank = {"critical": 0, "high": 1, "normal": 2, "low": 3}
+    result.sort(key=lambda item: (priority_rank.get(item.priority, 9), item.next_due_on or "9999"))
     return result
 
 

@@ -3,6 +3,14 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.12.1
+
+Correctif : la 0.12.0 avait le bon numero de version mais les artefacts
+statiques de l'add-on (`addon/mabarak/pkg`, `addon/mabarak/www`) n'avaient
+pas ete regeneres via `scripts/stage-addon.sh` avant la release — l'image
+construite par le Supervisor embarquait donc encore l'ancien code. Aucun
+changement fonctionnel : cette version regenere simplement ces artefacts.
+
 ## 0.12.0
 
 - Priorité des entretiens (faible / normale / haute / urgente) : tri par
