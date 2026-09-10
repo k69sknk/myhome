@@ -1,0 +1,460 @@
+# Objets typiques proposes pendant le didacticiel de demarrage.
+#
+# REGLE D'EVOLUTION : `key` est un contrat. On n'en renomme jamais aucune ; on
+# ajoute de nouvelles entrees, ou on marque `deprecated: true` pour retirer un
+# objet des propositions sans casser ce qui le referencait.
+#
+# `category` est le slug d'une categorie pre-alimentee de schema.sql. Il est
+# volontairement absent quand aucune categorie existante ne convient : mieux
+# vaut une fiche sans categorie qu'une fiche rangee au mauvais endroit. Ces
+# manques sont la matiere premiere de la reflexion sur la taxonomie.
+#
+# `anchor` (voir adr/0004) : 'from_due_date' pour tout ce qui est reglementaire
+# ou contractuel et ne doit pas deriver si l'utilisateur s'y prend en retard ;
+# 'from_completion' (defaut) pour l'entretien d'usage.
+
+# --- Cuisine -----------------------------------------------------------------
+
+- key: refrigerateur
+  label: Réfrigérateur
+  kind: equipment
+  category: fridge
+  maintenances:
+    - key: refrigerateur_degivrage
+      label: Dégivrer et nettoyer l'intérieur
+      recurrence: { type: months, interval: 6 }
+    - key: refrigerateur_grille
+      label: Dépoussiérer la grille arrière
+      description: Une grille encrassée fait surconsommer l'appareil.
+      recurrence: { type: months, interval: 12 }
+
+- key: lave_vaisselle
+  label: Lave-vaisselle
+  kind: equipment
+  category: dishwasher
+  maintenances:
+    - key: lave_vaisselle_filtre
+      label: Nettoyer le filtre
+      recurrence: { type: months, interval: 1 }
+    - key: lave_vaisselle_detartrage
+      label: Détartrer
+      recurrence: { type: months, interval: 6 }
+
+- key: four
+  label: Four
+  kind: equipment
+  category: oven
+  maintenances:
+    - key: four_nettoyage
+      label: Nettoyer (pyrolyse ou dégraissage)
+      recurrence: { type: months, interval: 3 }
+
+- key: hotte
+  label: Hotte aspirante
+  kind: equipment
+  category: extractor
+  maintenances:
+    - key: hotte_filtre_graisse
+      label: Dégraisser le filtre métallique
+      recurrence: { type: months, interval: 3 }
+    - key: hotte_filtre_charbon
+      label: Remplacer le filtre à charbon
+      description: Uniquement sur une hotte à recyclage, sans évacuation extérieure.
+      recurrence: { type: months, interval: 12 }
+
+- key: evier_siphon
+  label: Évier (siphon)
+  kind: building_element
+  # Aucune categorie du bati ne couvre la plomberie a ce jour.
+  maintenances:
+    - key: evier_siphon_nettoyage
+      label: Démonter et nettoyer le siphon
+      recurrence: { type: months, interval: 6 }
+
+# --- Salle de bain -----------------------------------------------------------
+
+- key: joints_douche
+  label: Joints de douche
+  kind: building_element
+  category: sealant
+  maintenances:
+    - key: joints_douche_controle
+      label: Nettoyer et vérifier l'état des joints
+      recurrence: { type: months, interval: 6 }
+    - key: joints_douche_refection
+      label: Refaire les joints silicone
+      description: À avancer dès que le silicone noircit ou se décolle.
+      recurrence: { type: years, interval: 3 }
+
+- key: douche_siphon
+  label: Siphon de douche
+  kind: building_element
+  maintenances:
+    - key: douche_siphon_nettoyage
+      label: Nettoyer le siphon et la bonde
+      recurrence: { type: months, interval: 3 }
+
+- key: bouche_extraction
+  label: Bouche d'extraction (VMC)
+  kind: building_element
+  maintenances:
+    - key: bouche_extraction_nettoyage
+      label: Démonter et laver la bouche
+      recurrence: { type: months, interval: 6 }
+
+- key: robinetterie
+  label: Robinetterie / mitigeur
+  kind: equipment
+  category: water
+  maintenances:
+    - key: robinetterie_detartrage
+      label: Détartrer les mousseurs
+      recurrence: { type: months, interval: 12 }
+
+# --- WC ----------------------------------------------------------------------
+
+- key: wc
+  label: WC
+  kind: equipment
+  category: water
+  maintenances:
+    - key: wc_mecanisme
+      label: Vérifier le mécanisme de chasse et l'absence de fuite
+      description: Une chasse qui fuit peut représenter plusieurs m³ par mois.
+      recurrence: { type: months, interval: 12 }
+
+# --- Buanderie / lingerie ----------------------------------------------------
+
+- key: lave_linge
+  label: Lave-linge
+  kind: equipment
+  category: washing_machine
+  maintenances:
+    - key: lave_linge_joint
+      label: Nettoyer le joint de hublot et le bac à produits
+      recurrence: { type: months, interval: 1 }
+    - key: lave_linge_filtre
+      label: Nettoyer le filtre de vidange
+      recurrence: { type: months, interval: 3 }
+    - key: lave_linge_detartrage
+      label: Détartrer (cycle à vide à 90 °C)
+      recurrence: { type: months, interval: 6 }
+
+- key: seche_linge
+  label: Sèche-linge
+  kind: equipment
+  maintenances:
+    - key: seche_linge_filtre
+      label: Nettoyer le filtre à peluches
+      recurrence: { type: months, interval: 1 }
+    - key: seche_linge_condenseur
+      label: Nettoyer le condenseur
+      recurrence: { type: months, interval: 3 }
+
+# --- Sejour / chambres -------------------------------------------------------
+
+- key: poele
+  label: Poêle / insert
+  kind: equipment
+  category: stove
+  maintenances:
+    - key: poele_ramonage
+      label: Faire ramoner le conduit
+      description: >-
+        Obligation légale (une à deux fois par an selon le règlement sanitaire
+        départemental), et exigée par l'assurance en cas de sinistre.
+      recurrence: { type: years, interval: 1 }
+      anchor: from_due_date
+    - key: poele_nettoyage
+      label: Nettoyer la vitre et le cendrier
+      recurrence: { type: months, interval: 1 }
+
+- key: climatisation
+  label: Climatisation
+  kind: equipment
+  category: air_conditioning
+  maintenances:
+    - key: climatisation_filtres
+      label: Nettoyer les filtres
+      recurrence: { type: months, interval: 3 }
+    - key: climatisation_entretien
+      label: Entretien annuel
+      recurrence: { type: years, interval: 1 }
+      anchor: from_due_date
+
+- key: radiateur
+  label: Radiateur
+  kind: equipment
+  category: radiator
+  maintenances:
+    - key: radiateur_depoussierage
+      label: Dépoussiérer
+      recurrence: { type: months, interval: 12 }
+
+- key: volets
+  label: Volets
+  kind: building_element
+  category: shutters
+  maintenances:
+    - key: volets_entretien
+      label: Graisser les glissières et vérifier le mécanisme
+      recurrence: { type: months, interval: 12 }
+
+- key: fenetres
+  label: Fenêtres
+  kind: building_element
+  category: windows
+  maintenances:
+    - key: fenetres_entretien
+      label: Nettoyer les rails et graisser les paumelles
+      recurrence: { type: months, interval: 12 }
+    - key: fenetres_joints
+      label: Vérifier les joints d'étanchéité
+      recurrence: { type: years, interval: 2 }
+
+# --- Local technique / chaufferie --------------------------------------------
+
+- key: chaudiere
+  label: Chaudière
+  kind: equipment
+  category: boiler
+  maintenances:
+    - key: chaudiere_entretien
+      label: Entretien annuel par un professionnel
+      description: Obligatoire pour les chaudières de 4 à 400 kW, et exigé par l'assurance.
+      recurrence: { type: years, interval: 1 }
+      anchor: from_due_date
+    - key: chaudiere_pression
+      label: Vérifier la pression du circuit
+      recurrence: { type: months, interval: 3 }
+
+- key: pompe_a_chaleur
+  label: Pompe à chaleur
+  kind: equipment
+  category: heat_pump
+  maintenances:
+    - key: pompe_a_chaleur_entretien
+      label: Entretien annuel par un professionnel
+      recurrence: { type: years, interval: 1 }
+      anchor: from_due_date
+    - key: pompe_a_chaleur_unite_exterieure
+      label: Dégager et nettoyer l'unité extérieure
+      recurrence: { type: months, interval: 6 }
+
+- key: chauffe_eau
+  label: Chauffe-eau / ballon
+  kind: equipment
+  category: water_heater
+  maintenances:
+    - key: chauffe_eau_groupe_securite
+      label: Manœuvrer le groupe de sécurité
+      description: Un groupe grippé peut faire monter la pression du ballon.
+      recurrence: { type: months, interval: 6 }
+    - key: chauffe_eau_detartrage
+      label: Détartrer et changer l'anode
+      recurrence: { type: years, interval: 2 }
+
+- key: adoucisseur
+  label: Adoucisseur d'eau
+  kind: equipment
+  category: water_softener
+  maintenances:
+    - key: adoucisseur_sel
+      label: Compléter le sel
+      recurrence: { type: months, interval: 2 }
+    - key: adoucisseur_desinfection
+      label: Désinfecter le bac et contrôler les réglages
+      recurrence: { type: months, interval: 12 }
+
+- key: filtre_eau
+  label: Filtre / préfiltre d'eau
+  kind: equipment
+  category: filtration
+  maintenances:
+    - key: filtre_eau_cartouche
+      label: Remplacer la cartouche
+      recurrence: { type: months, interval: 6 }
+
+- key: tableau_electrique
+  label: Tableau électrique
+  kind: equipment
+  category: electrical_panel
+  maintenances:
+    - key: tableau_electrique_differentiels
+      label: Tester les interrupteurs différentiels
+      description: Appuyer sur le bouton test de chaque différentiel ; il doit déclencher.
+      recurrence: { type: months, interval: 6 }
+
+- key: vmc
+  label: VMC
+  kind: equipment
+  category: vmc
+  maintenances:
+    - key: vmc_bouches
+      label: Nettoyer les bouches d'extraction
+      recurrence: { type: months, interval: 6 }
+    - key: vmc_filtres
+      label: Remplacer les filtres (VMC double flux)
+      recurrence: { type: months, interval: 6 }
+    - key: vmc_caisson
+      label: Dépoussiérer le caisson et vérifier le moteur
+      recurrence: { type: months, interval: 12 }
+
+- key: pompe_relevage
+  label: Pompe de relevage
+  kind: equipment
+  category: pump
+  maintenances:
+    - key: pompe_relevage_controle
+      label: Vérifier le fonctionnement et nettoyer le flotteur
+      recurrence: { type: months, interval: 12 }
+
+- key: panneaux_solaires
+  label: Panneaux solaires
+  kind: equipment
+  category: solar_inverter
+  maintenances:
+    - key: panneaux_solaires_controle
+      label: Nettoyer les panneaux et relever la production
+      recurrence: { type: months, interval: 12 }
+
+# --- Garage ------------------------------------------------------------------
+
+- key: porte_garage
+  label: Porte de garage
+  kind: equipment
+  category: gate
+  maintenances:
+    - key: porte_garage_entretien
+      label: Graisser les rails et tester la sécurité anti-écrasement
+      recurrence: { type: months, interval: 12 }
+
+# --- Exterieur ---------------------------------------------------------------
+
+- key: toiture
+  label: Toiture
+  kind: building_element
+  category: roof
+  maintenances:
+    - key: toiture_controle
+      label: Contrôle visuel (tuiles, faîtage, solins)
+      recurrence: { type: months, interval: 12 }
+    - key: toiture_demoussage
+      label: Démoussage
+      recurrence: { type: years, interval: 3 }
+
+- key: gouttieres
+  label: Gouttières
+  kind: building_element
+  category: gutters
+  maintenances:
+    - key: gouttieres_nettoyage
+      label: Nettoyer les gouttières
+      description: Après la chute des feuilles, avant les pluies d'hiver.
+      recurrence: { type: annual_fixed, month: 11, day: 15 }
+
+- key: facade
+  label: Façade
+  kind: building_element
+  category: facade
+  maintenances:
+    - key: facade_controle
+      label: Contrôler l'état (fissures, enduit, peinture)
+      recurrence: { type: years, interval: 5 }
+
+- key: terrasse
+  label: Terrasse
+  kind: building_element
+  category: terrace
+  maintenances:
+    - key: terrasse_nettoyage
+      label: Nettoyage de printemps
+      recurrence: { type: annual_fixed, month: 4, day: 1 }
+    - key: terrasse_huilage
+      label: Huiler le bois
+      recurrence: { type: months, interval: 12 }
+
+- key: cloture
+  label: Clôture
+  kind: building_element
+  category: fence
+  maintenances:
+    - key: cloture_controle
+      label: Contrôler et traiter
+      recurrence: { type: years, interval: 2 }
+
+- key: portail
+  label: Portail
+  kind: equipment
+  category: gate
+  maintenances:
+    - key: portail_entretien
+      label: Graisser et vérifier la motorisation
+      recurrence: { type: months, interval: 12 }
+
+- key: robot_tondeuse
+  label: Robot tondeuse
+  kind: equipment
+  category: robot_mower
+  maintenances:
+    - key: robot_tondeuse_lames
+      label: Changer les lames
+      recurrence: { type: months, interval: 3 }
+    - key: robot_tondeuse_hivernage
+      label: Hivernage (nettoyage, charge, remisage)
+      recurrence: { type: annual_fixed, month: 11, day: 1 }
+
+- key: arrosage_automatique
+  label: Arrosage automatique
+  kind: equipment
+  category: irrigation
+  maintenances:
+    - key: arrosage_purge
+      label: Purger avant les gelées
+      description: Une purge oubliée fait éclater les canalisations au premier gel.
+      recurrence: { type: annual_fixed, month: 11, day: 1 }
+    - key: arrosage_remise_en_service
+      label: Remise en service et contrôle des arroseurs
+      recurrence: { type: annual_fixed, month: 4, day: 1 }
+
+- key: piscine
+  label: Piscine
+  kind: equipment
+  category: pool
+  maintenances:
+    - key: piscine_filtre
+      label: Nettoyer le filtre
+      recurrence: { type: months, interval: 1 }
+    - key: piscine_hivernage
+      label: Hivernage
+      recurrence: { type: annual_fixed, month: 10, day: 15 }
+    - key: piscine_remise_en_service
+      label: Remise en service
+      recurrence: { type: annual_fixed, month: 4, day: 15 }
+
+- key: spa
+  label: Spa
+  kind: equipment
+  category: spa
+  maintenances:
+    - key: spa_filtre
+      label: Nettoyer ou remplacer le filtre
+      recurrence: { type: months, interval: 3 }
+    - key: spa_vidange
+      label: Vidanger et nettoyer la cuve
+      recurrence: { type: months, interval: 6 }
+
+- key: haie
+  label: Haie
+  kind: building_element
+  # Rien dans les categories du bati ne couvre le vegetal.
+  maintenances:
+    - key: haie_taille_fin_hiver
+      label: Taille de fin d'hiver
+      description: >-
+        Avant la période de nidification : il est déconseillé (et localement
+        interdit) de tailler entre la mi-mars et la fin juillet.
+      recurrence: { type: annual_fixed, month: 3, day: 1 }
+    - key: haie_taille_automne
+      label: Taille d'automne
+      recurrence: { type: annual_fixed, month: 9, day: 15 }
