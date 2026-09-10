@@ -1,18 +1,25 @@
-import type { Category, RecurrenceType, Task, TaskPriority, TaskStatus } from '../api/types'
+import type {
+  CatalogRecurrence,
+  Category,
+  RecurrenceType,
+  Task,
+  TaskPriority,
+  TaskStatus,
+} from '../api/types'
 
 const MONTHS = [
   'janvier',
-  'fevrier',
+  'février',
   'mars',
   'avril',
   'mai',
   'juin',
   'juillet',
-  'aout',
+  'août',
   'septembre',
   'octobre',
   'novembre',
-  'decembre',
+  'décembre',
 ] as const
 
 export function todayIso(): string {
@@ -85,13 +92,23 @@ export function formatRecurrence(task: Pick<Task, 'recurrence_type' | 'recurrenc
   if (type === 'annual_fixed') {
     const day = task.fixed_day ?? 1
     const month = monthName(task.fixed_month ?? 1)
-    return `Chaque annee le ${day} ${month}`
+    return `Chaque année le ${day} ${month}`
   }
   if (type === 'days') {
     const interval = task.recurrence_interval ?? 1
     return interval === 1 ? 'Tous les jours' : `Tous les ${interval} jours`
   }
   return type
+}
+
+/** Meme rendu que pour un entretien existant, depuis un modele du catalogue. */
+export function formatCatalogRecurrence(recurrence: CatalogRecurrence): string {
+  return formatRecurrence({
+    recurrence_type: recurrence.type,
+    recurrence_interval: recurrence.interval,
+    fixed_month: recurrence.month,
+    fixed_day: recurrence.day,
+  })
 }
 
 export function errorMessage(error: unknown): string {

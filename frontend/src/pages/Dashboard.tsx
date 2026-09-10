@@ -52,6 +52,16 @@ function Ready({ summary, health }: { summary: HaSummary; health: HealthResponse
 
   return (
     <>
+      {!hasTasks && (
+        <div className="notice">
+          <p>
+            <strong>Rien d'enregistré pour l'instant.</strong> Le plus simple est de faire le tour
+            de chez vous : on vous propose les pièces, ce qu'on y trouve, puis les entretiens
+            correspondants. <Link to="/demarrage">Configurer MaBarak</Link>.
+          </p>
+        </div>
+      )}
+
       <div className="counts">
         <CountCard
           to="/entretiens"

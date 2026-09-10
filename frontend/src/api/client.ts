@@ -1,10 +1,13 @@
 import { apiUrl } from '../base-path'
 import type {
+  ApplyRoomResult,
   Asset,
   AssetIn,
   AssetListItem,
   AssetPatch,
   CalendarSyncResult,
+  Catalog,
+  CatalogProposal,
   Category,
   CategoryIn,
   CompleteIn,
@@ -22,6 +25,7 @@ import type {
   LocationIn,
   LocationType,
   LocationTypeIn,
+  MaintenanceSelection,
   Member,
   MemberIn,
   Task,
@@ -179,4 +183,17 @@ export const api = {
     request<Member>(`members/${memberId}`, { method: 'PATCH', ...jsonBody(body) }),
   deleteMember: (memberId: number) =>
     request<{ ok: boolean }>(`members/${memberId}`, { method: 'DELETE' }),
+
+  catalog: () => request<Catalog>('catalog'),
+  applyCatalogRoom: (roomKey: string, itemKeys: string[]) =>
+    request<ApplyRoomResult>('catalog/rooms', {
+      method: 'POST',
+      ...jsonBody({ room_key: roomKey, item_keys: itemKeys }),
+    }),
+  catalogProposals: () => request<CatalogProposal[]>('catalog/proposals'),
+  applyCatalogMaintenances: (selections: MaintenanceSelection[]) =>
+    request<{ created: number }>('catalog/maintenances', {
+      method: 'POST',
+      ...jsonBody({ selections }),
+    }),
 }

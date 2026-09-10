@@ -5,14 +5,27 @@ L'add-on et l'intégration MaBarak partagent le même numéro de version
 
 ## 0.16.0
 
-- **Catalogue de démarrage** : première brique du didacticiel « Configurer
-  MaBarak ». L'application embarque désormais un catalogue de 15 zones
-  (intérieures et extérieures), 42 objets typiques et 73 entretiens avec leurs
-  fréquences par défaut (ramonage, filtre de hotte, purge de l'arrosage avant
-  les gelées, joints de douche...). L'extérieur est parcouru comme l'intérieur,
-  zone par zone : façade et toiture, entrée et accès, jardin, terrasse, piscine.
-  Rien n'est visible dans l'interface à ce stade : le catalogue est exposé par
-  l'API et sera consommé par le didacticiel.
+- **Didacticiel de démarrage « Configurer MaBarak »**. Une installation neuve
+  ne montre plus une liste vide : on vous propose de faire le tour de chez vous.
+  Vous cochez vos pièces, puis ce que vous avez dans chacune, et l'application
+  vous propose enfin les entretiens correspondants avec leurs fréquences, que
+  vous pouvez ajuster ou décocher. Le planning se remplit sans avoir à deviner
+  les fréquences soi-même.
+
+  Le parcours s'appuie sur un catalogue de 15 zones (intérieures et
+  extérieures), 42 objets typiques et 73 entretiens : ramonage, filtre de hotte,
+  purge de l'arrosage avant les gelées, joints de douche, gouttières après la
+  chute des feuilles... L'extérieur se parcourt comme l'intérieur, zone par
+  zone : façade et toiture, entrée et accès, jardin, terrasse, piscine.
+
+  Le tour est interruptible : chaque zone est enregistrée au fur et à mesure, et
+  y revenir ne crée pas de doublon. Aucune facture ni date d'achat n'est
+  demandée pendant le tour — elles s'ajoutent ensuite, fiche par fiche.
+
+- **Entretiens de la maison enfin visibles** : ceux qui ne dépendent d'aucun
+  appareil (tester les détecteurs de fumée, purger les radiateurs, relever les
+  compteurs) étaient prévus par le modèle mais n'apparaissaient jamais dans le
+  planning. C'est corrigé.
 
 ## 0.15.0
 
