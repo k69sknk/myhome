@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react'
 
-import type { Member, RecurrenceType, ReplacementPartIn, Task, TaskIn } from '../api/types'
-import { emptyToNull, errorMessage, todayIso } from '../lib/format'
+import type { Member, RecurrenceType, ReplacementPartIn, Task, TaskIn, TaskPriority } from '../api/types'
+import { emptyToNull, errorMessage, priorityLabel, todayIso } from '../lib/format'
 import Field from './Field'
 
 type Frequency = Extract<RecurrenceType, 'months' | 'years' | 'annual_fixed'> | 'custom_date'
+
+const PRIORITIES: TaskPriority[] = ['low', 'normal', 'high', 'critical']
 
 function defaultFixedDate(): string {
   const year = new Date().getFullYear()
@@ -35,6 +37,7 @@ export default function TaskForm({
   onCancel?: () => void
 }) {
   const [name, setName] = useState(initial?.name ?? '')
+  const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'normal')
   const [frequency, setFrequency] = useState<Frequency>(initialFrequency(initial))
   const [interval, setInterval] = useState(initial?.recurrence_interval ?? 3)
   const [fixedDate, setFixedDate] = useState(
@@ -79,6 +82,7 @@ export default function TaskForm({
       .map((part) => ({ name: part.name.trim(), source: emptyToNull(part.source) }))
     const body: TaskIn = {
       name: trimmed,
+      priority,
       recurrence_type: frequency === 'custom_date' ? 'custom_date' : frequency,
       last_completed_on: lastCompleted || null,
       replacement_parts: replacementParts,
@@ -103,6 +107,7 @@ export default function TaskForm({
       await onSubmit(body)
       if (!initial) {
         setName('')
+        setPriority('normal')
         setLastCompleted('')
         setParts([])
         setPrepNotes('')
@@ -126,6 +131,18 @@ export default function TaskForm({
           onChange={(event) => setName(event.target.value)}
           placeholder="Filtres, detartrage..."
         />
+      </Field>
+      <Field label="Priorite">
+        <select
+          value={priority}
+          onChange={(event) => setPriority(event.target.value as TaskPriority)}
+        >
+          {PRIORITIES.map((value) => (
+            <option key={value} value={value}>
+              {priorityLabel(value)}
+            </option>
+          ))}
+        </select>
       </Field>
       <Field label="Frequence">
         <select

@@ -8,6 +8,7 @@ import CategorySelect from '../components/CategorySelect'
 import CompleteTask from '../components/CompleteTask'
 import Field from '../components/Field'
 import { EditIcon, TrashIcon } from '../components/icons'
+import PrioritySelect from '../components/PrioritySelect'
 import StatusBadge from '../components/StatusBadge'
 import TaskForm from '../components/TaskForm'
 import TaskPrepInfo from '../components/TaskPrepInfo'
@@ -204,6 +205,10 @@ export default function AssetDetail() {
                   <div className="task__main">
                     <strong>{task.name}</strong>
                     <StatusBadge status={task.status} />
+                    <PrioritySelect
+                      task={task}
+                      onChanged={() => void reload().catch((caught) => setError(errorMessage(caught)))}
+                    />
                     <p className="muted">
                       {formatRecurrence(task)}
                       {' · dernier '}
