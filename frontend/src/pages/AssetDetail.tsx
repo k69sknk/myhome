@@ -12,6 +12,7 @@ import PrioritySelect from '../components/PrioritySelect'
 import StatusBadge from '../components/StatusBadge'
 import TaskForm from '../components/TaskForm'
 import TaskPrepInfo from '../components/TaskPrepInfo'
+import { useToast } from '../components/Toast'
 import { categoryIcon } from '../lib/categoryIcon'
 import {
   docTypeLabel,
@@ -303,12 +304,14 @@ function AssetPhoto({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const { showToast } = useToast()
 
   async function upload(file: File) {
     setBusy(true)
     onError(null)
     try {
       await api.uploadAssetDocument(asset.id, file, 'photo')
+      showToast('Photo mise à jour')
       onChanged()
     } catch (caught: unknown) {
       onError(errorMessage(caught))
@@ -323,6 +326,7 @@ function AssetPhoto({
     onError(null)
     try {
       await api.deleteDocument(asset.photo_document_id)
+      showToast('Photo supprimée')
       onChanged()
     } catch (caught: unknown) {
       onError(errorMessage(caught))
@@ -389,6 +393,7 @@ function AssetDocuments({
   const [docType, setDocType] = useState<'manual' | 'invoice' | 'other'>('manual')
   const [customName, setCustomName] = useState('')
   const [busy, setBusy] = useState(false)
+  const { showToast } = useToast()
 
   async function upload(file: File) {
     setBusy(true)
@@ -396,6 +401,7 @@ function AssetDocuments({
     try {
       await api.uploadAssetDocument(assetId, file, docType, customName.trim())
       setCustomName('')
+      showToast('Document ajouté')
       onChanged()
     } catch (caught: unknown) {
       onError(errorMessage(caught))
@@ -409,6 +415,7 @@ function AssetDocuments({
     onError(null)
     try {
       await api.deleteDocument(documentId)
+      showToast('Document supprimé')
       onChanged()
     } catch (caught: unknown) {
       onError(errorMessage(caught))
@@ -504,6 +511,7 @@ function EditAsset({
   const [serial, setSerial] = useState(asset.serial_number ?? '')
   const [notes, setNotes] = useState(asset.notes ?? '')
   const [busy, setBusy] = useState(false)
+  const { showToast } = useToast()
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -520,6 +528,7 @@ function EditAsset({
         serial_number: emptyToNull(serial),
         notes: emptyToNull(notes),
       })
+      showToast('Fiche mise à jour')
       onSaved(next)
     } catch (caught: unknown) {
       onError(errorMessage(caught))
@@ -592,6 +601,7 @@ function HaLinkCard({
 }) {
   const [deviceId, setDeviceId] = useState(asset.ha_link?.ha_device_id ?? '')
   const [busy, setBusy] = useState(false)
+  const { showToast } = useToast()
 
   async function link() {
     const selected = devices.find((row) => row.ha_device_id === deviceId)
@@ -606,6 +616,7 @@ function HaLinkCard({
         domain_at_link: selected.domain,
         area_name: asset.location_id ? null : selected.area_name,
       })
+      showToast('Appareil lié')
       onChanged(next)
     } catch (caught: unknown) {
       onError(errorMessage(caught))
@@ -619,6 +630,7 @@ function HaLinkCard({
     onError(null)
     try {
       onChanged(await api.deleteHaLink(asset.id))
+      showToast('Appareil détaché')
       setDeviceId('')
     } catch (caught: unknown) {
       onError(errorMessage(caught))

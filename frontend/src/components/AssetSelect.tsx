@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { AssetListItem, Category } from '../api/types'
 import { errorMessage } from '../lib/format'
+import { useToast } from './Toast'
 
 interface Option {
   id: number
@@ -149,6 +150,7 @@ export default function AssetSelect({
   const [error, setError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const { showToast } = useToast()
 
   useEffect(() => {
     setQuery(selectedLabel)
@@ -212,6 +214,7 @@ export default function AssetSelect({
       onChange(String(created.id))
       setQuery(created.name)
       setOpen(false)
+      showToast('Équipement ajouté')
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     } finally {

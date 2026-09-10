@@ -5,6 +5,7 @@ import type { Intervention, Member, Task } from '../api/types'
 import { errorMessage, formatAmount, formatDate, todayIso } from '../lib/format'
 import Field from './Field'
 import TaskForm from './TaskForm'
+import { useToast } from './Toast'
 import { EditIcon, TrashIcon } from './icons'
 
 export default function CompleteTask({
@@ -37,6 +38,7 @@ export default function CompleteTask({
   const [history, setHistory] = useState<Intervention[] | null>(null)
   const [historyError, setHistoryError] = useState<string | null>(null)
   const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set())
+  const { showToast } = useToast()
 
   useEffect(() => {
     if (open) dateInputRef.current?.focus()
@@ -90,6 +92,7 @@ export default function CompleteTask({
       setAmount('')
       if (fileInputRef.current) fileInputRef.current.value = ''
       await invalidateHistory()
+      showToast('Entretien marqué comme fait')
       onCompleted()
     } catch (caught: unknown) {
       setError(errorMessage(caught))
@@ -114,6 +117,7 @@ export default function CompleteTask({
     setError(null)
     try {
       await api.deleteTask(task.id)
+      showToast('Entretien supprimé')
       onDeleted()
     } catch (caught: unknown) {
       setError(errorMessage(caught))
@@ -129,6 +133,7 @@ export default function CompleteTask({
     setDeletingIds((current) => new Set(current).add(interventionId))
     try {
       await api.deleteIntervention(interventionId)
+      showToast('Intervention supprimée')
       await refreshHistory()
     } catch (caught: unknown) {
       if (caught instanceof ApiError && caught.status === 404) {

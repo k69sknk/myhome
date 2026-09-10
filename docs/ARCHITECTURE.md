@@ -155,6 +155,15 @@ React 19, TypeScript, Vite, React Router. Application monopage : les assets sont
 nginx, la coquille `index.html` par le backend qui y injecte le chemin d'ingress. Aucun appel
 réseau sortant : les seules requêtes vont vers l'API locale.
 
+**Règle : confirmation visuelle après chaque action qui aboutit.** Toute création, modification
+ou suppression qui réussit (entretien ajouté, équipement créé, document supprimé, lien Home
+Assistant détaché...) déclenche un toast via `useToast()` (`frontend/src/components/Toast.tsx`),
+monté une seule fois par `ToastProvider` dans `App.tsx`. Les erreurs restent affichées en ligne
+(`status status--error`, déjà en place partout) ; le toast ne sert que la confirmation de
+succès, jamais l'erreur. Une nouvelle action qui écrit des données doit appeler `showToast(...)`
+au même endroit que ses `setError`/`onError`, plutôt que d'introduire un autre mécanisme de
+confirmation.
+
 ### 3.4 Intégration `custom_components/mabarak`
 
 Intégration en config flow exclusivement, sans configuration YAML, conformément à l'ADR-0010

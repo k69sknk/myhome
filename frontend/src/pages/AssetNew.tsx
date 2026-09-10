@@ -6,6 +6,7 @@ import type { Category, HaDevice, Location } from '../api/types'
 import BackLink from '../components/BackLink'
 import CategorySelect from '../components/CategorySelect'
 import Field from '../components/Field'
+import { useToast } from '../components/Toast'
 import { categoryIcon } from '../lib/categoryIcon'
 import {
   addMonthsIso,
@@ -18,6 +19,7 @@ import {
 
 export default function AssetNew() {
   const navigate = useNavigate()
+  const { showToast } = useToast()
   const [categories, setCategories] = useState<Category[]>([])
   const [locations, setLocations] = useState<Location[]>([])
   const [devices, setDevices] = useState<HaDevice[] | null>(null)
@@ -117,6 +119,7 @@ export default function AssetNew() {
           /* La fiche existe : le lien se retente depuis le detail. */
         }
       }
+      showToast('Équipement ajouté')
       navigate(`/equipements/${created.id}`)
     } catch (caught: unknown) {
       setError(errorMessage(caught))

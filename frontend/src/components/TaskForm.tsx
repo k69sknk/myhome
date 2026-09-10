@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react'
 import type { Member, RecurrenceType, ReplacementPartIn, Task, TaskIn, TaskPriority } from '../api/types'
 import { emptyToNull, errorMessage, priorityLabel, todayIso } from '../lib/format'
 import Field from './Field'
+import { useToast } from './Toast'
 
 type Frequency = Extract<RecurrenceType, 'months' | 'years' | 'annual_fixed'> | 'custom_date'
 
@@ -58,6 +59,7 @@ export default function TaskForm({
   )
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { showToast } = useToast()
 
   function addPart() {
     setParts((current) => [...current, { name: '', source: '' }])
@@ -105,6 +107,7 @@ export default function TaskForm({
     setError(null)
     try {
       await onSubmit(body)
+      showToast(initial ? 'Entretien modifié' : 'Entretien ajouté')
       if (!initial) {
         setName('')
         setPriority('normal')

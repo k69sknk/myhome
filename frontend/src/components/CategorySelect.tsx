@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { Category } from '../api/types'
 import { errorMessage } from '../lib/format'
+import { useToast } from './Toast'
 
 interface Option {
   id: number
@@ -36,6 +37,7 @@ export default function CategorySelect({
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const { showToast } = useToast()
 
   useEffect(() => {
     setQuery(selectedLabel)
@@ -77,6 +79,7 @@ export default function CategorySelect({
       onChange(String(created.id))
       setQuery(created.name)
       setOpen(false)
+      showToast('Catégorie ajoutée')
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     } finally {
