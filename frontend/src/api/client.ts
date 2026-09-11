@@ -13,7 +13,10 @@ import type {
   Category,
   CategoryIn,
   CompleteIn,
+  DocumentDraft,
+  DocumentFields,
   DocumentMeta,
+  DocumentPatchIn,
   HaCalendarOption,
   HaDevice,
   HaLinkIn,
@@ -91,6 +94,24 @@ function jsonBody(body: unknown): RequestInit {
   }
 }
 
+/** Le corps multipart d'un document : un seul contenu, celui du mode choisi.
+ *  Les trois modes passent par la meme porte (adr/0002). */
+function documentForm(draft: DocumentDraft, fields: DocumentFields): FormData {
+  const form = new FormData()
+  form.append('storage_mode', draft.mode)
+  if (draft.mode === 'local_file') {
+    if (draft.file) form.append('file', draft.file)
+  } else if (draft.mode === 'external_link') {
+    form.append('url', draft.url.trim())
+  } else {
+    form.append('reference_note', draft.note.trim())
+  }
+  if (fields.doc_type) form.append('doc_type', fields.doc_type)
+  if (fields.name) form.append('name', fields.name)
+  if (fields.notes) form.append('notes', fields.notes)
+  return form
+}
+
 export const api = {
   health: () => request<HealthResponse>('health'),
   summary: () => request<HaSummary>('ha/summary'),
@@ -155,26 +176,29 @@ export const api = {
   deleteTask: (taskId: number) => request<{ ok: boolean }>(`tasks/${taskId}`, { method: 'DELETE' }),
   deleteIntervention: (interventionId: number) =>
     request<{ ok: boolean }>(`interventions/${interventionId}`, { method: 'DELETE' }),
-  uploadInterventionDocument: async (interventionId: number, file: File) => {
-    const form = new FormData()
-    form.append('file', file)
-    return request<DocumentMeta>(`interventions/${interventionId}/documents`, {
-      method: 'POST',
-      body: form,
-    })
-  },
   documentFileUrl: (documentId: number) => apiUrl(`documents/${documentId}/file`),
-  uploadAssetDocument: async (
-    assetId: number,
-    file: File,
-    docType: 'manual' | 'invoice' | 'other' | 'photo' = 'manual',
-    name?: string,
-  ) => {
+  createAssetDocument: (assetId: number, draft: DocumentDraft, fields: DocumentFields = {}) =>
+    request<DocumentMeta>(`assets/${assetId}/documents`, {
+      method: 'POST',
+      body: documentForm(draft, fields),
+    }),
+  createInterventionDocument: (
+    interventionId: number,
+    draft: DocumentDraft,
+    fields: DocumentFields = {},
+  ) =>
+    request<DocumentMeta>(`interventions/${interventionId}/documents`, {
+      method: 'POST',
+      body: documentForm(draft, fields),
+    }),
+  /** Renomme, requalifie, ou fait passer le document en lien ou en reference. */
+  patchDocument: (documentId: number, body: DocumentPatchIn) =>
+    request<DocumentMeta>(`documents/${documentId}`, { method: 'PATCH', ...jsonBody(body) }),
+  /** Le retour au fichier local : il demande un fichier, donc un envoi multipart. */
+  attachDocumentFile: (documentId: number, file: File) => {
     const form = new FormData()
     form.append('file', file)
-    form.append('doc_type', docType)
-    if (name) form.append('name', name)
-    return request<DocumentMeta>(`assets/${assetId}/documents`, { method: 'POST', body: form })
+    return request<DocumentMeta>(`documents/${documentId}/file`, { method: 'POST', body: form })
   },
   assetDocuments: (assetId: number) => request<DocumentMeta[]>(`assets/${assetId}/documents`),
   deleteDocument: (documentId: number) =>

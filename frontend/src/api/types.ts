@@ -278,13 +278,63 @@ export interface Task {
   assignee_name: string | null
 }
 
+/** Les trois modes de stockage de l'adr/0002. Aucun n'est le mode par defaut. */
+export type StorageMode = 'local_file' | 'external_link' | 'reference_note'
+
+export type DocType =
+  | 'invoice'
+  | 'manual'
+  | 'user_guide'
+  | 'certificate'
+  | 'warranty'
+  | 'service_contract'
+  | 'photo'
+  | 'other'
+
 export interface DocumentMeta {
   id: number
   name: string
-  doc_type: string
+  doc_type: DocType
+  storage_mode: StorageMode
+  /** Renseigne en mode fichier local seulement. */
   file_size: number | null
   mime_type: string | null
+  /** Renseigne en mode lien externe seulement. */
+  url: string | null
+  /** Renseigne en mode reference seulement. */
+  reference_note: string | null
+  notes: string | null
   created_at: string
+}
+
+/** Un document en cours de saisie : le mode choisi porte son contenu. */
+export type DocumentDraft =
+  | { mode: 'local_file'; file: File | null }
+  | { mode: 'external_link'; url: string }
+  | { mode: 'reference_note'; note: string }
+
+export interface DocumentFields {
+  doc_type?: DocType
+  name?: string
+  notes?: string
+}
+
+export interface DocumentPatchIn {
+  name?: string
+  doc_type?: DocType
+  notes?: string | null
+  storage_mode?: 'external_link' | 'reference_note'
+  url?: string
+  reference_note?: string
+}
+
+export const emptyDraft = (): DocumentDraft => ({ mode: 'local_file', file: null })
+
+/** Un brouillon sans contenu : rien a envoyer, et rien a signaler. */
+export function draftIsEmpty(draft: DocumentDraft): boolean {
+  if (draft.mode === 'local_file') return draft.file === null
+  if (draft.mode === 'external_link') return draft.url.trim() === ''
+  return draft.note.trim() === ''
 }
 
 export interface Cost {

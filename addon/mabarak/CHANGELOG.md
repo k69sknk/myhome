@@ -3,6 +3,34 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.27.0
+
+- **Un document peut enfin être un lien ou une simple note.** Le modèle de données prévoyait
+  trois modes de stockage depuis le début
+  ([ADR-0002](../../docs/adr/0002-document-a-trois-modes-de-stockage.md)), mais l'interface et
+  l'API n'en offraient qu'un : le fichier déposé dans l'add-on. Or une facture d'artisan porte
+  votre nom et votre adresse, et la promesse était de pouvoir la laisser sur votre Nextcloud, ou
+  de noter simplement « e-mail du 12/05/2024 ». Les trois choix sont désormais proposés côte à
+  côte, de la même taille — dans l'onglet Documents d'une fiche comme au moment d'enregistrer un
+  entretien fait par un pro. Un mode présenté comme secondaire n'aurait rien changé sur le fond.
+
+- **Changer de mode ne fait plus perdre le document.** Vous aviez noté « facture dans les
+  mails » et vous venez de retrouver le PDF : déposez-le depuis « Modifier », c'est le même
+  document, il garde son nom, son type et son rattachement à l'équipement ou à l'entretien.
+  Dans l'autre sens, sortir une facture de l'application **efface vraiment le fichier**, pour
+  qu'il ne traîne pas dans vos sauvegardes Home Assistant.
+
+- **Quatre types de documents qui manquaient** : garantie, certificat, contrat d'entretien et
+  notice d'utilisation. Ils existaient dans la base mais l'API les refusait — alors que la
+  garantie est l'une des premières raisons d'ouvrir une fiche.
+
+- **Un document se renomme.** « scan0012.pdf » devient « Certificat de conformité gaz » sans
+  avoir à le supprimer et le redéposer.
+
+- **La facture d'un entretien ne se supprimait pas.** Rattachée à l'intervention et non
+  directement à l'équipement, elle était déclarée introuvable ; seule la suppression de
+  l'entretien entier l'emportait, et le fichier restait sur le disque. Corrigé.
+
 ## 0.26.0
 
 - **Une recherche dans l'annuaire des prestataires**, qui fouille toute la fiche

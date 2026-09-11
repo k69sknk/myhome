@@ -1033,6 +1033,56 @@ textarea {
   margin-right: 0.6rem;
 }
 
+/* Saisie d'un document. Les trois modes de stockage partagent la meme largeur et
+   la meme graisse : l'ADR-0002 previent qu'un mode presente comme secondaire ne
+   serait pas choisi, et la decision de modeliser trois modes n'aurait alors rien
+   apporte sur le plan de la confidentialite. */
+.doc-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.doc-input__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* Base volontairement courte : les trois boutons doivent tenir sur une meme
+   ligne y compris dans la colonne etroite du formulaire « fait », faute de quoi
+   le troisieme mode se retrouverait a part, donc presente comme un recours. */
+.doc-input__modes .btn {
+  flex: 1 1 5rem;
+  padding-inline: 0.5rem;
+}
+
+/* Type et nom cote a cote, mais qui passent l'un sous l'autre sur telephone :
+   `field__row` ne se replie pas, et le champ du nom y devenait illisible. */
+.doc-form__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.doc-form__row > * {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.doc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+/* Une URL de Nextcloud ou une note un peu bavarde ne doit pas elargir la ligne
+   du document, surtout sur telephone. */
+.doc-where {
+  overflow-wrap: anywhere;
+}
+
 .card__subtitle {
   margin: 1.25rem 0 0.75rem;
   font-size: 0.95rem;

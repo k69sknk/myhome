@@ -39,8 +39,8 @@ export default function App() {
             element={
               <Placeholder
                 title="Documents"
-                description="Factures, notices et garanties arriveront dans un prochain morceau. Pour l'instant, les fiches d'equipement portent deja l'essentiel."
-                reference="Cahier des charges, sections 13 et 14 — hors perimetre de cette version"
+                description="Les documents s'ajoutent aujourd'hui depuis la fiche d'un equipement, onglet Documents, et depuis un entretien realise. Cette page les rassemblera, tous equipements confondus."
+                reference="Cahier des charges, sections 13 et 14 — vue transverse hors perimetre de cette version"
               />
             }
           />

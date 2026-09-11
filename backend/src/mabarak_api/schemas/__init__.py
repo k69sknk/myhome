@@ -13,6 +13,19 @@ AssetKind = Literal["equipment", "building_element"]
 # Le CHECK de schema.sql ne peut pas etre repris sur les bases deja installees,
 # c'est donc ce type qui interdit d'en ecrire une nouvelle.
 MemberType = Literal["household", "friend"]
+DocType = Literal[
+    "invoice",
+    "manual",
+    "user_guide",
+    "certificate",
+    "warranty",
+    "service_contract",
+    "photo",
+    "other",
+]
+# Les trois modes sont des citoyens de premiere classe : rien dans les types ne
+# privilegie le fichier local (adr/0002).
+StorageMode = Literal["local_file", "external_link", "reference_note"]
 
 
 class HomeOut(BaseModel):
@@ -249,12 +262,49 @@ class CompleteIn(BaseModel):
 
 
 class DocumentOut(BaseModel):
+    """Un document, avec le contenu du mode qui est le sien.
+
+    Les trois colonnes de contenu sont exposees telles quelles : l'interface a
+    besoin de savoir si elle presente un lien a suivre, un fichier a telecharger
+    ou une note a lire. `storage_mode` dit laquelle est renseignee.
+    """
+
     id: int
     name: str
     doc_type: str
+    storage_mode: str
     file_size: int | None
     mime_type: str | None
+    url: str | None
+    reference_note: str | None
+    notes: str | None
     created_at: str
+
+
+class DocumentPatch(BaseModel):
+    """Modification d'un document, changement de mode compris.
+
+    Le retour a `local_file` n'est pas ici : il demande un fichier, donc un envoi
+    multipart (`POST /documents/{id}/file`). Les deux autres modes se prennent et
+    se quittent par un simple PATCH.
+    """
+
+    name: str | None = Field(default=None, min_length=1)
+    doc_type: DocType | None = None
+    notes: str | None = None
+    storage_mode: Literal["external_link", "reference_note"] | None = None
+    url: str | None = None
+    reference_note: str | None = None
+
+    @model_validator(mode="after")
+    def _contenu_du_mode_demande(self) -> Self:
+        if self.storage_mode == "external_link" and not (self.url or "").strip():
+            raise ValueError("un lien externe a besoin de son URL")
+        if self.storage_mode == "reference_note" and not (self.reference_note or "").strip():
+            raise ValueError("une reference a besoin de son texte")
+        if (self.url or "").strip() and (self.reference_note or "").strip():
+            raise ValueError("un document a un seul contenu : une URL ou une reference")
+        return self
 
 
 class CostOut(BaseModel):

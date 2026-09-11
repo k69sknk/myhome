@@ -11,9 +11,11 @@ est encore sous garantie.
 **Local-first.** Aucune donnée ne quitte votre machine. Pas de cloud, pas de compte, pas de
 télémétrie.
 
-> **État du projet : 0.2.0 — fiche équipement.**
-> Maison, lieux en arbre, fiches d'appareils, entretiens (Fait / préciser) et tableau de bord.
-> Les documents (PDF, factures) et les éléments de construction ne sont pas encore dans l'interface.
+> **État du projet : 0.27.0.**
+> Maison, lieux en arbre, fiches d'appareils et d'éléments de construction, entretiens
+> (Fait / préciser), historique, membres, prestataires, rappels, et les documents d'une fiche
+> dans leurs trois modes de stockage. Il manque la page listant les documents de toute la
+> maison, et les problèmes (`issue`) n'ont pas encore d'interface.
 
 ## Ce dépôt contient deux produits
 

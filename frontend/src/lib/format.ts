@@ -1,7 +1,10 @@
 import type {
   CatalogRecurrence,
   Category,
+  DocType,
+  DocumentMeta,
   RecurrenceType,
+  StorageMode,
   TaskPriority,
   TaskStatus,
 } from '../api/types'
@@ -40,15 +43,49 @@ export function monthName(month: number): string {
   return MONTHS[month - 1] ?? String(month)
 }
 
-export function docTypeLabel(docType: string): string {
+export function docTypeLabel(docType: DocType | string): string {
   switch (docType) {
     case 'manual':
-      return 'Manuel'
+      return "Manuel d'installation"
+    case 'user_guide':
+      return "Notice d'utilisation"
     case 'invoice':
       return 'Facture'
+    case 'certificate':
+      return 'Certificat'
+    case 'warranty':
+      return 'Garantie'
+    case 'service_contract':
+      return 'Contrat d\'entretien'
+    case 'photo':
+      return 'Photo'
     default:
       return 'Autre'
   }
+}
+
+export function storageModeLabel(mode: StorageMode | string): string {
+  switch (mode) {
+    case 'local_file':
+      return 'Fichier'
+    case 'external_link':
+      return 'Lien'
+    default:
+      return 'Référence'
+  }
+}
+
+/** Ou trouver le document, en une ligne : c'est ce que le mode raconte. */
+export function documentWhere(document: DocumentMeta): string {
+  if (document.storage_mode === 'external_link') return document.url ?? ''
+  if (document.storage_mode === 'reference_note') return document.reference_note ?? ''
+  return document.file_size === null ? '' : formatFileSize(document.file_size)
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} ko`
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} Mo`
 }
 
 export function statusLabel(status: TaskStatus): string {

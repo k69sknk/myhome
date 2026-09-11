@@ -1,9 +1,19 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 import { ApiError, api } from '../api/client'
-import type { Intervention, Member, Provider, Task, Trade } from '../api/types'
+import type {
+  DocumentDraft,
+  Intervention,
+  Member,
+  Provider,
+  Task,
+  Trade,
+} from '../api/types'
+import { draftIsEmpty, emptyDraft } from '../api/types'
 import { errorMessage, formatAmount, formatDate, todayIso } from '../lib/format'
 import AssigneeSelect, { assigneeValue, parseAssignee } from './AssigneeSelect'
+import DocumentInput from './DocumentInput'
+import DocumentLink from './DocumentLink'
 import Field from './Field'
 import TaskForm from './TaskForm'
 import { useToast } from './Toast'
@@ -53,7 +63,7 @@ export default function CompleteTask({
   const [amount, setAmount] = useState('')
   const inflight = useRef(false)
   const dateInputRef = useRef<HTMLInputElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [invoice, setInvoice] = useState<DocumentDraft>(emptyDraft())
 
   const [historyOpen, setHistoryOpen] = useState(false)
   const [history, setHistory] = useState<Intervention[] | null>(null)
@@ -101,12 +111,16 @@ export default function CompleteTask({
         notes: notes.trim() || null,
         amount_cents: amountCents,
       })
-      const file = fileInputRef.current?.files?.[0]
-      if (isPro && file && completed.last_intervention_id) {
+      if (isPro && !draftIsEmpty(invoice) && completed.last_intervention_id) {
         try {
-          await api.uploadInterventionDocument(completed.last_intervention_id, file)
+          await api.createInterventionDocument(completed.last_intervention_id, invoice, {
+            doc_type: 'invoice',
+            name: invoice.mode === 'local_file' ? '' : `Facture du ${formatDate(performedOn)}`,
+          })
         } catch (caught: unknown) {
-          setError(`Entretien enregistre, mais l'envoi du document a echoue : ${errorMessage(caught)}`)
+          setError(
+            `Entretien enregistre, mais l'enregistrement du document a echoue : ${errorMessage(caught)}`,
+          )
         }
       }
       setOpen(false)
@@ -115,7 +129,7 @@ export default function CompleteTask({
       setNotes('')
       setIsPro(false)
       setAmount('')
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      setInvoice(emptyDraft())
       await invalidateHistory()
       showToast('Entretien marqué comme fait')
       onCompleted()
@@ -297,9 +311,10 @@ export default function CompleteTask({
                   placeholder="0,00"
                 />
               </Field>
-              <Field label="Facture / document (facultatif)">
-                <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx" />
-              </Field>
+              <div className="field">
+                <span className="field__label">Facture (facultatif)</span>
+                <DocumentInput value={invoice} onChange={setInvoice} disabled={busy} />
+              </div>
             </div>
           )}
           <div className="complete__form-actions">
@@ -331,15 +346,11 @@ export default function CompleteTask({
                       {entry.documents.length > 0 && (
                         <p>
                           {entry.documents.map((document) => (
-                            <a
+                            <DocumentLink
                               key={document.id}
-                              href={api.documentFileUrl(document.id)}
-                              target="_blank"
-                              rel="noreferrer"
+                              document={document}
                               className="complete__history-doc"
-                            >
-                              {document.name}
-                            </a>
+                            />
                           ))}
                         </p>
                       )}

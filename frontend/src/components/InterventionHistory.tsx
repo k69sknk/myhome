@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { ApiError, api } from '../api/client'
 import type { HistoryEntry } from '../api/types'
 import { errorMessage, formatAmount, formatDate } from '../lib/format'
+import DocumentLink from './DocumentLink'
 import { TrashIcon } from './icons'
 
 const PAGE_SIZE = 20
@@ -90,15 +91,11 @@ export default function InterventionHistory() {
                   {entry.documents.length > 0 && (
                     <p>
                       {entry.documents.map((document) => (
-                        <a
+                        <DocumentLink
                           key={document.id}
-                          href={api.documentFileUrl(document.id)}
-                          target="_blank"
-                          rel="noreferrer"
+                          document={document}
                           className="complete__history-doc"
-                        >
-                          {document.name}
-                        </a>
+                        />
                       ))}
                     </p>
                   )}
