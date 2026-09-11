@@ -29,6 +29,7 @@ import type {
   MaintenanceSelection,
   Member,
   MemberIn,
+  ReminderRunResult,
   Task,
   TaskIn,
   TaskPatch,
@@ -97,6 +98,8 @@ export const api = {
     ha_calendar_entity_id?: string | null
     ha_calendar_sync_enabled?: boolean
     task_notifications_enabled?: boolean
+    reminder_hour?: number
+    default_notify_service?: string | null
   }) => request<Home>('homes/current', { method: 'PATCH', ...jsonBody(body) }),
 
   categories: () => request<Category[]>('categories'),
@@ -173,6 +176,8 @@ export const api = {
   haCalendars: () => request<HaCalendarOption[]>('ha/calendars'),
   runCalendarSync: () =>
     request<CalendarSyncResult>('ha/calendar-sync/run', { method: 'POST' }),
+
+  runReminders: () => request<ReminderRunResult>('ha/reminders/run', { method: 'POST' }),
 
   haPersons: () => request<HaPersonOption[]>('ha/persons'),
   haNotifyServices: () => request<string[]>('ha/notify-services'),

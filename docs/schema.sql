@@ -49,6 +49,31 @@ CREATE TABLE home (
     due_soon_threshold_days INTEGER NOT NULL DEFAULT 30
                             CHECK (due_soon_threshold_days >= 0),
 
+    -- Calendrier Home Assistant (calendar.*) choisi pour y pousser les
+    -- entretiens a venir. NULL tant que l'utilisateur n'a rien choisi.
+    ha_calendar_entity_id     TEXT,
+    ha_calendar_sync_enabled  INTEGER NOT NULL DEFAULT 0,
+
+    -- Notifier via Home Assistant (notify.*) la personne assignee a un entretien.
+    -- Sert aussi d'interrupteur au passage de rappel quotidien (adr/0009) : une
+    -- seule case a cocher pour tout ce qui sort de l'application vers le telephone.
+    task_notifications_enabled INTEGER NOT NULL DEFAULT 0,
+
+    -- Heure LOCALE du passage quotidien de rappel. Une heure entiere suffit : un
+    -- rappel d'entretien domestique n'a pas besoin d'etre a la minute.
+    reminder_hour              INTEGER NOT NULL DEFAULT 8
+                               CHECK (reminder_hour BETWEEN 0 AND 23),
+
+    -- Service `notify.*` destinataire par defaut, quand l'entretien n'est assigne
+    -- a personne ou que la personne assignee n'a pas de service renseigne. Sans
+    -- lui, ces entretiens-la ne rappellent rien a personne.
+    default_notify_service     TEXT,
+
+    -- Date LOCALE du dernier passage de rappel REELLEMENT effectue. C'est elle qui
+    -- donne le rattrapage : si l'add-on etait eteint a l'heure prevue, le passage
+    -- a lieu au demarrage suivant au lieu d'etre saute.
+    last_reminder_run_on       TEXT,
+
     created_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
@@ -97,6 +122,12 @@ CREATE TABLE location (
 
     sort_order        INTEGER NOT NULL DEFAULT 0,   -- ordre explicite, pas alphabetique
     notes             TEXT,
+
+    -- PROVENANCE, PAS UN LIEN. Cle de la zone du catalogue de demarrage dont ce
+    -- lieu est issu. Jamais relue pour mettre le lieu a jour depuis le catalogue
+    -- (voir adr/0008) : elle sert uniquement a ne pas reproposer une zone deja
+    -- creee si l'utilisateur reprend le didacticiel.
+    catalog_key       TEXT,
 
     created_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
@@ -212,6 +243,10 @@ CREATE TABLE asset (
     parts_url       TEXT,
 
     notes           TEXT,
+
+    -- PROVENANCE, PAS UN LIEN. Cle de l'objet type du catalogue dont cette fiche
+    -- est issue. Voir la note sur `location.catalog_key` et adr/0008.
+    catalog_key     TEXT,
 
     created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -359,6 +394,34 @@ CREATE INDEX ix_warranty_end_date ON warranty(end_date);
 
 
 -- =============================================================================
+-- 6b. member — annuaire des personnes/entreprises delegataires
+-- =============================================================================
+-- Foyer, ami ou entreprise a qui un entretien peut etre delegue. `ha_person_entity_id`
+-- lie facultativement le membre a une entite `person.*` de Home Assistant (juste pour
+-- l'affichage) ; `ha_notify_service` est le nom du service `notify.*` a appeler pour le
+-- notifier (distinct de l'entite personne : HA ne fournit pas de resolution fiable et
+-- generique de "personne" vers "service de notification").
+
+CREATE TABLE member (
+    id                  INTEGER PRIMARY KEY,
+    home_id             INTEGER REFERENCES home(id) ON DELETE CASCADE,
+
+    name                TEXT    NOT NULL,
+    member_type         TEXT    NOT NULL DEFAULT 'household'
+                        CHECK (member_type IN ('household', 'friend', 'company')),
+    contact             TEXT,   -- telephone/email libre
+
+    ha_person_entity_id TEXT,
+    ha_notify_service   TEXT,   -- ex. 'mobile_app_alice', sans le prefixe 'notify.'
+
+    created_at          TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at          TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+CREATE INDEX ix_member_home ON member(home_id);
+
+
+-- =============================================================================
 -- 7. maintenance_task — taches d'entretien
 -- =============================================================================
 
@@ -369,6 +432,7 @@ CREATE TABLE maintenance_task (
     -- equipement, soit globale a la maison ('verifier les detecteurs de fumee').
     asset_id            INTEGER          REFERENCES asset(id) ON DELETE CASCADE,
     home_id             INTEGER          REFERENCES home(id)  ON DELETE CASCADE,
+    assignee_id         INTEGER          REFERENCES member(id) ON DELETE SET NULL,
 
     name                TEXT    NOT NULL,
     description         TEXT,   -- affiche cote UI comme "Notes"
@@ -376,11 +440,14 @@ CREATE TABLE maintenance_task (
     priority            TEXT    NOT NULL DEFAULT 'normal'
                         CHECK (priority IN ('low', 'normal', 'high', 'critical')),
 
-    -- ---- Preparation (facultatif, pas d'invariant impose : remplissable
-    -- meme si needs_part_replacement = 0) ----
+    -- DEPRECIEES : remplacees par la table `replacement_part` (plusieurs pieces
+    -- possibles par entretien). Laissees en place pour ne pas recreer cette table
+    -- sous SQLite (voir alembic/versions/0004_relative_due_soon.py : recreer une
+    -- table referencee par `document.maintenance_task_id ON DELETE CASCADE`
+    -- declenche une suppression en cascade). Plus lues ni ecrites par l'API.
     needs_part_replacement  INTEGER NOT NULL DEFAULT 0 CHECK (needs_part_replacement IN (0, 1)),
-    replacement_part_name   TEXT,   -- ex. 'Filtre a eau 10 pouces'
-    replacement_part_source TEXT,   -- lien d'achat OU nom d'enseigne
+    replacement_part_name   TEXT,
+    replacement_part_source TEXT,
     preparation_notes       TEXT,   -- outils specifiques, produits, autres a prevoir
 
     -- ---- Planification (section 9) ----
@@ -418,7 +485,18 @@ CREATE TABLE maintenance_task (
     -- Surcharge locale du seuil 'bientot' de la maison.
     lead_time_days      INTEGER CHECK (lead_time_days IS NULL OR lead_time_days >= 0),
 
+    -- Date du dernier rappel envoye pour l'echeance EN COURS. Remise a NULL des
+    -- que `next_due_on` est recalculee : un entretien fraichement replanifie a
+    -- droit a son rappel. C'est ce qui empeche un entretien en retard de notifier
+    -- tous les jours (adr/0009).
+    last_reminded_on    TEXT,
+
     is_active           INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+
+    -- PROVENANCE, PAS UN LIEN. Cle de l'entretien type du catalogue dont celui-ci
+    -- est issu. Voir la note sur `location.catalog_key` et adr/0008 : la frequence
+    -- reste celle que l'utilisateur a validee, meme si le catalogue change d'avis.
+    catalog_key         TEXT,
 
     created_at          TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at          TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
@@ -438,9 +516,28 @@ CREATE TABLE maintenance_task (
     )
 );
 
-CREATE INDEX ix_task_asset    ON maintenance_task(asset_id);
-CREATE INDEX ix_task_home     ON maintenance_task(home_id);
-CREATE INDEX ix_task_next_due ON maintenance_task(next_due_on) WHERE is_active = 1;
+CREATE INDEX ix_task_asset     ON maintenance_task(asset_id);
+CREATE INDEX ix_task_home      ON maintenance_task(home_id);
+CREATE INDEX ix_task_next_due  ON maintenance_task(next_due_on) WHERE is_active = 1;
+CREATE INDEX ix_task_assignee  ON maintenance_task(assignee_id);
+
+
+-- =============================================================================
+-- 7b. replacement_part — pieces a remplacer lors d'un entretien
+-- =============================================================================
+-- Plusieurs pieces possibles par entretien (remplace les colonnes
+-- needs_part_replacement/replacement_part_name/replacement_part_source ci-dessus).
+
+CREATE TABLE replacement_part (
+    id         INTEGER PRIMARY KEY,
+    task_id    INTEGER NOT NULL REFERENCES maintenance_task(id) ON DELETE CASCADE,
+
+    name       TEXT    NOT NULL,   -- ex. 'Filtre a eau 10 pouces'
+    source     TEXT,               -- lien d'achat OU nom d'enseigne
+    sort_order INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX ix_replacement_part_task ON replacement_part(task_id);
 
 
 -- =============================================================================
@@ -791,11 +888,11 @@ CREATE VIEW v_task_status AS
 -- L'utilisateur peut en creer d'autres avec is_builtin = 0.
 
 INSERT INTO location_type (slug, name, is_builtin, sort_order) VALUES
-    ('room',      'Piece',      1, 10),
-    ('floor',     'Etage',      1, 20),
+    ('room',      'Pièce',      1, 10),
+    ('floor',     'Étage',      1, 20),
     ('zone',      'Zone',       1, 30),
-    ('building',  'Batiment',   1, 40),
-    ('outdoor',   'Exterieur',  1, 50),
+    ('building',  'Bâtiment',   1, 40),
+    ('outdoor',   'Extérieur',  1, 50),
     ('technical', 'Technique',  1, 60);
 
 
@@ -807,21 +904,21 @@ INSERT INTO location_type (slug, name, is_builtin, sort_order) VALUES
 -- Les sous-categories sont rattachees par slug pour rester independantes des id.
 
 INSERT INTO category (slug, name, icon, is_builtin, sort_order) VALUES
-    ('heating',     'Chauffage',    'mdi:radiator',        1, 10),
-    ('ventilation', 'Ventilation',  'mdi:air-filter',      1, 20),
-    ('water',       'Eau',          'mdi:water-pump',      1, 30),
-    ('electricity', 'Electricite',  'mdi:flash',           1, 40),
-    ('outdoor',     'Exterieur',    'mdi:home-outline',    1, 50),
-    ('appliances',  'Electromenager','mdi:fridge-outline', 1, 55),
-    ('structure',   'Batiment',     'mdi:home-roof',       1, 60);
+    ('heating',     'Chauffage',      'mdi:radiator',        1, 10),
+    ('ventilation', 'Ventilation',    'mdi:air-filter',      1, 20),
+    ('water',       'Eau',            'mdi:water-pump',      1, 30),
+    ('electricity', 'Électricité',    'mdi:flash',           1, 40),
+    ('outdoor',     'Extérieur',      'mdi:home-outline',    1, 50),
+    ('appliances',  'Électroménager', 'mdi:fridge-outline',  1, 55),
+    ('structure',   'Bâtiment',       'mdi:home-roof',       1, 60);
 
 INSERT INTO category (parent_id, slug, name, icon, is_builtin, sort_order)
 SELECT p.id, v.slug, v.name, v.icon, 1, v.sort_order
 FROM (
-    SELECT 'heating'     AS parent, 'heat_pump'        AS slug, 'Pompe a chaleur'      AS name, 'mdi:heat-pump'          AS icon, 10 AS sort_order
-    UNION ALL SELECT 'heating',     'boiler',            'Chaudiere',             'mdi:water-boiler',        20
+    SELECT 'heating'     AS parent, 'heat_pump'        AS slug, 'Pompe à chaleur'      AS name, 'mdi:heat-pump'          AS icon, 10 AS sort_order
+    UNION ALL SELECT 'heating',     'boiler',            'Chaudière',             'mdi:water-boiler',        20
     UNION ALL SELECT 'heating',     'radiator',          'Radiateur',             'mdi:radiator',            30
-    UNION ALL SELECT 'heating',     'stove',             'Poele',                 'mdi:fireplace',           40
+    UNION ALL SELECT 'heating',     'stove',             'Poêle',                 'mdi:fireplace',           40
     UNION ALL SELECT 'heating',     'air_conditioning',  'Climatisation',         'mdi:air-conditioner',     50
 
     UNION ALL SELECT 'ventilation', 'vmc',               'VMC',                   'mdi:hvac',                10
@@ -833,10 +930,10 @@ FROM (
     UNION ALL SELECT 'water',       'water_softener',    'Adoucisseur',           'mdi:water-opacity',       30
     UNION ALL SELECT 'water',       'filtration',        'Filtration',            'mdi:filter',              40
 
-    UNION ALL SELECT 'electricity', 'electrical_panel',  'Tableau electrique',    'mdi:electric-switch',     10
+    UNION ALL SELECT 'electricity', 'electrical_panel',  'Tableau électrique',    'mdi:electric-switch',     10
     UNION ALL SELECT 'electricity', 'solar_inverter',    'Onduleur solaire',      'mdi:solar-power',         20
     UNION ALL SELECT 'electricity', 'battery',           'Batterie',              'mdi:battery',             30
-    UNION ALL SELECT 'electricity', 'generator',         'Groupe electrogene',    'mdi:engine',              40
+    UNION ALL SELECT 'electricity', 'generator',         'Groupe électrogène',    'mdi:engine',              40
 
     UNION ALL SELECT 'outdoor',     'gate',              'Portail',               'mdi:gate',                10
     UNION ALL SELECT 'outdoor',     'pool',              'Piscine',               'mdi:pool',                20
@@ -847,18 +944,18 @@ FROM (
     UNION ALL SELECT 'appliances',  'vacuum',            'Aspirateur',            'mdi:robot-vacuum',        10
     UNION ALL SELECT 'appliances',  'washing_machine',   'Lave-linge',            'mdi:washing-machine',     20
     UNION ALL SELECT 'appliances',  'dishwasher',        'Lave-vaisselle',        'mdi:dishwasher',          30
-    UNION ALL SELECT 'appliances',  'fridge',            'Refrigerateur',         'mdi:fridge',              40
+    UNION ALL SELECT 'appliances',  'fridge',            'Réfrigérateur',         'mdi:fridge',              40
     UNION ALL SELECT 'appliances',  'oven',              'Four',                  'mdi:stove',               50
 
     -- Elements de construction (section 8) : meme table category, utilises par les
     -- assets de kind = 'building_element'.
     UNION ALL SELECT 'structure',   'roof',              'Toiture',               'mdi:home-roof',           10
-    UNION ALL SELECT 'structure',   'gutters',           'Gouttieres',            'mdi:water-outline',       20
-    UNION ALL SELECT 'structure',   'facade',            'Facade',                'mdi:wall',                30
+    UNION ALL SELECT 'structure',   'gutters',           'Gouttières',            'mdi:water-outline',       20
+    UNION ALL SELECT 'structure',   'facade',            'Façade',                'mdi:wall',                30
     UNION ALL SELECT 'structure',   'terrace',           'Terrasse',              'mdi:floor-plan',          40
-    UNION ALL SELECT 'structure',   'windows',           'Fenetres',              'mdi:window-closed',       50
+    UNION ALL SELECT 'structure',   'windows',           'Fenêtres',              'mdi:window-closed',       50
     UNION ALL SELECT 'structure',   'shutters',          'Volets',                'mdi:window-shutter',      60
-    UNION ALL SELECT 'structure',   'fence',             'Cloture',               'mdi:fence',               70
+    UNION ALL SELECT 'structure',   'fence',             'Clôture',               'mdi:fence',               70
     UNION ALL SELECT 'structure',   'sealant',           'Joints',                'mdi:blur-linear',         80
 ) v
 JOIN category p ON p.slug = v.parent;

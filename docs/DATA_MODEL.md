@@ -50,6 +50,13 @@ Champs notables : `name`, `address`, `currency` (par défaut `EUR`),
 `address` est facultatif et n'est jamais transmis nulle part. Il n'existe que pour le confort de
 l'utilisateur.
 
+Réglages de notification : `task_notifications_enabled` commande tout ce qui sort vers Home
+Assistant, `reminder_hour` (heure locale du passage quotidien de rappel, 8h par défaut),
+`default_notify_service` (destinataire des entretiens que personne n'a pris en charge) et
+`last_reminder_run_on`, date du dernier passage réellement effectué. Cette dernière n'est pas un
+journal : c'est elle qui donne le rattrapage quand l'add-on était éteint à l'heure prévue. Voir
+[adr/0009](adr/0009-planificateur-des-rappels.md).
+
 ### 2.2 `location`
 
 Arborescence des lieux, par auto-référence sur `parent_id`. Un niveau quelconque de profondeur
@@ -151,6 +158,7 @@ Champs de planification :
 - `custom_due_date` : pour `custom_date`
 - `last_completed_on` et `next_due_on`
 - `lead_time_days` : surcharge locale du seuil « bientôt » de la maison
+- `last_reminded_on` : date du dernier rappel envoyé pour l'échéance en cours
 - `priority` : `low`, `normal`, `high` ou `critical`
 - `is_active`
 
@@ -171,6 +179,11 @@ service à chaque validation d'entretien et à chaque modification de la planifi
 indexée, car le tableau de bord et l'endpoint `/api/ha/summary` la trient et la filtrent à
 chaque appel du coordinator Home Assistant. La recalculer à la volée à chaque requête serait
 inutilement coûteux.
+
+`last_reminded_on` suit le même point d'entrée : elle porte la date du dernier rappel envoyé
+pour l'échéance **en cours**, et retombe à `NULL` partout où `next_due_on` est recalculée. C'est
+ce qui empêche un entretien en retard de notifier tous les jours sans pour autant rendre muet un
+entretien fraîchement replanifié. Voir [adr/0009](adr/0009-planificateur-des-rappels.md).
 
 ### 2.8 `intervention`
 

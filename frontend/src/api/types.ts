@@ -92,6 +92,16 @@ export interface Home {
   ha_calendar_entity_id: string | null
   ha_calendar_sync_enabled: boolean
   task_notifications_enabled: boolean
+  reminder_hour: number
+  default_notify_service: string | null
+}
+
+/** Compte rendu d'un passage de rappel (POST ha/reminders/run). */
+export interface ReminderRunResult {
+  sent: number
+  tasks: number
+  without_recipient: number
+  errors: string[]
 }
 
 export interface HaCalendarOption {

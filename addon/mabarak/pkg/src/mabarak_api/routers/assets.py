@@ -423,6 +423,7 @@ def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_ses
         task.custom_due_date = custom_due_date
         task.last_completed_on = last_completed_on
         task.next_due_on = next_due
+        task.last_reminded_on = None
         for key in recurrence_fields:
             data.pop(key, None)
 

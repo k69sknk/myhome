@@ -2,7 +2,13 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 
 import { api } from '../api/client'
-import type { CalendarSyncResult, HaCalendarOption, Home, LocationType } from '../api/types'
+import type {
+  CalendarSyncResult,
+  HaCalendarOption,
+  Home,
+  LocationType,
+  ReminderRunResult,
+} from '../api/types'
 import Field from '../components/Field'
 import { useToast } from '../components/Toast'
 import { EditIcon, TrashIcon } from '../components/icons'
@@ -25,6 +31,13 @@ export default function Settings() {
   const [syncing, setSyncing] = useState(false)
 
   const [taskNotificationsEnabled, setTaskNotificationsEnabled] = useState(false)
+  const [reminderHour, setReminderHour] = useState('8')
+  const [defaultNotifyService, setDefaultNotifyService] = useState('')
+  const [notifyServices, setNotifyServices] = useState<string[]>([])
+  const [notifyServicesError, setNotifyServicesError] = useState<string | null>(null)
+  const [reminderResult, setReminderResult] = useState<ReminderRunResult | null>(null)
+  const [reminderError, setReminderError] = useState<string | null>(null)
+  const [remindersRunning, setRemindersRunning] = useState(false)
   const { showToast } = useToast()
 
   async function reload() {
@@ -36,12 +49,21 @@ export default function Settings() {
     setCalendarEntityId(nextHome.ha_calendar_entity_id ?? '')
     setCalendarSyncEnabled(nextHome.ha_calendar_sync_enabled)
     setTaskNotificationsEnabled(nextHome.task_notifications_enabled)
+    setReminderHour(String(nextHome.reminder_hour))
+    setDefaultNotifyService(nextHome.default_notify_service ?? '')
 
     try {
       setCalendars(await api.haCalendars())
       setCalendarsError(null)
     } catch (caught: unknown) {
       setCalendarsError(errorMessage(caught))
+    }
+
+    try {
+      setNotifyServices(await api.haNotifyServices())
+      setNotifyServicesError(null)
+    } catch (caught: unknown) {
+      setNotifyServicesError(errorMessage(caught))
     }
   }
 
@@ -108,6 +130,35 @@ export default function Settings() {
       showToast(enabled ? 'Notifications activées' : 'Notifications désactivées')
     } catch (caught: unknown) {
       setError(errorMessage(caught))
+    }
+  }
+
+  async function saveReminders(event: FormEvent) {
+    event.preventDefault()
+    setError(null)
+    try {
+      const updated = await api.patchHome({
+        reminder_hour: Number(reminderHour),
+        default_notify_service: defaultNotifyService || null,
+      })
+      setHome(updated)
+      setReminderHour(String(updated.reminder_hour))
+      showToast('Réglages enregistrés')
+    } catch (caught: unknown) {
+      setError(errorMessage(caught))
+    }
+  }
+
+  async function sendRemindersNow() {
+    setRemindersRunning(true)
+    setReminderError(null)
+    setReminderResult(null)
+    try {
+      setReminderResult(await api.runReminders())
+    } catch (caught: unknown) {
+      setReminderError(errorMessage(caught))
+    } finally {
+      setRemindersRunning(false)
     }
   }
 
@@ -246,9 +297,10 @@ export default function Settings() {
       <div className="card">
         <h2 className="card__title">Notifications</h2>
         <p className="muted">
-          Prevenir la personne assignee via Home Assistant quand un entretien lui est confie
-          (necessite un service de notification renseigne sur sa fiche dans{' '}
-          <Link to="/membres">Membres</Link>).
+          Un planning qu'il faut penser a aller consulter est un planning que personne ne suit.
+          Une fois coche, MaBarak previent via Home Assistant : quand un entretien est confie a
+          quelqu'un, et chaque jour a heure fixe pour ce qui arrive a echeance ou traine en
+          retard.
         </p>
         <label className="complete__checkbox">
           <input
@@ -256,8 +308,79 @@ export default function Settings() {
             checked={taskNotificationsEnabled}
             onChange={(event) => void toggleTaskNotifications(event.target.checked)}
           />
-          Notifier la personne assignee via Home Assistant
+          Envoyer les notifications via Home Assistant
         </label>
+
+        {taskNotificationsEnabled && (
+          <>
+            <p className="muted">
+              Un seul message par personne et par passage, jamais un par entretien. Un entretien
+              deja signale se tait une semaine, meme s'il reste en retard.
+            </p>
+            {notifyServicesError && (
+              <p className="status status--error">{notifyServicesError}</p>
+            )}
+            <form className="form form--inline" onSubmit={(event) => void saveReminders(event)}>
+              <Field label="Heure du rappel" hint="Heure locale de Home Assistant.">
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  max={23}
+                  value={reminderHour}
+                  onChange={(event) => setReminderHour(event.target.value)}
+                />
+              </Field>
+              <Field
+                label="Destinataire par defaut"
+                hint="Utilise pour les entretiens que personne n'a pris en charge. Chaque personne ayant son propre service de notification dans Membres recoit les siens."
+              >
+                <select
+                  value={defaultNotifyService}
+                  onChange={(event) => setDefaultNotifyService(event.target.value)}
+                >
+                  <option value="">Aucun</option>
+                  {notifyServices.map((service) => (
+                    <option key={service} value={service}>
+                      notify.{service}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <button type="submit" className="btn">
+                Enregistrer
+              </button>
+            </form>
+            {!home?.default_notify_service && (
+              <p className="muted">
+                Sans destinataire par defaut, les entretiens qui ne sont assignes a personne ne
+                rappellent rien. Les autres sont envoyes a la personne assignee (fiche dans{' '}
+                <Link to="/membres">Membres</Link>).
+              </p>
+            )}
+            <button
+              type="button"
+              className="btn btn--small"
+              disabled={remindersRunning}
+              onClick={() => void sendRemindersNow()}
+            >
+              {remindersRunning ? 'Envoi...' : 'Envoyer un rappel maintenant'}
+            </button>
+            {reminderResult && (
+              <p className="muted">
+                {reminderResult.sent === 0 && reminderResult.without_recipient === 0
+                  ? 'Rien a rappeler pour le moment.'
+                  : `${reminderResult.sent} message(s) envoye(s) pour ${reminderResult.tasks} entretien(s).`}
+                {reminderResult.without_recipient > 0 &&
+                  ` ${reminderResult.without_recipient} entretien(s) sans destinataire.`}
+              </p>
+            )}
+            {reminderResult && reminderResult.errors.length > 0 && (
+              <p className="status status--error">{reminderResult.errors.join(' ')}</p>
+            )}
+            {reminderError && <p className="status status--error">{reminderError}</p>}
+          </>
+        )}
       </div>
 
       <div className="card">

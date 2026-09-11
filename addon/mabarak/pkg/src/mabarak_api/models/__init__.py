@@ -19,6 +19,9 @@ class Home(Base):
     ha_calendar_entity_id: Mapped[str | None] = mapped_column(Text)
     ha_calendar_sync_enabled: Mapped[int] = mapped_column(Integer, default=0)
     task_notifications_enabled: Mapped[int] = mapped_column(Integer, default=0)
+    reminder_hour: Mapped[int] = mapped_column(Integer, default=8)
+    default_notify_service: Mapped[str | None] = mapped_column(Text)
+    last_reminder_run_on: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(Text)
 
@@ -151,6 +154,7 @@ class MaintenanceTask(Base):
     last_completed_on: Mapped[str | None] = mapped_column(Text)
     next_due_on: Mapped[str | None] = mapped_column(Text)
     lead_time_days: Mapped[int | None] = mapped_column(Integer)
+    last_reminded_on: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[int] = mapped_column(Integer, default=1)
     catalog_key: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)

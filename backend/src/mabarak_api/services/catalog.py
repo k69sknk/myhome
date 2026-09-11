@@ -149,6 +149,10 @@ def complete_task(
     )
     task.last_completed_on = performed_on
     task.next_due_on = nxt.isoformat() if nxt else None
+    # Nouvelle echeance, nouveau droit a la parole : sans cette remise a zero, le
+    # rappel resterait muet pendant une semaine sur un entretien tout juste
+    # replanifie (services/reminders.py).
+    task.last_reminded_on = None
     task.updated_at = now
     session.flush()
     return intervention

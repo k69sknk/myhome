@@ -55,7 +55,24 @@ CREATE TABLE home (
     ha_calendar_sync_enabled  INTEGER NOT NULL DEFAULT 0,
 
     -- Notifier via Home Assistant (notify.*) la personne assignee a un entretien.
+    -- Sert aussi d'interrupteur au passage de rappel quotidien (adr/0009) : une
+    -- seule case a cocher pour tout ce qui sort de l'application vers le telephone.
     task_notifications_enabled INTEGER NOT NULL DEFAULT 0,
+
+    -- Heure LOCALE du passage quotidien de rappel. Une heure entiere suffit : un
+    -- rappel d'entretien domestique n'a pas besoin d'etre a la minute.
+    reminder_hour              INTEGER NOT NULL DEFAULT 8
+                               CHECK (reminder_hour BETWEEN 0 AND 23),
+
+    -- Service `notify.*` destinataire par defaut, quand l'entretien n'est assigne
+    -- a personne ou que la personne assignee n'a pas de service renseigne. Sans
+    -- lui, ces entretiens-la ne rappellent rien a personne.
+    default_notify_service     TEXT,
+
+    -- Date LOCALE du dernier passage de rappel REELLEMENT effectue. C'est elle qui
+    -- donne le rattrapage : si l'add-on etait eteint a l'heure prevue, le passage
+    -- a lieu au demarrage suivant au lieu d'etre saute.
+    last_reminder_run_on       TEXT,
 
     created_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -467,6 +484,12 @@ CREATE TABLE maintenance_task (
 
     -- Surcharge locale du seuil 'bientot' de la maison.
     lead_time_days      INTEGER CHECK (lead_time_days IS NULL OR lead_time_days >= 0),
+
+    -- Date du dernier rappel envoye pour l'echeance EN COURS. Remise a NULL des
+    -- que `next_due_on` est recalculee : un entretien fraichement replanifie a
+    -- droit a son rappel. C'est ce qui empeche un entretien en retard de notifier
+    -- tous les jours (adr/0009).
+    last_reminded_on    TEXT,
 
     is_active           INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
 

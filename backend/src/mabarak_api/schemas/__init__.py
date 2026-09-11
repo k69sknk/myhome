@@ -21,6 +21,8 @@ class HomeOut(BaseModel):
     ha_calendar_entity_id: str | None
     ha_calendar_sync_enabled: bool
     task_notifications_enabled: bool
+    reminder_hour: int
+    default_notify_service: str | None
 
 
 class HomePatch(BaseModel):
@@ -31,6 +33,8 @@ class HomePatch(BaseModel):
     ha_calendar_entity_id: str | None = None
     ha_calendar_sync_enabled: bool | None = None
     task_notifications_enabled: bool | None = None
+    reminder_hour: int | None = Field(default=None, ge=0, le=23)
+    default_notify_service: str | None = None
 
 
 class LocationIn(BaseModel):
@@ -319,6 +323,15 @@ class CalendarSyncResult(BaseModel):
     created: int = 0
     deleted: int = 0
     skipped: int = 0
+    errors: list[str] = Field(default_factory=list)
+
+
+class ReminderRunResult(BaseModel):
+    """Compte-rendu d'un passage de rappel, tel que les reglages l'affichent."""
+
+    sent: int = 0
+    tasks: int = 0
+    without_recipient: int = 0
     errors: list[str] = Field(default_factory=list)
 
 
