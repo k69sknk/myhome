@@ -3,6 +3,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { Member, MemberType, Provider, Trade } from '../api/types'
 import { errorMessage } from '../lib/format'
+import { matches, normalize } from '../lib/search'
 import { useToast } from './Toast'
 
 /** Un choix possible : quelqu'un du foyer, ou un prestataire. Les deux profils
@@ -144,15 +145,16 @@ export default function AssigneeSelect({
   }, [selectedLabel, onFreeText])
 
   const trimmed = query.trim()
-  const needle = typed ? trimmed.toLowerCase() : ''
-  const matches = useMemo(() => {
-    const visible = needle
-      ? options.filter((option) => label(option).toLowerCase().includes(needle))
-      : options
+  const needle = typed ? trimmed : ''
+  const found = useMemo(() => {
+    // Nom ET metier : « chauffagiste » doit ramener Dupont Chauffage meme si on
+    // ne se souvient plus de son nom, ce qui est le cas le plus frequent.
+    const visible = options.filter((option) => matches([option.name, option.meta], needle))
     return [...visible].sort((a, b) => a.name.localeCompare(b.name))
   }, [options, needle])
+  const normalized = normalize(needle)
   const hasExactMatch = options.some(
-    (option) => option.name.toLowerCase() === needle || label(option).toLowerCase() === needle,
+    (option) => normalize(option.name) === normalized || normalize(label(option)) === normalized,
   )
   const canCreate = typed && trimmed !== '' && !hasExactMatch
 
@@ -245,7 +247,7 @@ export default function AssigneeSelect({
       {open && (
         <ul className="combobox__list">
           {GROUPS.map((group) => {
-            const rows = matches.filter((option) => groupOf(option, members) === group)
+            const rows = found.filter((option) => groupOf(option, members) === group)
             if (rows.length === 0) return null
             return (
               <Fragment key={group}>
@@ -265,7 +267,7 @@ export default function AssigneeSelect({
               </Fragment>
             )
           })}
-          {matches.length === 0 && !canCreate && <li className="combobox__empty">Aucune fiche</li>}
+          {found.length === 0 && !canCreate && <li className="combobox__empty">Aucune fiche</li>}
           {canCreate && (
             <>
               <li>

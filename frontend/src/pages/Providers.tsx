@@ -8,6 +8,7 @@ import StatusBadge from '../components/StatusBadge'
 import { useToast } from '../components/Toast'
 import { EditIcon, TrashIcon } from '../components/icons'
 import { errorMessage, formatAmount, formatDate } from '../lib/format'
+import { matches } from '../lib/search'
 
 const EMPTY: ProviderIn = {
   name: '',
@@ -39,6 +40,8 @@ export default function Providers() {
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<ProviderIn>(EMPTY)
   const [detailed, setDetailed] = useState(false)
+  const [query, setQuery] = useState('')
+  const [specialty, setSpecialty] = useState('')
   const { showToast } = useToast()
 
   async function reload() {
@@ -89,6 +92,32 @@ export default function Providers() {
       setError(errorMessage(caught))
     }
   }
+
+  /** Les metiers reellement presents dans l'annuaire : proposer « couvreur »
+   *  quand on n'en a aucun ne sert qu'a offrir une liste vide. */
+  const usedTrades = trades.filter((trade) =>
+    (providers ?? []).some((provider) => provider.specialty === trade.slug),
+  )
+
+  /** La recherche fouille toute la fiche, pas seulement le nom : on cherche
+   *  « le chauffagiste », « celui du 69300 » ou un bout de numero aussi souvent
+   *  qu'une raison sociale, dont on ne se souvient justement pas. */
+  const found = (providers ?? []).filter(
+    (provider) =>
+      (specialty === '' || provider.specialty === specialty) &&
+      matches(
+        [
+          provider.name,
+          tradeLabel(trades, provider.specialty),
+          provider.phone,
+          provider.email,
+          provider.address,
+          provider.customer_ref,
+          provider.notes,
+        ],
+        query,
+      ),
+  )
 
   return (
     <section className="page">
@@ -190,19 +219,54 @@ export default function Providers() {
           </p>
         )}
         {providers && providers.length > 0 && (
-          <ul className="tree">
-            {providers.map((provider) => (
-              <ProviderRow
-                key={provider.id}
-                provider={provider}
-                trades={trades}
-                tasks={tasks.filter((task) => task.assignee_provider_id === provider.id)}
-                onError={setError}
-                onChanged={() => void reload()}
-                onDelete={() => void remove(provider.id)}
+          <>
+            <div className="filters">
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Chercher un nom, un metier, un numero..."
+                aria-label="Chercher un prestataire"
               />
-            ))}
-          </ul>
+              {/* Le filtre par metier n'a de sens qu'a partir de deux metiers
+                  differents : en dessous, c'est un menu a une seule reponse. */}
+              {usedTrades.length > 1 && (
+                <select value={specialty} onChange={(event) => setSpecialty(event.target.value)}>
+                  <option value="">Tous les metiers</option>
+                  {usedTrades.map((trade) => (
+                    <option key={trade.slug} value={trade.slug}>
+                      {trade.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {(query || specialty) && (
+                <span className="muted">
+                  {found.length} sur {providers.length}
+                </span>
+              )}
+            </div>
+            {found.length === 0 ? (
+              <p className="muted">
+                Aucun prestataire ne correspond. Le nom, le metier, le telephone, l'adresse, le
+                numero de client et les notes sont tous fouilles.
+              </p>
+            ) : (
+              <ul className="tree">
+                {found.map((provider) => (
+                  <ProviderRow
+                    key={provider.id}
+                    provider={provider}
+                    trades={trades}
+                    tasks={tasks.filter((task) => task.assignee_provider_id === provider.id)}
+                    onError={setError}
+                    onChanged={() => void reload()}
+                    onDelete={() => void remove(provider.id)}
+                  />
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </div>
     </section>

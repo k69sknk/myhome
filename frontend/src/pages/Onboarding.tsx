@@ -23,6 +23,7 @@ import TaskForm from '../components/TaskForm'
 import { useToast } from '../components/Toast'
 import { EditIcon } from '../components/icons'
 import { errorMessage, formatRecurrence, formatSeason } from '../lib/format'
+import { matches, normalize } from '../lib/search'
 
 type Phase = 'zones' | 'objets' | 'entretiens' | 'fin'
 
@@ -373,7 +374,7 @@ export default function Onboarding() {
               .filter((itemKey) => {
                 if (currentRoom.locationId === null || filter.trim() === '') return true
                 const item = itemsByKey.get(itemKey)
-                return item?.label.toLowerCase().includes(filter.trim().toLowerCase()) ?? false
+                return item !== undefined && matches([item.label], filter)
               })
               .map((itemKey) => {
                 const item = itemsByKey.get(itemKey)
@@ -638,18 +639,18 @@ function ItemAdd({
   }, [])
 
   const trimmed = query.trim()
-  const needle = trimmed.toLowerCase()
+  const needle = normalize(trimmed)
   const inZone = new Set(shown)
   // Les objets deja affiches dans la zone restent proposes, signales comme tels :
   // les masquer laisserait « creer » pour seule issue a qui tape « hotte », et
   // ferait naitre le sosie que cet ecran cherche justement a eviter.
-  const matches = items.filter((item) => item.label.toLowerCase().includes(needle))
-  const knownLabel = items.some((item) => item.label.toLowerCase() === needle)
-  const alreadyHere = customNames.some((name) => name.toLowerCase() === needle)
+  const found = items.filter((item) => matches([item.label], trimmed))
+  const knownLabel = items.some((item) => normalize(item.label) === needle)
+  const alreadyHere = customNames.some((name) => normalize(name) === needle)
   const canCreate = trimmed !== '' && !knownLabel && !alreadyHere
   /** Ou ce nom existe deja dans la maison. Plusieurs fois : plusieurs lieux. */
   const elsewhere = assets
-    .filter((asset) => asset.name.toLowerCase() === needle)
+    .filter((asset) => normalize(asset.name) === needle)
     .map((asset) => asset.location_path ?? 'sans lieu')
 
   function pick(item: CatalogItem) {
@@ -687,10 +688,8 @@ function ItemAdd({
       )}
       {open && trimmed !== '' && (
         <ul className="combobox__list">
-          {matches.map((item) => {
-            const seen = assets.filter(
-              (asset) => asset.name.toLowerCase() === item.label.toLowerCase(),
-            )
+          {found.map((item) => {
+            const seen = assets.filter((asset) => normalize(asset.name) === normalize(item.label))
             const places = seen.map((asset) => asset.location_path ?? 'sans lieu')
             return (
               <li key={item.key}>
@@ -733,7 +732,7 @@ function ItemAdd({
               </li>
             </>
           )}
-          {matches.length === 0 && !canCreate && !alreadyHere && (
+          {found.length === 0 && !canCreate && !alreadyHere && (
             <li className="combobox__empty">Rien de ce nom au catalogue.</li>
           )}
         </ul>

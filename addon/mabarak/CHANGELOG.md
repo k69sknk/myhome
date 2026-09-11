@@ -3,6 +3,30 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.26.0
+
+- **Une recherche dans l'annuaire des prestataires**, qui fouille toute la fiche
+  et pas seulement le nom : le métier, le téléphone, l'adresse, le numéro de
+  client et les notes. On cherche « le chauffagiste » ou « celui du 69300 » aussi
+  souvent qu'une raison sociale — dont on ne se souvient justement pas. Un filtre
+  par métier apparaît dès qu'il y en a deux différents.
+
+- **Les accents ne comptent plus, nulle part.** Taper « refrigerateur » trouve
+  « Réfrigérateur », « electricien » trouve « Électricité Générale ». Cela valait
+  pour la nouvelle recherche mais aussi pour tous les champs existants :
+  équipement, catégorie, assigné, et la liste d'objets du didacticiel — où exiger
+  l'accent revenait à demander l'orthographe exacte de ce qu'on cherche, souvent
+  sur un clavier de téléphone.
+
+- **Au passage, un garde-fou qui ne tenait pas.** Dans le tour de la maison,
+  « refrigerateur » sans accent ne trouvait pas « Réfrigérateur » et proposait
+  donc d'en créer un second. Le doublon que la version 0.24 voulait éviter passait
+  par cette porte.
+
+- **Les mots comptent séparément.** « clim 88 » trouve « Clim Services 69 » dont
+  le numéro de client finit par 88 : deux mots, deux champs différents, sans
+  imposer l'ordre.
+
 ## 0.25.0
 
 - **Les prestataires ont leur propre annuaire.** Une entreprise était jusqu'ici un

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mabarak-api"
-version = "0.25.0"
+version = "0.26.0"
 description = "Backend de MaBarak — gestion et entretien de la maison, local-first"
 readme = "README.md"
 requires-python = ">=3.13"
