@@ -1,0 +1,43 @@
+# Metiers proposes sur une fiche prestataire.
+#
+# REGLE D'EVOLUTION : `slug` est un contrat, au meme titre que les cles du
+# catalogue d'objets. On n'en renomme jamais aucun ; on ajoute des entrees.
+# Un metier retire de cette liste laisserait des fiches pointant vers un slug
+# inconnu : l'application affiche alors le slug brut plutot que de perdre
+# l'information.
+#
+# La liste est volontairement courte. Elle sert a REGROUPER (« mes chauffagistes »)
+# et a proposer le bon prestataire au moment d'assigner un entretien, pas a
+# decrire un annuaire professionnel. « Autre » est donc une reponse acceptable
+# et non un aveu de manque.
+
+- slug: chauffagiste
+  label: Chauffagiste
+- slug: plombier
+  label: Plombier
+- slug: electricien
+  label: Électricien
+- slug: ramoneur
+  label: Ramoneur
+- slug: couvreur
+  label: Couvreur / charpentier
+- slug: paysagiste
+  label: Paysagiste / jardinier
+- slug: piscine
+  label: Pisciniste
+- slug: ventilation
+  label: VMC / ventilation
+- slug: serrurier
+  label: Serrurier
+- slug: menuisier
+  label: Menuisier / fenêtres
+- slug: maconnerie
+  label: Maçon
+- slug: peintre
+  label: Peintre / façadier
+- slug: nuisibles
+  label: Traitement des nuisibles
+- slug: nettoyage
+  label: Nettoyage
+- slug: autre
+  label: Autre

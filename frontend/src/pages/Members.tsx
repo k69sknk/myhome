@@ -12,7 +12,6 @@ import { errorMessage, formatAmount, formatDate, formatRecurrence } from '../lib
 const MEMBER_TYPE_LABEL: Record<MemberType, string> = {
   household: 'Foyer',
   friend: 'Ami',
-  company: 'Entreprise',
 }
 
 export default function Members() {
@@ -100,7 +99,8 @@ export default function Members() {
     <section className="page">
       <h1 className="page__title">Membres</h1>
       <p className="page__lead">
-        Personnes, amis ou entreprises a qui deleguer des entretiens.
+        Le foyer et les proches a qui confier un entretien. Les entreprises ont leur propre
+        annuaire, <Link to="/prestataires">Prestataires</Link>.
       </p>
 
       {error && <p className="status status--error">{error}</p>}
@@ -124,7 +124,6 @@ export default function Members() {
             >
               <option value="household">Foyer</option>
               <option value="friend">Ami</option>
-              <option value="company">Entreprise</option>
             </select>
           </Field>
           <Field label="Contact (facultatif)">
@@ -284,7 +283,6 @@ function MemberRow({
             >
               <option value="household">Foyer</option>
               <option value="friend">Ami</option>
-              <option value="company">Entreprise</option>
             </select>
           </Field>
           <Field label="Contact">

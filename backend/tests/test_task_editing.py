@@ -111,9 +111,9 @@ def test_membres_crud(client: TestClient) -> None:
     assert any(row["id"] == member["id"] for row in listed)
 
     patched = client.patch(
-        f"/api/members/{member['id']}", json={"member_type": "company", "contact": "01 02 03"}
+        f"/api/members/{member['id']}", json={"member_type": "friend", "contact": "01 02 03"}
     ).json()
-    assert patched["member_type"] == "company"
+    assert patched["member_type"] == "friend"
     assert patched["contact"] == "01 02 03"
 
     deleted = client.delete(f"/api/members/{member['id']}")
@@ -240,12 +240,12 @@ def test_assignation_notification_indisponible_ne_bloque_pas(client: TestClient)
     assert response.status_code == 201
 
 
-def test_entretien_realise_par_un_membre_prend_le_nom_de_sa_fiche(client: TestClient) -> None:
+def test_entretien_realise_par_un_prestataire_prend_le_nom_de_sa_fiche(client: TestClient) -> None:
     """Le nom vient de l'annuaire : une meme entreprise ne peut pas s'ecrire de
     trois facons selon l'humeur de la saisie."""
     asset_id = _create_asset(client)
     entreprise = client.post(
-        "/api/members", json={"name": "Dupont Chauffage", "member_type": "company"}
+        "/api/providers", json={"name": "Dupont Chauffage", "specialty": "chauffagiste"}
     ).json()
     task = client.post(
         f"/api/assets/{asset_id}/tasks",
@@ -257,13 +257,13 @@ def test_entretien_realise_par_un_membre_prend_le_nom_de_sa_fiche(client: TestCl
         json={
             "performed_on": "2026-03-01",
             "performed_by": "dupont chauf.",  # ignore : la fiche fait foi
-            "performed_by_member_id": entreprise["id"],
+            "performed_by_provider_id": entreprise["id"],
         },
     )
 
     entry = client.get(f"/api/tasks/{task['id']}/interventions").json()[0]
     assert entry["performed_by"] == "Dupont Chauffage"
-    assert entry["performed_by_member_id"] == entreprise["id"]
+    assert entry["performed_by_provider_id"] == entreprise["id"]
 
 
 def test_entretien_realise_sans_membre_garde_le_texte_libre(client: TestClient) -> None:
@@ -284,10 +284,10 @@ def test_entretien_realise_sans_membre_garde_le_texte_libre(client: TestClient) 
     assert entry["performed_by_member_id"] is None
 
 
-def test_historique_filtre_par_membre(client: TestClient) -> None:
+def test_historique_filtre_par_prestataire(client: TestClient) -> None:
     asset_id = _create_asset(client)
     entreprise = client.post(
-        "/api/members", json={"name": "Dupont Chauffage", "member_type": "company"}
+        "/api/providers", json={"name": "Dupont Chauffage", "specialty": "chauffagiste"}
     ).json()
     chaudiere = client.post(
         f"/api/assets/{asset_id}/tasks",
@@ -300,21 +300,21 @@ def test_historique_filtre_par_membre(client: TestClient) -> None:
 
     client.post(
         f"/api/tasks/{chaudiere['id']}/complete",
-        json={"performed_on": "2026-03-01", "performed_by_member_id": entreprise["id"]},
+        json={"performed_on": "2026-03-01", "performed_by_provider_id": entreprise["id"]},
     )
     client.post(f"/api/tasks/{filtres['id']}/complete", json={"performed_on": "2026-03-02"})
 
     assert len(client.get("/api/interventions").json()) == 2
-    filtre = client.get("/api/interventions", params={"member_id": entreprise["id"]}).json()
+    filtre = client.get("/api/interventions", params={"provider_id": entreprise["id"]}).json()
     assert [row["task_name"] for row in filtre] == ["Revision annuelle"]
 
 
-def test_supprimer_un_membre_garde_son_nom_dans_lhistorique(client: TestClient) -> None:
+def test_supprimer_un_prestataire_garde_son_nom_dans_lhistorique(client: TestClient) -> None:
     """L'historique est un journal : il ne se reecrit pas quand l'annuaire change.
     Seul le lien disparait, le nom saisi ce jour-la reste."""
     asset_id = _create_asset(client)
     entreprise = client.post(
-        "/api/members", json={"name": "Dupont Chauffage", "member_type": "company"}
+        "/api/providers", json={"name": "Dupont Chauffage", "specialty": "chauffagiste"}
     ).json()
     task = client.post(
         f"/api/assets/{asset_id}/tasks",
@@ -322,14 +322,14 @@ def test_supprimer_un_membre_garde_son_nom_dans_lhistorique(client: TestClient) 
     ).json()
     client.post(
         f"/api/tasks/{task['id']}/complete",
-        json={"performed_on": "2026-03-01", "performed_by_member_id": entreprise["id"]},
+        json={"performed_on": "2026-03-01", "performed_by_provider_id": entreprise["id"]},
     )
 
-    client.delete(f"/api/members/{entreprise['id']}")
+    client.delete(f"/api/providers/{entreprise['id']}")
 
     entry = client.get(f"/api/tasks/{task['id']}/interventions").json()[0]
     assert entry["performed_by"] == "Dupont Chauffage"
-    assert entry["performed_by_member_id"] is None
+    assert entry["performed_by_provider_id"] is None
 
 
 def test_entretien_realise_par_un_membre_inconnu_est_refuse(client: TestClient) -> None:

@@ -2,7 +2,16 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
 
 import { api, ApiError } from '../api/client'
-import type { Asset, Category, DocumentMeta, HaDevice, Location, Member } from '../api/types'
+import type {
+  Asset,
+  Category,
+  DocumentMeta,
+  HaDevice,
+  Location,
+  Member,
+  Provider,
+  Trade,
+} from '../api/types'
 import BackLink from '../components/BackLink'
 import CategorySelect from '../components/CategorySelect'
 import CompleteTask from '../components/CompleteTask'
@@ -49,6 +58,8 @@ export default function AssetDetail() {
   const [documents, setDocuments] = useState<DocumentMeta[]>([])
   const [devices, setDevices] = useState<HaDevice[]>([])
   const [members, setMembers] = useState<Member[]>([])
+  const [providers, setProviders] = useState<Provider[]>([])
+  const [trades, setTrades] = useState<Trade[]>([])
   const [haUnavailable, setHaUnavailable] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
@@ -75,8 +86,19 @@ export default function AssetDetail() {
       api.locations(),
       api.assetDocuments(assetId),
       api.members(),
+      api.providers(),
+      api.trades(),
     ])
-      .then(([nextAsset, nextCategories, nextLocations, nextDocuments, nextMembers]) => {
+      .then(
+        ([
+          nextAsset,
+          nextCategories,
+          nextLocations,
+          nextDocuments,
+          nextMembers,
+          nextProviders,
+          nextTrades,
+        ]) => {
         if (cancelled) return
         setAsset(nextAsset)
         setCategories(
@@ -87,7 +109,10 @@ export default function AssetDetail() {
         setLocations(nextLocations)
         setDocuments(nextDocuments)
         setMembers(nextMembers)
-      })
+        setProviders(nextProviders)
+        setTrades(nextTrades)
+      },
+      )
       .catch((caught: unknown) => {
         if (!cancelled) setError(errorMessage(caught))
       })
@@ -232,7 +257,12 @@ export default function AssetDetail() {
                   <CompleteTask
                     task={task}
                     members={members}
+                    providers={providers}
+                    trades={trades}
                     onMemberCreated={(member) => setMembers((current) => [...current, member])}
+                    onProviderCreated={(provider) =>
+                      setProviders((current) => [...current, provider])
+                    }
                     onCompleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
                     onEdited={() => void reload().catch((caught) => setError(errorMessage(caught)))}
                     onDeleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
@@ -244,7 +274,10 @@ export default function AssetDetail() {
           <h3 className="card__subtitle">Ajouter un entretien</h3>
           <TaskForm
             members={members}
+            providers={providers}
+            trades={trades}
             onMemberCreated={(member) => setMembers((current) => [...current, member])}
+            onProviderCreated={(provider) => setProviders((current) => [...current, provider])}
             onSubmit={async (body) => {
               await api.createTask(asset.id, body)
               await reload()

@@ -12,8 +12,10 @@ import type {
   LocationType,
   MaintenanceSelection,
   Member,
+  Provider,
   RecurrenceType,
   TaskIn,
+  Trade,
 } from '../api/types'
 import Field from '../components/Field'
 import Modal from '../components/Modal'
@@ -66,6 +68,8 @@ export default function Onboarding() {
   const [filter, setFilter] = useState('')
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [members, setMembers] = useState<Member[]>([])
+  const [providers, setProviders] = useState<Provider[]>([])
+  const [trades, setTrades] = useState<Trade[]>([])
   const [rejected, setRejected] = useState<string[]>([])
   const [editing, setEditing] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -79,15 +83,29 @@ export default function Onboarding() {
       api.locationTypes(),
       api.members(),
       api.assets(),
+      api.providers(),
+      api.trades(),
     ])
-      .then(([nextCatalog, nextState, nextTypes, nextMembers, nextAssets]) => {
+      .then(
+        ([
+          nextCatalog,
+          nextState,
+          nextTypes,
+          nextMembers,
+          nextAssets,
+          nextProviders,
+          nextTrades,
+        ]) => {
         if (cancelled) return
         setCatalog(nextCatalog)
         setState(nextState)
         setLocationTypes(nextTypes)
         setMembers(nextMembers)
         setAssets(nextAssets)
-      })
+        setProviders(nextProviders)
+        setTrades(nextTrades)
+        },
+      )
       .catch((caught: unknown) => {
         if (!cancelled) setError(errorMessage(caught))
       })
@@ -545,7 +563,10 @@ export default function Onboarding() {
             >
               <TaskForm
                 members={members}
+                providers={providers}
+                trades={trades}
                 onMemberCreated={(member) => setMembers((current) => [...current, member])}
+                onProviderCreated={(provider) => setProviders((current) => [...current, provider])}
                 initial={editingDraft.task}
                 onSubmit={async (body) => {
                   updateDraft(editingDraft.id, body)

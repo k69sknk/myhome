@@ -30,10 +30,13 @@ import type {
   MaintenanceSelection,
   Member,
   MemberIn,
+  Provider,
+  ProviderIn,
   ReminderRunResult,
   Task,
   TaskIn,
   TaskPatch,
+  Trade,
 } from './types'
 
 export class ApiError extends Error {
@@ -138,10 +141,16 @@ export const api = {
     request<Task>(`tasks/${taskId}/complete`, { method: 'POST', ...jsonBody(body) }),
   taskInterventions: (taskId: number) =>
     request<Intervention[]>(`tasks/${taskId}/interventions`),
-  interventions: (params: { limit: number; offset: number; memberId?: number }) =>
+  interventions: (params: {
+    limit: number
+    offset: number
+    memberId?: number
+    providerId?: number
+  }) =>
     request<HistoryEntry[]>(
       `interventions?limit=${params.limit}&offset=${params.offset}` +
-        (params.memberId != null ? `&member_id=${params.memberId}` : ''),
+        (params.memberId != null ? `&member_id=${params.memberId}` : '') +
+        (params.providerId != null ? `&provider_id=${params.providerId}` : ''),
     ),
   deleteTask: (taskId: number) => request<{ ok: boolean }>(`tasks/${taskId}`, { method: 'DELETE' }),
   deleteIntervention: (interventionId: number) =>
@@ -193,6 +202,15 @@ export const api = {
     request<Member>(`members/${memberId}`, { method: 'PATCH', ...jsonBody(body) }),
   deleteMember: (memberId: number) =>
     request<{ ok: boolean }>(`members/${memberId}`, { method: 'DELETE' }),
+
+  providers: () => request<Provider[]>('providers'),
+  createProvider: (body: ProviderIn) =>
+    request<Provider>('providers', { method: 'POST', ...jsonBody(body) }),
+  patchProvider: (providerId: number, body: Partial<ProviderIn>) =>
+    request<Provider>(`providers/${providerId}`, { method: 'PATCH', ...jsonBody(body) }),
+  deleteProvider: (providerId: number) =>
+    request<{ ok: boolean }>(`providers/${providerId}`, { method: 'DELETE' }),
+  trades: () => request<Trade[]>('trades'),
 
   catalog: () => request<Catalog>('catalog'),
   applyCatalogRoom: (

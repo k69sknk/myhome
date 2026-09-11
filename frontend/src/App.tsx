@@ -11,6 +11,7 @@ import HouseElements from './pages/HouseElements'
 import Locations from './pages/Locations'
 import Members from './pages/Members'
 import Onboarding from './pages/Onboarding'
+import Providers from './pages/Providers'
 import Placeholder from './pages/Placeholder'
 import Settings from './pages/Settings'
 import Tasks from './pages/Tasks'
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/entretiens" element={<Tasks />} />
           <Route path="/lieux" element={<Locations />} />
           <Route path="/membres" element={<Members />} />
+          <Route path="/prestataires" element={<Providers />} />
           <Route path="/parametres" element={<Settings />} />
           <Route
             path="/documents/*"

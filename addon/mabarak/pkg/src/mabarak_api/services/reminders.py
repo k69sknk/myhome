@@ -180,6 +180,9 @@ def _recipient(task: MaintenanceTask, home: Home, members: dict[int, Member]) ->
         member = members.get(task.assignee_id)
         if member is not None and member.ha_notify_service:
             return member.ha_notify_service
+    # Un entretien confie a un prestataire tombe ici sans detour : une entreprise
+    # n'a pas de service `notify.*` et MaBarak ne la demarche pas (adr/0011). Le
+    # rappel part au foyer, a qui il revient de passer le coup de fil.
     return home.default_notify_service or None
 
 

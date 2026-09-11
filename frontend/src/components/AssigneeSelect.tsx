@@ -1,61 +1,124 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 
 import { api } from '../api/client'
-import type { Member, MemberType } from '../api/types'
+import type { Member, MemberType, Provider, Trade } from '../api/types'
 import { errorMessage } from '../lib/format'
 import { useToast } from './Toast'
 
-/** Ordre d'affichage des groupes : le foyer d'abord, les prestataires ensuite. */
-const GROUPS: { type: MemberType; label: string }[] = [
-  { type: 'household', label: 'Foyer' },
-  { type: 'friend', label: 'Amis' },
-  { type: 'company', label: 'Entreprises' },
-]
+/** Un choix possible : quelqu'un du foyer, ou un prestataire. Les deux profils
+ *  sont distincts (ADR-0011) mais se choisissent au meme endroit — l'utilisateur
+ *  tape un nom, il n'a pas a designer d'abord une categorie. */
+export interface Assignee {
+  kind: 'member' | 'provider'
+  id: number
+  name: string
+  /** Ce qui distingue deux homonymes : « Foyer », « Chauffagiste · 04 72... ». */
+  meta: string
+}
 
-const TYPE_LABEL: Record<MemberType, string> = {
+/** La valeur echangee avec le formulaire : « member:3 », « provider:7 », ou ''. */
+export function assigneeValue(kind: Assignee['kind'], id: number): string {
+  return `${kind}:${id}`
+}
+
+export function parseAssignee(value: string): { kind: Assignee['kind']; id: number } | null {
+  const [kind, id] = value.split(':')
+  if ((kind !== 'member' && kind !== 'provider') || !id) return null
+  return { kind, id: Number(id) }
+}
+
+const MEMBER_GROUP: Record<MemberType, string> = {
   household: 'Foyer',
-  friend: 'Ami',
-  company: 'Entreprise',
+  friend: 'Amis',
 }
 
-function memberLabel(member: Member): string {
-  const context = [TYPE_LABEL[member.member_type], member.contact]
-    .filter((part): part is string => Boolean(part))
-    .join(' · ')
-  return `${member.name} — ${context}`
+const GROUPS = ['Foyer', 'Amis', 'Prestataires'] as const
+
+function optionsFrom(members: Member[], providers: Provider[], trades: Trade[]): Assignee[] {
+  const labels = new Map(trades.map((trade) => [trade.slug, trade.label]))
+  return [
+    ...members.map((member) => ({
+      kind: 'member' as const,
+      id: member.id,
+      name: member.name,
+      meta: [MEMBER_GROUP[member.member_type], member.contact]
+        .filter((part): part is string => Boolean(part))
+        .join(' · '),
+    })),
+    ...providers.map((provider) => ({
+      kind: 'provider' as const,
+      id: provider.id,
+      // Le metier avant le telephone : c'est ce qui identifie un prestataire
+      // quand deux entreprises portent des noms voisins.
+      name: provider.name,
+      meta: [
+        provider.specialty ? (labels.get(provider.specialty) ?? provider.specialty) : null,
+        provider.phone,
+      ]
+        .filter((part): part is string => Boolean(part))
+        .join(' · '),
+    })),
+  ]
 }
 
-/** Choix d'un membre : une personne du foyer, un ami, ou une entreprise — qu'on
- *  peut creer sans quitter la fiche (l'installateur de la pompe a chaleur n'a pas
- *  a passer par l'annuaire avant d'exister).
+function groupOf(option: Assignee, members: Member[]): (typeof GROUPS)[number] {
+  if (option.kind === 'provider') return 'Prestataires'
+  const member = members.find((row) => row.id === option.id)
+  return member?.member_type === 'friend' ? 'Amis' : 'Foyer'
+}
+
+function label(option: Assignee): string {
+  return option.meta ? `${option.name} — ${option.meta}` : option.name
+}
+
+/** Choix de celui qui s'occupe d'un entretien, ou de celui qui l'a fait.
+ *
+ *  Les deux annuaires sont interroges ensemble et presentes en groupes ; un nom
+ *  inconnu se cree sur place, en prestataire ou en personne, deux boutons
+ *  distincts pour que le profil soit un choix et non une devinette.
  *
  *  `onFreeText` ouvre un second usage : l'historique, ou l'on veut bien noter
- *  « le voisin » sans lui ouvrir une fiche. Fourni, ce qui est tape et non
- *  choisi reste du texte ; absent, seul un membre existant est acceptable. */
+ *  « le voisin » sans lui ouvrir de fiche. Fourni, ce qui est tape et non choisi
+ *  reste du texte ; absent, seule une fiche existante est acceptable.
+ */
 export default function AssigneeSelect({
   members,
+  providers,
+  trades = [],
   value,
   onChange,
-  onCreated,
+  onMemberCreated,
+  onProviderCreated,
   freeText,
   onFreeText,
   placeholder = 'Personne, ou tapez un nom...',
 }: {
   members: Member[]
+  providers: Provider[]
+  trades?: Trade[]
   value: string
-  /** Le membre accompagne son identifiant : l'appelant qui vient de le faire
-   *  creer ne l'a pas encore dans `members`, et attendre le prochain rendu pour
-   *  savoir de qui il s'agit se paie en comportements d'un coup en retard. */
-  onChange: (value: string, member: Member | null) => void
-  onCreated?: (member: Member) => void
+  /** Le choix accompagne son identifiant : l'appelant qui vient de le faire creer
+   *  ne l'a pas encore dans ses listes, et attendre le prochain rendu pour savoir
+   *  de qui il s'agit se paie en comportements d'un coup en retard. */
+  onChange: (value: string, picked: Assignee | null) => void
+  onMemberCreated?: (member: Member) => void
+  onProviderCreated?: (provider: Provider) => void
   freeText?: string
   onFreeText?: (text: string) => void
   placeholder?: string
 }) {
-  const selected = members.find((member) => String(member.id) === value)
-  const selectedLabel = selected ? memberLabel(selected) : (freeText ?? '')
+  const options = useMemo(
+    () => optionsFrom(members, providers, trades),
+    [members, providers, trades],
+  )
+  const selected = options.find((option) => assigneeValue(option.kind, option.id) === value)
+  const selectedLabel = selected ? label(selected) : (freeText ?? '')
 
   const [query, setQuery] = useState(selectedLabel)
+  /** Le champ affiche le choix courant ; tant qu'on n'a pas tape, ce texte n'est
+   *  pas un filtre — sinon ouvrir la liste ne montrerait que la ligne deja
+   *  choisie, et l'annuaire resterait invisible. */
+  const [typed, setTyped] = useState(false)
   const [open, setOpen] = useState(false)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,23 +144,23 @@ export default function AssigneeSelect({
   }, [selectedLabel, onFreeText])
 
   const trimmed = query.trim()
+  const needle = typed ? trimmed.toLowerCase() : ''
   const matches = useMemo(() => {
-    const needle = trimmed.toLowerCase()
     const visible = needle
-      ? members.filter((member) => memberLabel(member).toLowerCase().includes(needle))
-      : members
+      ? options.filter((option) => label(option).toLowerCase().includes(needle))
+      : options
     return [...visible].sort((a, b) => a.name.localeCompare(b.name))
-  }, [members, trimmed])
-  const hasExactMatch = members.some((member) => {
-    const needle = trimmed.toLowerCase()
-    return member.name.toLowerCase() === needle || memberLabel(member).toLowerCase() === needle
-  })
-  const canCreate = trimmed !== '' && !hasExactMatch
+  }, [options, needle])
+  const hasExactMatch = options.some(
+    (option) => option.name.toLowerCase() === needle || label(option).toLowerCase() === needle,
+  )
+  const canCreate = typed && trimmed !== '' && !hasExactMatch
 
-  function select(member: Member) {
-    onChange(String(member.id), member)
+  function select(option: Assignee) {
+    onChange(assigneeValue(option.kind, option.id), option)
     onFreeText?.('')
-    setQuery(memberLabel(member))
+    setQuery(label(option))
+    setTyped(false)
     setOpen(false)
   }
 
@@ -105,22 +168,45 @@ export default function AssigneeSelect({
     onChange('', null)
     onFreeText?.('')
     setQuery('')
+    setTyped(false)
     setOpen(true)
     inputRef.current?.focus()
   }
 
-  async function createAndSelect(memberType: MemberType) {
+  async function createProvider() {
     if (!trimmed || creating) return
     setCreating(true)
     setError(null)
     try {
-      const created = await api.createMember({ name: trimmed, member_type: memberType })
-      onCreated?.(created)
-      onChange(String(created.id), created)
-      onFreeText?.('')
-      setQuery(memberLabel(created))
-      setOpen(false)
-      showToast(memberType === 'company' ? 'Entreprise ajoutée' : 'Membre ajouté')
+      const created = await api.createProvider({
+        name: trimmed,
+        specialty: null,
+        phone: null,
+        email: null,
+        website: null,
+        address: null,
+        customer_ref: null,
+        notes: null,
+      })
+      onProviderCreated?.(created)
+      select({ kind: 'provider', id: created.id, name: created.name, meta: '' })
+      showToast('Prestataire ajouté')
+    } catch (caught: unknown) {
+      setError(errorMessage(caught))
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  async function createMember() {
+    if (!trimmed || creating) return
+    setCreating(true)
+    setError(null)
+    try {
+      const created = await api.createMember({ name: trimmed, member_type: 'household' })
+      onMemberCreated?.(created)
+      select({ kind: 'member', id: created.id, name: created.name, meta: 'Foyer' })
+      showToast('Membre ajouté')
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     } finally {
@@ -135,16 +221,20 @@ export default function AssigneeSelect({
         value={query}
         onChange={(event) => {
           setQuery(event.target.value)
+          setTyped(true)
           setOpen(true)
           if (onFreeText !== undefined) {
-            // Taper defait le choix precedent : le texte ne designe plus ce membre.
+            // Taper defait le choix precedent : le texte ne designe plus personne.
             onChange('', null)
             onFreeText(event.target.value.trim())
           } else if (event.target.value.trim() === '') {
             onChange('', null)
           }
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          setTyped(false)
+          setOpen(true)
+        }}
         placeholder={placeholder}
       />
       {query !== '' && (
@@ -154,24 +244,28 @@ export default function AssigneeSelect({
       )}
       {open && (
         <ul className="combobox__list">
-          {GROUPS.map(({ type, label }) => {
-            const group = matches.filter((member) => member.member_type === type)
-            if (group.length === 0) return null
+          {GROUPS.map((group) => {
+            const rows = matches.filter((option) => groupOf(option, members) === group)
+            if (rows.length === 0) return null
             return (
-              <Fragment key={type}>
-                <li className="combobox__group">{label}</li>
-                {group.map((member) => (
-                  <li key={member.id}>
-                    <button type="button" className="combobox__option" onClick={() => select(member)}>
-                      {member.name}
-                      {member.contact && <span className="combobox__option-meta"> · {member.contact}</span>}
+              <Fragment key={group}>
+                <li className="combobox__group">{group}</li>
+                {rows.map((option) => (
+                  <li key={`${option.kind}-${option.id}`}>
+                    <button
+                      type="button"
+                      className="combobox__option"
+                      onClick={() => select(option)}
+                    >
+                      {option.name}
+                      {option.meta && <span className="combobox__option-meta"> · {option.meta}</span>}
                     </button>
                   </li>
                 ))}
               </Fragment>
             )
           })}
-          {matches.length === 0 && !canCreate && <li className="combobox__empty">Aucun membre</li>}
+          {matches.length === 0 && !canCreate && <li className="combobox__empty">Aucune fiche</li>}
           {canCreate && (
             <>
               <li>
@@ -179,9 +273,9 @@ export default function AssigneeSelect({
                   type="button"
                   className="combobox__option combobox__option--create"
                   disabled={creating}
-                  onClick={() => void createAndSelect('company')}
+                  onClick={() => void createProvider()}
                 >
-                  + Créer l'entreprise « {trimmed} »
+                  + Créer le prestataire « {trimmed} »
                 </button>
               </li>
               <li>
@@ -189,7 +283,7 @@ export default function AssigneeSelect({
                   type="button"
                   className="combobox__option combobox__option--create"
                   disabled={creating}
-                  onClick={() => void createAndSelect('household')}
+                  onClick={() => void createMember()}
                 >
                   + Créer la personne « {trimmed} »
                 </button>

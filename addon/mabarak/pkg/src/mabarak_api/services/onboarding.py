@@ -386,6 +386,7 @@ def apply_maintenance(
         asset_id=asset_id,
         home_id=None if asset_id is not None else home.id,
         assignee_id=body.assignee_id,
+        assignee_provider_id=body.assignee_provider_id,
         name=body.name.strip(),
         description=(body.notes or "").strip() or None,
         preparation_notes=(body.preparation_notes or "").strip() or None,

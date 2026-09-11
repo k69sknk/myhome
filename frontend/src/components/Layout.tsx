@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: '/entretiens', label: 'Entretiens', end: false },
   { to: '/lieux', label: 'Lieux', end: false },
   { to: '/membres', label: 'Membres', end: false },
+  { to: '/prestataires', label: 'Prestataires', end: false },
   { to: '/documents', label: 'Documents', end: false },
   { to: '/parametres', label: 'Paramètres', end: false },
 ]

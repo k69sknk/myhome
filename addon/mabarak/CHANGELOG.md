@@ -3,6 +3,39 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.25.0
+
+- **Les prestataires ont leur propre annuaire.** Une entreprise était jusqu'ici un
+  « membre » d'un type particulier, et le formulaire lui demandait sa personne
+  Home Assistant et son service de notification — deux questions qui n'ont aucun
+  sens pour un chauffagiste. Un membre du foyer est quelqu'un qu'on **notifie**,
+  un prestataire quelqu'un qu'on **appelle** : ce sont deux profils, ils ont
+  désormais deux pages. Raisonnement complet dans
+  [ADR-0011](../../docs/adr/0011-prestataires-table-a-part.md).
+
+- **Une vraie fiche prestataire** : métier, téléphone et email cliquables, site,
+  adresse, numéro de client (celui qu'on vous réclame au téléphone) et notes. Le
+  formulaire ne demande d'abord que le nom, le métier et le numéro — le reste est
+  derrière « Plus de détails », parce qu'une fiche se crée souvent à la volée.
+
+- **Ce qu'il fait et ce qu'il a coûté, sur sa fiche.** Déplier un prestataire
+  montre les entretiens qui lui sont confiés et les interventions qu'il a
+  réalisées, avec le total facturé.
+
+- **Le métier est choisi dans une liste**, pas tapé : « chauffagiste »,
+  « Chauffagiste » et « chauffage » auraient été trois métiers différents.
+
+- **Vos entreprises existantes ont déménagé toutes seules.** Celles saisies en
+  0.22 et 0.23 deviennent des prestataires, et les entretiens comme l'historique
+  qui les désignaient continuent de pointer vers elles. Leur contact part dans le
+  champ email s'il contenait une arobase, dans le téléphone sinon.
+
+- **Un seul sélecteur pour les deux annuaires.** Au moment d'assigner un entretien
+  ou de dire qui l'a fait, on tape un nom : les propositions arrivent en deux
+  groupes, Foyer et Prestataires, et un nom inconnu se crée sur place en l'un ou
+  en l'autre. Ouvrir la liste montre désormais tout l'annuaire au lieu de la seule
+  fiche déjà choisie.
+
 ## 0.24.0
 
 - **Le tour de la maison accepte ce que le catalogue ignore.** Chaque zone du

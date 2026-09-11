@@ -141,6 +141,9 @@ class MaintenanceTask(Base):
     asset_id: Mapped[int | None] = mapped_column(ForeignKey("asset.id"))
     home_id: Mapped[int | None] = mapped_column(ForeignKey("home.id"))
     assignee_id: Mapped[int | None] = mapped_column(ForeignKey("member.id", ondelete="SET NULL"))
+    assignee_provider_id: Mapped[int | None] = mapped_column(
+        ForeignKey("provider.id", ondelete="SET NULL")
+    )
     name: Mapped[str] = mapped_column(Text)
     description: Mapped[str | None] = mapped_column(Text)
     priority: Mapped[str] = mapped_column(Text, default="normal")
@@ -164,6 +167,7 @@ class MaintenanceTask(Base):
 
     asset: Mapped[Asset | None] = relationship(back_populates="tasks")
     assignee: Mapped[Member | None] = relationship()
+    assignee_provider: Mapped[Provider | None] = relationship()
     replacement_parts: Mapped[list[ReplacementPart]] = relationship(
         back_populates="task",
         order_by="ReplacementPart.sort_order",
@@ -181,6 +185,26 @@ class Member(Base):
     contact: Mapped[str | None] = mapped_column(Text)
     ha_person_entity_id: Mapped[str | None] = mapped_column(Text)
     ha_notify_service: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+
+class Provider(Base):
+    """L'entreprise ou l'artisan qui intervient. Table distincte de `Member` : on
+    n'appelle pas un prestataire sur son telephone Home Assistant (adr/0011)."""
+
+    __tablename__ = "provider"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    home_id: Mapped[int | None] = mapped_column(ForeignKey("home.id"))
+    name: Mapped[str] = mapped_column(Text)
+    specialty: Mapped[str | None] = mapped_column(Text)
+    phone: Mapped[str | None] = mapped_column(Text)
+    email: Mapped[str | None] = mapped_column(Text)
+    website: Mapped[str | None] = mapped_column(Text)
+    address: Mapped[str | None] = mapped_column(Text)
+    customer_ref: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(Text)
 
@@ -232,6 +256,9 @@ class Intervention(Base):
     performed_by: Mapped[str | None] = mapped_column(Text)
     performed_by_member_id: Mapped[int | None] = mapped_column(
         ForeignKey("member.id", ondelete="SET NULL")
+    )
+    performed_by_provider_id: Mapped[int | None] = mapped_column(
+        ForeignKey("provider.id", ondelete="SET NULL")
     )
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)

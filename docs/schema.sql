@@ -394,13 +394,15 @@ CREATE INDEX ix_warranty_end_date ON warranty(end_date);
 
 
 -- =============================================================================
--- 6b. member — annuaire des personnes/entreprises delegataires
+-- 6b. member — le foyer et les proches
 -- =============================================================================
--- Foyer, ami ou entreprise a qui un entretien peut etre delegue. `ha_person_entity_id`
--- lie facultativement le membre a une entite `person.*` de Home Assistant (juste pour
--- l'affichage) ; `ha_notify_service` est le nom du service `notify.*` a appeler pour le
--- notifier (distinct de l'entite personne : HA ne fournit pas de resolution fiable et
--- generique de "personne" vers "service de notification").
+-- Quelqu'un a qui un entretien peut etre confie ET QU'ON PEUT NOTIFIER : c'est ce
+-- qui definit ce profil, et ce qui le separe de `provider` (voir adr/0011).
+-- `ha_person_entity_id` lie facultativement le membre a une entite `person.*` de
+-- Home Assistant (juste pour l'affichage) ; `ha_notify_service` est le nom du
+-- service `notify.*` a appeler pour le notifier (distinct de l'entite personne : HA
+-- ne fournit pas de resolution fiable et generique de "personne" vers "service de
+-- notification").
 
 CREATE TABLE member (
     id                  INTEGER PRIMARY KEY,
@@ -408,7 +410,7 @@ CREATE TABLE member (
 
     name                TEXT    NOT NULL,
     member_type         TEXT    NOT NULL DEFAULT 'household'
-                        CHECK (member_type IN ('household', 'friend', 'company')),
+                        CHECK (member_type IN ('household', 'friend')),
     contact             TEXT,   -- telephone/email libre
 
     ha_person_entity_id TEXT,
@@ -422,6 +424,44 @@ CREATE INDEX ix_member_home ON member(home_id);
 
 
 -- =============================================================================
+-- 6c. provider — les prestataires
+-- =============================================================================
+-- L'entreprise ou l'artisan qui intervient chez vous. Table distincte de `member`
+-- et non un `member_type` : on n'appelle pas un prestataire sur son telephone Home
+-- Assistant, et un membre du foyer n'a pas de numero de client. Raisonnement
+-- complet et options ecartees dans adr/0011.
+--
+-- `specialty` est le slug d'un metier pris dans une liste versionnee avec le
+-- catalogue (adr/0008) et jamais du texte libre : c'est ce qui permet de proposer
+-- un chauffagiste pour l'entretien d'une chaudiere.
+--
+-- Deliberement absents : SIRET (aucun usage dans une application domestique),
+-- tarif horaire (un tarif saisi une fois ment au bout d'un an, les montants reels
+-- des interventions disent la verite) et horaires d'ouverture (recopier ce qui
+-- changera sans nous).
+
+CREATE TABLE provider (
+    id           INTEGER PRIMARY KEY,
+    home_id      INTEGER REFERENCES home(id) ON DELETE CASCADE,
+
+    name         TEXT    NOT NULL,
+    specialty    TEXT,           -- slug de metier : 'chauffagiste', 'plombier'...
+
+    phone        TEXT,
+    email        TEXT,
+    website      TEXT,
+    address      TEXT,
+    customer_ref TEXT,           -- numero de client ou de contrat
+    notes        TEXT,
+
+    created_at   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at   TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+CREATE INDEX ix_provider_home ON provider(home_id);
+
+
+-- =============================================================================
 -- 7. maintenance_task — taches d'entretien
 -- =============================================================================
 
@@ -432,7 +472,10 @@ CREATE TABLE maintenance_task (
     -- equipement, soit globale a la maison ('verifier les detecteurs de fumee').
     asset_id            INTEGER          REFERENCES asset(id) ON DELETE CASCADE,
     home_id             INTEGER          REFERENCES home(id)  ON DELETE CASCADE,
-    assignee_id         INTEGER          REFERENCES member(id) ON DELETE SET NULL,
+    -- Qui s'en occupe : un membre du foyer, ou un prestataire. Au plus un des
+    -- deux (adr/0011) ; aucun des deux veut dire 'personne en particulier'.
+    assignee_id          INTEGER         REFERENCES member(id)   ON DELETE SET NULL,
+    assignee_provider_id INTEGER         REFERENCES provider(id) ON DELETE SET NULL,
 
     name                TEXT    NOT NULL,
     description         TEXT,   -- affiche cote UI comme "Notes"
@@ -515,6 +558,10 @@ CREATE TABLE maintenance_task (
 
     -- Rattachement exclusif : equipement OU maison.
     CHECK ((asset_id IS NOT NULL) + (home_id IS NOT NULL) = 1),
+
+    -- Un seul responsable. Deux clefs exclusives plutot qu'une clef polymorphe,
+    -- comme `document` et pour la meme raison (adr/0002, adr/0011).
+    CHECK (assignee_id IS NULL OR assignee_provider_id IS NULL),
 
     -- Coherence entre le type de recurrence et les champs qu'il exige.
     CHECK (
@@ -622,11 +669,15 @@ CREATE TABLE intervention (
     -- l'annuaire, lui, permet de regrouper les interventions d'une meme
     -- entreprise au lieu de compter sur l'orthographe d'une saisie libre.
     performed_by      TEXT,            -- texte libre : 'moi', 'Dupont Chauffage'
-    performed_by_member_id INTEGER     REFERENCES member(id) ON DELETE SET NULL,
+    performed_by_member_id   INTEGER   REFERENCES member(id)   ON DELETE SET NULL,
+    performed_by_provider_id INTEGER   REFERENCES provider(id) ON DELETE SET NULL,
     notes             TEXT,
 
     created_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    updated_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    updated_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+
+    -- Une seule personne a fait l'entretien (adr/0011).
+    CHECK (performed_by_member_id IS NULL OR performed_by_provider_id IS NULL)
 );
 
 CREATE INDEX ix_intervention_asset ON intervention(asset_id, performed_on DESC);

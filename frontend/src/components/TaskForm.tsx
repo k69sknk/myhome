@@ -1,8 +1,16 @@
 import { useState, type FormEvent } from 'react'
 
-import type { Member, RecurrenceType, ReplacementPartIn, TaskIn, TaskPriority } from '../api/types'
+import type {
+  Member,
+  Provider,
+  RecurrenceType,
+  ReplacementPartIn,
+  TaskIn,
+  TaskPriority,
+  Trade,
+} from '../api/types'
 import { emptyToNull, errorMessage, monthName, priorityLabel, todayIso } from '../lib/format'
-import AssigneeSelect from './AssigneeSelect'
+import AssigneeSelect, { assigneeValue, parseAssignee } from './AssigneeSelect'
 import Field from './Field'
 import { useToast } from './Toast'
 
@@ -39,6 +47,7 @@ export interface TaskFormInitial {
   preparation_notes?: string | null
   notes?: string | null
   assignee_id?: number | null
+  assignee_provider_id?: number | null
 }
 
 function initialFrequency(task?: TaskFormInitial): Frequency {
@@ -62,16 +71,22 @@ interface PartRow {
 
 export default function TaskForm({
   members,
+  providers,
+  trades,
   initial,
   onSubmit,
   onCancel,
   onMemberCreated,
+  onProviderCreated,
 }: {
   members: Member[]
+  providers: Provider[]
+  trades?: Trade[]
   initial?: TaskFormInitial
   onSubmit: (body: TaskIn) => Promise<void>
   onCancel?: () => void
   onMemberCreated?: (member: Member) => void
+  onProviderCreated?: (provider: Provider) => void
 }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'normal')
@@ -93,12 +108,17 @@ export default function TaskForm({
   )
   const [prepNotes, setPrepNotes] = useState(initial?.preparation_notes ?? '')
   const [notes, setNotes] = useState(initial?.notes ?? '')
-  const [assigneeId, setAssigneeId] = useState(
-    initial?.assignee_id != null ? String(initial.assignee_id) : '',
+  const [assignee, setAssignee] = useState(
+    initial?.assignee_id != null
+      ? assigneeValue('member', initial.assignee_id)
+      : initial?.assignee_provider_id != null
+        ? assigneeValue('provider', initial.assignee_provider_id)
+        : '',
   )
-  /** Les membres crees depuis le formulaire : la page parente ne se recharge
+  /** Les fiches creees depuis le formulaire : la page parente ne se recharge
    *  qu'apres l'enregistrement, l'assigne doit etre choisissable avant. */
   const [createdMembers, setCreatedMembers] = useState<Member[]>([])
+  const [createdProviders, setCreatedProviders] = useState<Provider[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { showToast } = useToast()
@@ -106,6 +126,10 @@ export default function TaskForm({
   const knownMembers = [
     ...members,
     ...createdMembers.filter((created) => !members.some((member) => member.id === created.id)),
+  ]
+  const knownProviders = [
+    ...providers,
+    ...createdProviders.filter((created) => !providers.some((row) => row.id === created.id)),
   ]
 
   function addPart() {
@@ -129,6 +153,7 @@ export default function TaskForm({
     const replacementParts: ReplacementPartIn[] = parts
       .filter((part) => part.name.trim())
       .map((part) => ({ name: part.name.trim(), source: emptyToNull(part.source) }))
+    const picked = parseAssignee(assignee)
     const body: TaskIn = {
       name: trimmed,
       priority,
@@ -137,7 +162,8 @@ export default function TaskForm({
       replacement_parts: replacementParts,
       preparation_notes: emptyToNull(prepNotes),
       notes: emptyToNull(notes),
-      assignee_id: assigneeId ? Number(assigneeId) : null,
+      assignee_id: picked?.kind === 'member' ? picked.id : null,
+      assignee_provider_id: picked?.kind === 'provider' ? picked.id : null,
     }
     if (INTERVAL_FREQUENCIES.includes(frequency)) {
       body.recurrence_interval = interval
@@ -166,7 +192,7 @@ export default function TaskForm({
         setParts([])
         setPrepNotes('')
         setNotes('')
-        setAssigneeId('')
+        setAssignee('')
       }
     } catch (caught: unknown) {
       setError(errorMessage(caught))
@@ -287,15 +313,21 @@ export default function TaskForm({
       </Field>
       <Field
         label="Assigne a (facultatif)"
-        hint="Une personne du foyer, un ami, ou l'entreprise qui s'en occupe (installateur de la pompe a chaleur, ramoneur...). Si l'entreprise n'est pas encore dans l'annuaire, tapez son nom pour creer sa fiche ici."
+        hint="Une personne du foyer, ou le prestataire qui s'en occupe (installateur de la pompe a chaleur, ramoneur...). Si sa fiche n'existe pas encore, tapez son nom pour la creer ici."
       >
         <AssigneeSelect
           members={knownMembers}
-          value={assigneeId}
-          onChange={setAssigneeId}
-          onCreated={(member) => {
+          providers={knownProviders}
+          trades={trades}
+          value={assignee}
+          onChange={(value) => setAssignee(value)}
+          onMemberCreated={(member) => {
             setCreatedMembers((current) => [...current, member])
             onMemberCreated?.(member)
+          }}
+          onProviderCreated={(provider) => {
+            setCreatedProviders((current) => [...current, provider])
+            onProviderCreated?.(provider)
           }}
         />
       </Field>

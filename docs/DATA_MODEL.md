@@ -26,13 +26,17 @@ erDiagram
     ASSET ||--o{ COST : chiffre
     ASSET ||--o{ DOCUMENT : documente
     ASSET ||--o{ HA_LINK : "relie HA"
+    MEMBER ||--o{ MAINTENANCE_TASK : "prend en charge"
+    PROVIDER ||--o{ MAINTENANCE_TASK : "prend en charge"
+    MEMBER ||--o{ INTERVENTION : "a realise"
+    PROVIDER ||--o{ INTERVENTION : "a realise"
     MAINTENANCE_TASK ||--o{ INTERVENTION : "realisee par"
     ISSUE ||--o{ INTERVENTION : "resolue par"
     INTERVENTION ||--o{ COST : engendre
     INTERVENTION ||--o{ DOCUMENT : justifie
 ```
 
-Onze tables, une table de liaison Home Assistant, deux vues dérivées. Toutes les dates sont stockées en `TEXT` au format ISO 8601,
+Douze tables, une table de liaison Home Assistant, deux vues dérivées. Toutes les dates sont stockées en `TEXT` au format ISO 8601,
 convention SQLite ; les dates seules sont en `YYYY-MM-DD` et les horodatages en
 `YYYY-MM-DDTHH:MM:SSZ` (UTC).
 
@@ -141,6 +145,24 @@ stockage.
 d'achat : certains constructeurs la font courir à partir de l'installation. L'application
 propose la date d'achat par défaut et laisse l'utilisateur corriger.
 
+### 2.6bis `member` et `provider`
+
+Deux annuaires, parce que ce sont **deux profils** et non deux catégories d'un même annuaire
+([adr/0011](adr/0011-prestataires-table-a-part.md)).
+
+`member` — le foyer et les proches : `name`, `member_type` (`household` ou `friend`), `contact`,
+`ha_person_entity_id`, `ha_notify_service`. C'est quelqu'un qu'on **notifie** ; les deux derniers
+champs sont ce qui le définit.
+
+`provider` — les entreprises et artisans : `name`, `specialty`, `phone`, `email`, `website`,
+`address`, `customer_ref`, `notes`. C'est quelqu'un qu'on **appelle**, et qui facture. Aucun champ
+Home Assistant : MaBarak ne démarche pas les prestataires, et un rappel sur un entretien qui leur
+est confié part vers le service par défaut de la maison.
+
+`specialty` est le slug d'un métier pris dans `catalog/trades.yaml`, versionné avec l'application
+et jamais écrit en base ([adr/0008](adr/0008-catalogue-en-fichier-versionne.md)). Un slug retiré
+du fichier reste affiché tel quel plutôt que de perdre l'information.
+
 ### 2.7 `maintenance_task`
 
 Tâches d'entretien récurrentes ou ponctuelles.
@@ -148,6 +170,11 @@ Tâches d'entretien récurrentes ou ponctuelles.
 `asset_id` est **nullable**. Une tâche sans équipement est une tâche de maison
 (« ramoner la cheminée », « vérifier les détecteurs de fumée »), rattachée à `home_id`. Une
 contrainte `CHECK` impose qu'exactement l'un des deux soit renseigné.
+
+`assignee_id` et `assignee_provider_id` disent qui s'en occupe : une personne du foyer, ou un
+prestataire. **Au plus un des deux** — deux clés exclusives plutôt qu'une clé polymorphe, comme
+`document` et pour la même raison ([adr/0011](adr/0011-prestataires-table-a-part.md)). Aucun des
+deux signifie « personne en particulier », pas « tout le monde ».
 
 Champs de planification :
 
@@ -211,16 +238,17 @@ inspection, remplacement. C'est la table qui alimente l'historique.
 et relie une intervention au problème qu'elle traite.
 
 Champs : `performed_on`, `performed_by` (texte libre : « moi », « Dupont Chauffage »),
-`performed_by_member_id`, `notes`, `created_at`. Les coûts et les documents associés sont dans
+`performed_by_member_id`, `performed_by_provider_id`, `notes`, `created_at`. Les coûts et les documents associés sont dans
 leurs tables respectives, reliés par `intervention_id`.
 
 Qui a fait l'entretien s'écrit en **deux colonnes et non une**. `performed_by` est le nom
 affiché, figé au moment de la saisie : un historique de 2019 garde son sens même si la fiche du
-prestataire a disparu depuis — un journal ne se réécrit pas. `performed_by_member_id` pointe, lui,
-vers l'annuaire (`member`) quand l'intervenant y a une fiche, ce qui permet de regrouper ce qu'une
-même entreprise a réalisé sans dépendre de l'orthographe d'une saisie libre. Les deux se
-remplissent ensemble : choisir une fiche recopie son nom. Supprimer un membre coupe le lien
-(`ON DELETE SET NULL`) et laisse le nom en place.
+prestataire a disparu depuis — un journal ne se réécrit pas. `performed_by_member_id` et
+`performed_by_provider_id` pointent, eux, vers la fiche de l'intervenant quand il en a une — au
+plus un des deux, comme pour l'assignation — ce qui permet de regrouper ce qu'un même prestataire
+a réalisé sans dépendre de l'orthographe d'une saisie libre. Nom et lien se remplissent ensemble :
+choisir une fiche recopie son nom. Supprimer la fiche coupe le lien (`ON DELETE SET NULL`) et
+laisse le nom en place.
 
 ### 2.9 `issue`
 
