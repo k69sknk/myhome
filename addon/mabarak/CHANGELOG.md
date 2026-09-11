@@ -3,6 +3,56 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.28.0
+
+- **Une page Documents, qui les rassemble tous.** Jusqu'ici un document ne se voyait que depuis
+  la fiche de son équipement : retrouver « la facture du plombier » demandait de se souvenir de
+  quel appareil il s'était occupé. La page dit, pour chaque document, son type, où il est rangé
+  (fichier, lien ou note) et à quoi il est rattaché — avec le lien vers la fiche. Une facture
+  d'entretien remonte à l'équipement : c'est la fiche qu'on veut ouvrir, pas l'intervention.
+
+- **La recherche traverse le document et l'équipement.** « facture chaudière » trouve la facture
+  rattachée à l'entretien de la chaudière, sans que les deux mots soient dans le même champ, et
+  sans les accents. Les filtres par type et par rangement n'apparaissent qu'à partir de deux
+  valeurs différentes dans la liste : en dessous, ce sont des menus à une seule réponse.
+
+- **Les papiers de la maison ont enfin leur place.** L'acte de propriété, l'assurance
+  habitation, le DPE, un diagnostic : ils ne relèvent d'aucun appareil, et les ranger sur la
+  fiche d'un radiateur n'aurait eu aucun sens. Le schéma prévoyait leur rattachement depuis
+  l'origine (`home_id`) mais rien ne l'écrivait. Ils s'ajoutent depuis la page Documents, dans
+  les trois mêmes modes de stockage que les autres, et se modifient de la même façon.
+
+- **Les photos d'équipement ne sont pas dans cette liste.** Elles vivent en haut de la fiche ;
+  les mêler aux notices et aux factures n'aurait fait que du bruit.
+
+## 0.27.0
+
+- **Un document peut enfin être un lien ou une simple note.** Le modèle de données prévoyait
+  trois modes de stockage depuis le début
+  ([ADR-0002](../../docs/adr/0002-document-a-trois-modes-de-stockage.md)), mais l'interface et
+  l'API n'en offraient qu'un : le fichier déposé dans l'add-on. Or une facture d'artisan porte
+  votre nom et votre adresse, et la promesse était de pouvoir la laisser sur votre Nextcloud, ou
+  de noter simplement « e-mail du 12/05/2024 ». Les trois choix sont désormais proposés côte à
+  côte, de la même taille — dans l'onglet Documents d'une fiche comme au moment d'enregistrer un
+  entretien fait par un pro. Un mode présenté comme secondaire n'aurait rien changé sur le fond.
+
+- **Changer de mode ne fait plus perdre le document.** Vous aviez noté « facture dans les
+  mails » et vous venez de retrouver le PDF : déposez-le depuis « Modifier », c'est le même
+  document, il garde son nom, son type et son rattachement à l'équipement ou à l'entretien.
+  Dans l'autre sens, sortir une facture de l'application **efface vraiment le fichier**, pour
+  qu'il ne traîne pas dans vos sauvegardes Home Assistant.
+
+- **Quatre types de documents qui manquaient** : garantie, certificat, contrat d'entretien et
+  notice d'utilisation. Ils existaient dans la base mais l'API les refusait — alors que la
+  garantie est l'une des premières raisons d'ouvrir une fiche.
+
+- **Un document se renomme.** « scan0012.pdf » devient « Certificat de conformité gaz » sans
+  avoir à le supprimer et le redéposer.
+
+- **La facture d'un entretien ne se supprimait pas.** Rattachée à l'intervention et non
+  directement à l'équipement, elle était déclarée introuvable ; seule la suppression de
+  l'entretien entier l'emportait, et le fichier restait sur le disque. Corrigé.
+
 ## 0.26.0
 
 - **Une recherche dans l'annuaire des prestataires**, qui fouille toute la fiche

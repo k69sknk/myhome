@@ -5,6 +5,8 @@ import { api, ApiError } from '../api/client'
 import type {
   Asset,
   Category,
+  DocType,
+  DocumentDraft,
   DocumentMeta,
   HaDevice,
   Location,
@@ -12,9 +14,12 @@ import type {
   Provider,
   Trade,
 } from '../api/types'
+import { draftIsEmpty, emptyDraft } from '../api/types'
 import BackLink from '../components/BackLink'
 import CategorySelect from '../components/CategorySelect'
 import CompleteTask from '../components/CompleteTask'
+import DocumentEdit, { DOC_TYPES } from '../components/DocumentEdit'
+import DocumentInput from '../components/DocumentInput'
 import Field from '../components/Field'
 import { EditIcon, TrashIcon } from '../components/icons'
 import PrioritySelect from '../components/PrioritySelect'
@@ -25,18 +30,19 @@ import { useToast } from '../components/Toast'
 import { categoryIcon } from '../lib/categoryIcon'
 import {
   docTypeLabel,
+  documentWhere,
   emptyToNull,
   equipmentCategories,
   errorMessage,
   formatDate,
   formatRecurrence,
   optionalId,
+  storageModeLabel,
   structureCategories,
   warrantyAlert,
   warrantyAlertLabel,
 } from '../lib/format'
 
-const DOCUMENT_ACCEPT = '.pdf,.jpg,.jpeg,.png,.heic,.doc,.docx'
 const PHOTO_ACCEPT = '.jpg,.jpeg,.png,.heic'
 
 function WarrantyBadge({ endDate }: { endDate: string | null | undefined }) {
@@ -361,7 +367,7 @@ function AssetPhoto({
     setBusy(true)
     onError(null)
     try {
-      await api.uploadAssetDocument(asset.id, file, 'photo')
+      await api.createAssetDocument(asset.id, { mode: 'local_file', file }, { doc_type: 'photo' })
       showToast('Photo mise à jour')
       onChanged()
     } catch (caught: unknown) {
@@ -430,6 +436,31 @@ function AssetPhoto({
   )
 }
 
+function DocumentLine({ document }: { document: DocumentMeta }) {
+  const where = documentWhere(document)
+  const meta = `${docTypeLabel(document.doc_type)} · ${storageModeLabel(document.storage_mode)}`
+  return (
+    <div className="task__main">
+      {document.storage_mode === 'local_file' && (
+        <a href={api.documentFileUrl(document.id)} target="_blank" rel="noreferrer">
+          <strong>{document.name}</strong>
+        </a>
+      )}
+      {document.storage_mode === 'external_link' && document.url !== null && (
+        <a href={document.url} target="_blank" rel="noreferrer">
+          <strong>{document.name}</strong>
+        </a>
+      )}
+      {document.storage_mode === 'reference_note' && <strong>{document.name}</strong>}
+      <p className="muted">
+        {meta}
+        {where && ' · '}
+        {where && <span className="doc-where">{where}</span>}
+      </p>
+    </div>
+  )
+}
+
 function AssetDocuments({
   assetId,
   documents,
@@ -441,17 +472,29 @@ function AssetDocuments({
   onChanged: () => void
   onError: (message: string | null) => void
 }) {
-  const [docType, setDocType] = useState<'manual' | 'invoice' | 'other'>('manual')
-  const [customName, setCustomName] = useState('')
+  const [docType, setDocType] = useState<DocType>('manual')
+  const [name, setName] = useState('')
+  const [draft, setDraft] = useState<DocumentDraft>(emptyDraft())
+  const [editing, setEditing] = useState<DocumentMeta | null>(null)
   const [busy, setBusy] = useState(false)
   const { showToast } = useToast()
 
-  async function upload(file: File) {
+  async function add(event: FormEvent) {
+    event.preventDefault()
+    if (draftIsEmpty(draft)) {
+      onError("Ce document a besoin d'un contenu : un fichier, un lien ou une note.")
+      return
+    }
+    if (draft.mode !== 'local_file' && name.trim() === '') {
+      onError('Ce document a besoin d\'un nom : sans fichier, il n\'y en a pas a reprendre.')
+      return
+    }
     setBusy(true)
     onError(null)
     try {
-      await api.uploadAssetDocument(assetId, file, docType, customName.trim())
-      setCustomName('')
+      await api.createAssetDocument(assetId, draft, { doc_type: docType, name: name.trim() })
+      setName('')
+      setDraft(emptyDraft())
       showToast('Document ajouté')
       onChanged()
     } catch (caught: unknown) {
@@ -477,63 +520,87 @@ function AssetDocuments({
 
   return (
     <div className="card">
-      <p className="muted">Manuel d'utilisation, facture d'achat, ou tout autre document utile.</p>
+      <p className="muted">
+        Notice, facture d'achat, garantie ou contrat d'entretien. Chaque document est un fichier
+        déposé ici, un lien vers votre propre stockage, ou une simple note disant où le trouver.
+      </p>
       {documents.length === 0 ? (
         <p className="muted">Aucun document pour l'instant.</p>
       ) : (
         <ul className="task-list">
           {documents.map((document) => (
             <li key={document.id} className="task">
-              <div className="task__main">
-                <a href={api.documentFileUrl(document.id)} target="_blank" rel="noreferrer">
-                  <strong>{document.name}</strong>
-                </a>
-                <p className="muted">{docTypeLabel(document.doc_type)}</p>
+              <DocumentLine document={document} />
+              <div className="doc-actions">
+                <button
+                  type="button"
+                  className="btn btn--small btn--edit"
+                  disabled={busy}
+                  onClick={() => {
+                    onError(null)
+                    setEditing(document)
+                  }}
+                >
+                  <EditIcon /> Modifier
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--small btn--delete"
+                  disabled={busy}
+                  onClick={() => void remove(document.id)}
+                >
+                  <TrashIcon /> Supprimer
+                </button>
               </div>
-              <button
-                type="button"
-                className="btn btn--small btn--delete"
-                disabled={busy}
-                onClick={() => void remove(document.id)}
-              >
-                <TrashIcon /> Supprimer
-              </button>
             </li>
           ))}
         </ul>
       )}
       <h3 className="card__subtitle">Ajouter un document</h3>
-      <div className="form form--inline">
-        <select
-          value={docType}
-          onChange={(event) => {
-            setDocType(event.target.value as 'manual' | 'invoice' | 'other')
-            setCustomName('')
+      <form className="form" onSubmit={(event) => void add(event)}>
+        <div className="doc-form__row">
+          <Field label="Type">
+            <select value={docType} onChange={(event) => setDocType(event.target.value as DocType)}>
+              {DOC_TYPES.map((value) => (
+                <option key={value} value={value}>
+                  {docTypeLabel(value)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field
+            label={draft.mode === 'local_file' ? 'Nom (facultatif)' : 'Nom'}
+            hint={draft.mode === 'local_file' ? 'Par défaut, le nom du fichier.' : undefined}
+          >
+            <input
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Facture d'achat"
+            />
+          </Field>
+        </div>
+        <div className="field">
+          <span className="field__label">Où se trouve ce document</span>
+          <DocumentInput value={draft} onChange={setDraft} disabled={busy} />
+        </div>
+        <div className="form__actions">
+          <button type="submit" className="btn btn--primary" disabled={busy}>
+            Ajouter
+          </button>
+        </div>
+      </form>
+      {editing !== null && (
+        <DocumentEdit
+          document={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null)
+            onChanged()
           }}
-        >
-          <option value="manual">Manuel d'utilisation</option>
-          <option value="invoice">Facture d'achat</option>
-          <option value="other">Autre</option>
-        </select>
-        {docType === 'other' && (
-          <input
-            type="text"
-            value={customName}
-            onChange={(event) => setCustomName(event.target.value)}
-            placeholder="Nom du document"
-          />
-        )}
-        <input
-          type="file"
-          accept={DOCUMENT_ACCEPT}
-          disabled={busy}
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            event.target.value = ''
-            if (file) void upload(file)
-          }}
+          onError={onError}
         />
-      </div>
+      )}
     </div>
   )
 }

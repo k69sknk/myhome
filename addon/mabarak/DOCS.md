@@ -8,8 +8,11 @@ Vous ouvrez la fiche d'un appareil et vous savez immédiatement ce que c'est, o�
 a été installé et entretenu, ce qui a été réparé, combien il a coûté, où sont la facture et la
 notice, et s'il est encore sous garantie.
 
-Cette version (0.2.0) couvre le premier morceau métier : fiches d'appareils, lieux,
-entretiens et tableau de bord. Les documents (notices, factures) arriveront plus tard.
+Cette version couvre les fiches d'appareils et d'éléments de construction, les lieux, les
+entretiens récurrents, l'historique des interventions, l'annuaire des membres et des
+prestataires, et les documents — ceux d'une fiche, ceux d'un entretien, et les papiers de la
+maison elle-même comme l'acte ou l'assurance. La page **Documents** les rassemble tous, avec
+recherche et filtres.
 
 ## Confidentialité
 

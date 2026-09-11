@@ -120,7 +120,8 @@ Le volume `/data` est le seul emplacement persistant. Il contient :
 /data
 ├── mabarak.db          # base SQLite
 ├── documents/             # documents en mode local_file
-│   └── <asset_id>/<uuid>.<ext>
+│   ├── <asset_id>/<uuid>.<ext>
+│   └── divers/<uuid>.<ext>    # documents sans equipement : maison, incident
 └── options.json           # options de l'add-on, injectees par le Supervisor
 ```
 

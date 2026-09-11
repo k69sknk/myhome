@@ -1,15 +1,18 @@
 """Maison unique, lieux et categories."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..clock import utc_now_iso
-from ..db import get_session
-from ..models import Asset, Category, Home, Location, LocationType
+from ..config import Settings
+from ..db import get_app_settings, get_session
+from ..models import Asset, Category, Document, Home, Location, LocationType
 from ..schemas import (
     CategoryIn,
     CategoryOut,
+    DocType,
+    DocumentOut,
     HomeOut,
     HomePatch,
     LocationIn,
@@ -18,6 +21,7 @@ from ..schemas import (
     LocationTypeIn,
     LocationTypeOut,
     LocationTypePatch,
+    StorageMode,
 )
 from ..services.catalog import (
     location_path,
@@ -25,6 +29,7 @@ from ..services.catalog import (
     unique_location_type_slug,
     would_create_cycle,
 )
+from ..services.documents import UNSCOPED_DIR, contenu_a_la_creation, document_out
 from ..services.home import ensure_home
 
 router = APIRouter(tags=["maison"])
@@ -49,6 +54,60 @@ def patch_home(body: HomePatch, session: Session = Depends(get_session)) -> Home
     home.updated_at = utc_now_iso()
     session.flush()
     return HomeOut.model_validate(home, from_attributes=True)
+
+
+@router.post("/homes/current/documents", response_model=DocumentOut, status_code=201)
+async def create_home_document(
+    storage_mode: StorageMode = Form("local_file"),
+    file: UploadFile | None = File(None),
+    url: str | None = Form(None),
+    reference_note: str | None = Form(None),
+    doc_type: DocType = Form("other"),
+    name: str | None = Form(None),
+    notes: str | None = Form(None),
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_app_settings),
+) -> DocumentOut:
+    """Les papiers de la maison elle-meme : acte, assurance, DPE, diagnostics.
+
+    Ils ne relevent d'aucun appareil, et les ranger sur une fiche d'equipement
+    serait leur faire perdre leur sens. Le schema prevoyait `home_id` depuis
+    l'origine, rien ne l'ecrivait.
+    """
+    home = _home(session)
+    contenu, label = await contenu_a_la_creation(
+        settings,
+        scope=UNSCOPED_DIR,
+        storage_mode=storage_mode,
+        file=file,
+        url=url,
+        reference_note=reference_note,
+        name=name,
+    )
+    now = utc_now_iso()
+    row = Document(
+        home_id=home.id,
+        name=label,
+        doc_type=doc_type,
+        notes=(notes or "").strip() or None,
+        created_at=now,
+        updated_at=now,
+        **contenu,
+    )
+    session.add(row)
+    session.flush()
+    return document_out(row)
+
+
+@router.get("/homes/current/documents", response_model=list[DocumentOut])
+def list_home_documents(session: Session = Depends(get_session)) -> list[DocumentOut]:
+    home = _home(session)
+    rows = session.scalars(
+        select(Document)
+        .where(Document.home_id == home.id)
+        .order_by(Document.created_at.desc(), Document.id.desc())
+    ).all()
+    return [document_out(row) for row in rows]
 
 
 @router.get("/categories", response_model=list[CategoryOut])

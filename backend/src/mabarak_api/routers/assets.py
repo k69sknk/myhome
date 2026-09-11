@@ -1,8 +1,6 @@
 """Fiches d'equipements et taches d'entretien."""
 
-from pathlib import Path
 from typing import Literal
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
@@ -36,7 +34,11 @@ from ..schemas import (
     AssetPatch,
     CompleteIn,
     CostOut,
+    DocType,
+    DocumentListItem,
     DocumentOut,
+    DocumentPatch,
+    DocumentScope,
     HaDeviceOut,
     HaLinkIn,
     HaLinkOut,
@@ -44,6 +46,7 @@ from ..schemas import (
     InterventionOut,
     ReplacementPartIn,
     ReplacementPartOut,
+    StorageMode,
     TaskIn,
     TaskOut,
     TaskPatch,
@@ -58,6 +61,18 @@ from ..services.catalog import (
     primary_ha_link,
     task_status_map,
     worst_status,
+)
+from ..services.documents import (
+    UNSCOPED_DIR,
+    apply_external_link,
+    apply_local_file,
+    apply_reference_note,
+    contenu_a_la_creation,
+    delete_document,
+    document_out,
+    reference_valide,
+    store_upload,
+    url_valide,
 )
 from ..services.home import ensure_home
 from ..services.notifications import notify_assignee
@@ -592,7 +607,7 @@ def list_task_interventions(
             performed_by_provider_id=row.performed_by_provider_id,
             notes=row.notes,
             cost=_cost_out(row),
-            documents=[_document_out(doc) for doc in row.documents],
+            documents=[document_out(doc) for doc in row.documents],
         )
         for row in interventions
     ]
@@ -660,7 +675,7 @@ def list_interventions(
             performed_by_provider_id=row.performed_by_provider_id,
             notes=row.notes,
             cost=_cost_out(row),
-            documents=[_document_out(doc) for doc in row.documents],
+            documents=[document_out(doc) for doc in row.documents],
         )
         for row in rows
     ]
@@ -690,33 +705,10 @@ def delete_intervention(
         raise HTTPException(404, "Intervention introuvable")
     _get_asset(session, intervention.asset_id)
     for document in list(intervention.documents):
-        _delete_document(session, settings, document)
+        delete_document(session, settings, document)
     session.delete(intervention)
     session.flush()
     return {"ok": True}
-
-
-_ALLOWED_DOCUMENT_EXTENSIONS = {
-    ".pdf",
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".heic",
-    ".doc",
-    ".docx",
-}
-_MAX_DOCUMENT_SIZE = 10 * 1024 * 1024
-
-
-def _document_out(row: Document) -> DocumentOut:
-    return DocumentOut(
-        id=row.id,
-        name=row.name,
-        doc_type=row.doc_type,
-        file_size=row.file_size,
-        mime_type=row.mime_type,
-        created_at=row.created_at,
-    )
 
 
 def _cost_out(intervention: Intervention) -> CostOut | None:
@@ -731,36 +723,34 @@ def _cost_out(intervention: Intervention) -> CostOut | None:
     )
 
 
-async def _store_uploaded_file(
-    asset_id: int, file: UploadFile, settings: Settings
-) -> tuple[str, int, str | None, str]:
-    original_name = file.filename or "document"
-    extension = Path(original_name).suffix.lower()
-    if extension not in _ALLOWED_DOCUMENT_EXTENSIONS:
-        raise HTTPException(415, "Type de fichier non accepte")
-    content = await file.read()
-    if len(content) > _MAX_DOCUMENT_SIZE:
-        raise HTTPException(413, "Fichier trop volumineux (10 Mo maximum)")
+def _document_scope(session: Session, row: Document) -> str:
+    """Sous-repertoire de `/data/documents/` ou ecrire le fichier de ce document.
 
-    asset_dir = settings.documents_dir / str(asset_id)
-    asset_dir.mkdir(parents=True, exist_ok=True)
-    stored_name = f"{uuid4().hex}{extension}"
-    (asset_dir / stored_name).write_bytes(content)
-    return f"{asset_id}/{stored_name}", len(content), file.content_type, original_name
-
-
-def _delete_document(session: Session, settings: Settings, row: Document) -> None:
-    if row.storage_mode == "local_file" and row.file_path:
-        (settings.documents_dir / row.file_path).unlink(missing_ok=True)
-    session.delete(row)
+    L'equipement, quand il y en a un : c'est ce qui rend le repertoire lisible
+    sans la base. Une facture rattachee a une intervention suit l'equipement de
+    celle-ci, comme le faisait le depot de fichier d'origine.
+    """
+    if row.asset_id is not None:
+        return str(row.asset_id)
+    if row.intervention_id is not None:
+        intervention = session.get(Intervention, row.intervention_id)
+        if intervention is not None:
+            return str(intervention.asset_id)
+    return UNSCOPED_DIR
 
 
 @router.post(
     "/interventions/{intervention_id}/documents", response_model=DocumentOut, status_code=201
 )
-async def upload_intervention_document(
+async def create_intervention_document(
     intervention_id: int,
-    file: UploadFile = File(...),
+    storage_mode: StorageMode = Form("local_file"),
+    file: UploadFile | None = File(None),
+    url: str | None = Form(None),
+    reference_note: str | None = Form(None),
+    doc_type: DocType = Form("invoice"),
+    name: str | None = Form(None),
+    notes: str | None = Form(None),
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_app_settings),
 ) -> DocumentOut:
@@ -769,61 +759,176 @@ async def upload_intervention_document(
         raise HTTPException(404, "Intervention introuvable")
     _get_asset(session, intervention.asset_id)
 
-    file_path, size, mime_type, original_name = await _store_uploaded_file(
-        intervention.asset_id, file, settings
+    contenu, label = await contenu_a_la_creation(
+        settings,
+        scope=str(intervention.asset_id),
+        storage_mode=storage_mode,
+        file=file,
+        url=url,
+        reference_note=reference_note,
+        name=name,
     )
     now = utc_now_iso()
     row = Document(
         intervention_id=intervention.id,
-        name=original_name,
-        doc_type="invoice",
-        storage_mode="local_file",
-        file_path=file_path,
-        file_size=size,
-        mime_type=mime_type,
+        name=label,
+        doc_type=doc_type,
+        notes=(notes or "").strip() or None,
         created_at=now,
         updated_at=now,
+        **contenu,
     )
     session.add(row)
     session.flush()
-    return _document_out(row)
+    return document_out(row)
 
 
 @router.post("/assets/{asset_id}/documents", response_model=DocumentOut, status_code=201)
-async def upload_asset_document(
+async def create_asset_document(
     asset_id: int,
-    file: UploadFile = File(...),
-    doc_type: Literal["manual", "invoice", "other", "photo"] = Form("manual"),
+    storage_mode: StorageMode = Form("local_file"),
+    file: UploadFile | None = File(None),
+    url: str | None = Form(None),
+    reference_note: str | None = Form(None),
+    doc_type: DocType = Form("manual"),
     name: str | None = Form(None),
+    notes: str | None = Form(None),
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_app_settings),
 ) -> DocumentOut:
     asset = _get_asset(session, asset_id)
+    # La photo de la fiche est servie par /documents/{id}/file : elle n'a de sens
+    # qu'en fichier local.
+    if doc_type == "photo" and storage_mode != "local_file":
+        raise HTTPException(422, "Une photo d'equipement est un fichier")
+
+    contenu, label = await contenu_a_la_creation(
+        settings,
+        scope=str(asset.id),
+        storage_mode=storage_mode,
+        file=file,
+        url=url,
+        reference_note=reference_note,
+        name=name,
+    )
+
+    # La photo precedente ne part qu'une fois la nouvelle acceptee : un envoi
+    # refuse (mauvais format, trop gros) annule la transaction, mais pas
+    # l'effacement du fichier sur le disque.
     if doc_type == "photo":
         existing_photo = session.scalars(
             select(Document).where(Document.asset_id == asset.id, Document.doc_type == "photo")
         ).first()
         if existing_photo is not None:
-            _delete_document(session, settings, existing_photo)
+            delete_document(session, settings, existing_photo)
             session.flush()
-
-    file_path, size, mime_type, original_name = await _store_uploaded_file(asset.id, file, settings)
     now = utc_now_iso()
     row = Document(
         asset_id=asset.id,
-        name=(name or "").strip() or original_name,
+        name=label,
         doc_type=doc_type,
-        storage_mode="local_file",
-        file_path=file_path,
-        file_size=size,
-        mime_type=mime_type,
+        notes=(notes or "").strip() or None,
         is_primary_photo=1 if doc_type == "photo" else 0,
         created_at=now,
         updated_at=now,
+        **contenu,
     )
     session.add(row)
     session.flush()
-    return _document_out(row)
+    return document_out(row)
+
+
+@router.get("/documents", response_model=list[DocumentListItem])
+def list_documents(session: Session = Depends(get_session)) -> list[DocumentListItem]:
+    """Tous les documents de la maison, du plus recent au plus ancien.
+
+    Les photos d'equipement n'y sont pas : elles vivent en haut de la fiche, et
+    les melanger aux notices et aux factures ne ferait que du bruit.
+
+    Le filtrage et la recherche restent a l'interface, qui normalise les accents
+    (`lib/search.ts`) : la liste des documents d'une maison se compte en dizaines,
+    pas en milliers, et un filtre serveur de plus n'apporterait rien qu'un
+    aller-retour.
+    """
+    rows = session.scalars(
+        select(Document)
+        .where(Document.doc_type != "photo")
+        .order_by(Document.created_at.desc(), Document.id.desc())
+    ).all()
+    if not rows:
+        return []
+
+    # Trois lectures groupees plutot qu'une par document : le rattachement d'un
+    # document est l'une des cinq cles, et deux d'entre elles menent a
+    # l'equipement par un saut de plus.
+    intervention_ids = {row.intervention_id for row in rows if row.intervention_id is not None}
+    task_ids = {row.maintenance_task_id for row in rows if row.maintenance_task_id is not None}
+    interventions = (
+        {
+            row.id: row
+            for row in session.scalars(
+                select(Intervention).where(Intervention.id.in_(intervention_ids))
+            )
+        }
+        if intervention_ids
+        else {}
+    )
+    tasks = (
+        {
+            row.id: row
+            for row in session.scalars(
+                select(MaintenanceTask).where(MaintenanceTask.id.in_(task_ids))
+            )
+        }
+        if task_ids
+        else {}
+    )
+    asset_ids = {row.asset_id for row in rows if row.asset_id is not None}
+    asset_ids |= {row.asset_id for row in interventions.values()}
+    asset_ids |= {row.asset_id for row in tasks.values() if row.asset_id is not None}
+    assets = (
+        {row.id: row for row in session.scalars(select(Asset).where(Asset.id.in_(asset_ids)))}
+        if asset_ids
+        else {}
+    )
+
+    items: list[DocumentListItem] = []
+    for row in rows:
+        scope: DocumentScope = "issue"
+        asset_id: int | None = None
+        task_name: str | None = None
+        performed_on: str | None = None
+        if row.home_id is not None:
+            scope = "home"
+        elif row.asset_id is not None:
+            scope = "asset"
+            asset_id = row.asset_id
+        elif row.intervention_id is not None:
+            scope = "intervention"
+            intervention = interventions.get(row.intervention_id)
+            if intervention is not None:
+                asset_id = intervention.asset_id
+                performed_on = intervention.performed_on
+        elif row.maintenance_task_id is not None:
+            scope = "maintenance_task"
+            task = tasks.get(row.maintenance_task_id)
+            if task is not None:
+                asset_id = task.asset_id
+                task_name = task.name
+
+        asset = assets.get(asset_id) if asset_id is not None else None
+        items.append(
+            DocumentListItem(
+                **document_out(row).model_dump(),
+                scope=scope,
+                asset_id=asset_id,
+                asset_kind=asset.kind if asset is not None else None,
+                asset_name=asset.name if asset is not None else None,
+                task_name=task_name,
+                performed_on=performed_on,
+            )
+        )
+    return items
 
 
 @router.get("/assets/{asset_id}/documents", response_model=list[DocumentOut])
@@ -836,20 +941,99 @@ def list_asset_documents(
         .where(Document.asset_id == asset.id, Document.doc_type != "photo")
         .order_by(Document.created_at.desc())
     ).all()
-    return [_document_out(row) for row in rows]
+    return [document_out(row) for row in rows]
+
+
+def _get_document(session: Session, document_id: int) -> Document:
+    row = session.get(Document, document_id)
+    if row is None:
+        raise HTTPException(404, "Document introuvable")
+    return row
+
+
+@router.patch("/documents/{document_id}", response_model=DocumentOut)
+def update_document(
+    document_id: int,
+    body: DocumentPatch,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_app_settings),
+) -> DocumentOut:
+    """Renomme, requalifie, ou fait changer de mode de stockage.
+
+    C'est l'operation qui justifiait une seule table plutot que trois (adr/0002) :
+    le document garde son `id`, donc ses rattachements, et l'utilisateur peut
+    sortir une facture de l'application sans la perdre de vue.
+    """
+    row = _get_document(session, document_id)
+    fields = body.model_dump(exclude_unset=True)
+
+    if "name" in fields and body.name is not None:
+        label = body.name.strip()
+        if not label:
+            raise HTTPException(422, "Ce document a besoin d'un nom")
+        row.name = label
+    if "notes" in fields:
+        row.notes = (body.notes or "").strip() or None
+    if "doc_type" in fields and body.doc_type is not None and body.doc_type != row.doc_type:
+        row.doc_type = body.doc_type
+        # Un document qui n'est plus une photo n'est plus la photo de la fiche :
+        # le CHECK du schema l'impose, et c'est aussi ce qu'on veut dire.
+        if body.doc_type != "photo":
+            row.is_primary_photo = 0
+
+    mode = body.storage_mode
+    if mode is not None and row.is_primary_photo == 1:
+        raise HTTPException(422, "La photo de la fiche reste un fichier local")
+
+    if mode == "external_link":
+        apply_external_link(settings, row, url_valide(body.url))
+    elif mode == "reference_note":
+        apply_reference_note(settings, row, reference_valide(body.reference_note))
+    else:
+        # Sans changement de mode, on ne corrige que le contenu du mode en cours :
+        # ecrire une URL sur un document reste une note ferait mentir `storage_mode`.
+        if "url" in fields:
+            if row.storage_mode != "external_link":
+                raise HTTPException(422, "Ce document n'est pas un lien externe")
+            row.url = url_valide(body.url)
+        if "reference_note" in fields:
+            if row.storage_mode != "reference_note":
+                raise HTTPException(422, "Ce document n'est pas une reference")
+            row.reference_note = reference_valide(body.reference_note)
+
+    row.updated_at = utc_now_iso()
+    session.flush()
+    return document_out(row)
+
+
+@router.post("/documents/{document_id}/file", response_model=DocumentOut)
+async def attach_document_file(
+    document_id: int,
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_app_settings),
+) -> DocumentOut:
+    """Passe un document en fichier local, sans lui faire perdre son identite.
+
+    Le retour vers `local_file` demande un fichier, donc un envoi multipart : il
+    ne peut pas passer par le PATCH. C'est le geste de l'utilisateur qui avait
+    note « facture dans l'e-mail du 12 mai » et qui vient de retrouver le PDF.
+    """
+    row = _get_document(session, document_id)
+    stored = await store_upload(file, settings, scope=_document_scope(session, row))
+    apply_local_file(settings, row, stored)
+    session.flush()
+    return document_out(row)
 
 
 @router.delete("/documents/{document_id}")
-def delete_document(
+def remove_document(
     document_id: int,
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_app_settings),
 ) -> dict[str, bool]:
-    row = session.get(Document, document_id)
-    if row is None or row.asset_id is None:
-        raise HTTPException(404, "Document introuvable")
-    _get_asset(session, row.asset_id)
-    _delete_document(session, settings, row)
+    row = _get_document(session, document_id)
+    delete_document(session, settings, row)
     session.flush()
     return {"ok": True}
 
@@ -860,9 +1044,9 @@ def download_document(
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_app_settings),
 ) -> FileResponse:
-    row = session.get(Document, document_id)
-    if row is None or row.storage_mode != "local_file" or row.file_path is None:
-        raise HTTPException(404, "Document introuvable")
+    row = _get_document(session, document_id)
+    if row.storage_mode != "local_file" or row.file_path is None:
+        raise HTTPException(409, "Ce document n'est pas un fichier depose dans l'application")
     full_path = settings.documents_dir / row.file_path
     if not full_path.is_file():
         raise HTTPException(404, "Fichier introuvable")
