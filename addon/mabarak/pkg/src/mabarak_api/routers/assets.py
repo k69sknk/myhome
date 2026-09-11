@@ -24,6 +24,7 @@ from ..models import (
     Location,
     MaintenanceTask,
     Member,
+    Provider,
     ReplacementPart,
     TaskStatusRow,
     Warranty,
@@ -77,6 +78,7 @@ def _get_asset(session: Session, asset_id: int) -> Asset:
         options=(
             selectinload(Asset.tasks).selectinload(MaintenanceTask.replacement_parts),
             selectinload(Asset.tasks).selectinload(MaintenanceTask.assignee),
+            selectinload(Asset.tasks).selectinload(MaintenanceTask.assignee_provider),
             selectinload(Asset.warranty),
             selectinload(Asset.ha_links),
             selectinload(Asset.category),
@@ -139,7 +141,16 @@ def _task_out(
         preparation_notes=task.preparation_notes,
         notes=task.description,
         assignee_id=task.assignee_id,
-        assignee_name=task.assignee.name if task.assignee is not None else None,
+        assignee_provider_id=task.assignee_provider_id,
+        # Un seul des deux est renseigne (adr/0011) : l'affichage veut le nom, pas
+        # la table d'ou il sort.
+        assignee_name=(
+            task.assignee.name
+            if task.assignee is not None
+            else task.assignee_provider.name
+            if task.assignee_provider is not None
+            else None
+        ),
     )
 
 
@@ -323,6 +334,13 @@ def _get_member(session: Session, member_id: int) -> Member:
     return member
 
 
+def _get_provider(session: Session, provider_id: int) -> Provider:
+    provider = session.get(Provider, provider_id)
+    if provider is None:
+        raise HTTPException(404, "Prestataire introuvable")
+    return provider
+
+
 def _replacement_part_rows(parts: list[ReplacementPartIn]) -> list[ReplacementPart]:
     return [
         ReplacementPart(
@@ -347,6 +365,11 @@ def create_task(asset_id: int, body: TaskIn, session: Session = Depends(get_sess
         body.season_end_month,
     )
     assignee = _get_member(session, body.assignee_id) if body.assignee_id is not None else None
+    provider = (
+        _get_provider(session, body.assignee_provider_id)
+        if body.assignee_provider_id is not None
+        else None
+    )
     anchor, next_due = plan_task(
         recurrence_type=body.recurrence_type,
         interval=body.recurrence_interval,
@@ -362,6 +385,7 @@ def create_task(asset_id: int, body: TaskIn, session: Session = Depends(get_sess
         asset_id=asset.id,
         home_id=None,
         assignee_id=assignee.id if assignee is not None else None,
+        assignee_provider_id=provider.id if provider is not None else None,
         name=body.name.strip(),
         priority=body.priority,
         recurrence_type=body.recurrence_type,
@@ -451,6 +475,17 @@ def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_ses
         assignee_id = data.pop("assignee_id")
         new_assignee = _get_member(session, assignee_id) if assignee_id is not None else None
         task.assignee_id = assignee_id
+        # Confier a un membre retire le prestataire, et reciproquement : sans cela
+        # un entretien se retrouverait avec deux responsables, ce que le CHECK de
+        # schema.sql interdit et qu'une base migree ne peut pas rattraper seule.
+        if new_assignee is not None:
+            task.assignee_provider_id = None
+    if "assignee_provider_id" in data:
+        provider_id = data.pop("assignee_provider_id")
+        if provider_id is not None:
+            _get_provider(session, provider_id)
+            task.assignee_id = None
+        task.assignee_provider_id = provider_id
 
     if "name" in data and isinstance(data["name"], str):
         data["name"] = data["name"].strip()
@@ -486,11 +521,26 @@ def mark_task_done(
         raise HTTPException(404, "Entretien introuvable")
     asset = _get_asset(session, task.asset_id)
     performed_on = body.performed_on or utc_today().isoformat()
+    # Le nom affiche vient de la fiche du membre quand il y en a une : c'est ce
+    # qui evite qu'une meme entreprise s'ecrive de trois facons dans l'historique.
+    member = (
+        _get_member(session, body.performed_by_member_id)
+        if body.performed_by_member_id is not None
+        else None
+    )
+    provider = (
+        _get_provider(session, body.performed_by_provider_id)
+        if body.performed_by_provider_id is not None
+        else None
+    )
+    named = member or provider
     intervention = complete_task(
         session,
         task,
         performed_on=performed_on,
-        performed_by=body.performed_by,
+        performed_by=named.name if named is not None else body.performed_by,
+        performed_by_member_id=member.id if member is not None else None,
+        performed_by_provider_id=provider.id if provider is not None else None,
         notes=body.notes,
     )
     if body.amount_cents is not None:
@@ -538,6 +588,8 @@ def list_task_interventions(
             id=row.id,
             performed_on=row.performed_on,
             performed_by=row.performed_by,
+            performed_by_member_id=row.performed_by_member_id,
+            performed_by_provider_id=row.performed_by_provider_id,
             notes=row.notes,
             cost=_cost_out(row),
             documents=[_document_out(doc) for doc in row.documents],
@@ -550,15 +602,28 @@ def list_task_interventions(
 def list_interventions(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    member_id: int | None = Query(default=None),
+    provider_id: int | None = Query(default=None),
     session: Session = Depends(get_session),
 ) -> list[HistoryEntryOut]:
-    """Historique global, toutes les interventions de la maison confondues (page /entretiens)."""
+    """Historique global, toutes les interventions de la maison confondues (page /entretiens).
+
+    `member_id` et `provider_id` le restreignent a ce qu'une personne ou un
+    prestataire a realise : c'est la contrepartie visible du lien pose a la saisie
+    (pages /membres et /prestataires).
+    """
     home = _home(session)
-    rows = session.scalars(
+    query = (
         select(Intervention)
         .join(Asset, Intervention.asset_id == Asset.id)
         .where(Asset.home_id == home.id)
-        .options(selectinload(Intervention.costs), selectinload(Intervention.documents))
+    )
+    if member_id is not None:
+        query = query.where(Intervention.performed_by_member_id == member_id)
+    if provider_id is not None:
+        query = query.where(Intervention.performed_by_provider_id == provider_id)
+    rows = session.scalars(
+        query.options(selectinload(Intervention.costs), selectinload(Intervention.documents))
         .order_by(Intervention.performed_on.desc(), Intervention.id.desc())
         .limit(limit)
         .offset(offset)
@@ -591,6 +656,8 @@ def list_interventions(
             task_name=tasks[row.task_id].name if row.task_id in tasks else None,
             performed_on=row.performed_on,
             performed_by=row.performed_by,
+            performed_by_member_id=row.performed_by_member_id,
+            performed_by_provider_id=row.performed_by_provider_id,
             notes=row.notes,
             cost=_cost_out(row),
             documents=[_document_out(doc) for doc in row.documents],
@@ -828,6 +895,7 @@ def list_tasks(session: Session = Depends(get_session)) -> list[TaskOut]:
         .options(
             selectinload(MaintenanceTask.replacement_parts),
             selectinload(MaintenanceTask.assignee),
+            selectinload(MaintenanceTask.assignee_provider),
         )
         .order_by(MaintenanceTask.next_due_on.is_(None), MaintenanceTask.next_due_on)
     ).all()

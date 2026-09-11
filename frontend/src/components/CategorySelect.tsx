@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import type { Category } from '../api/types'
 import { errorMessage } from '../lib/format'
 import { useToast } from './Toast'
+import { matches, normalize } from '../lib/search'
 
 interface Option {
   id: number
@@ -55,12 +56,8 @@ export default function CategorySelect({
   }, [selectedLabel])
 
   const trimmed = query.trim()
-  const matches = trimmed
-    ? options.filter((option) => option.label.toLowerCase().includes(trimmed.toLowerCase()))
-    : options
-  const hasExactMatch = options.some(
-    (option) => option.label.toLowerCase() === trimmed.toLowerCase(),
-  )
+  const found = options.filter((option) => matches([option.label], trimmed))
+  const hasExactMatch = options.some((option) => normalize(option.label) === normalize(trimmed))
   const canCreate = trimmed !== '' && !hasExactMatch
 
   function select(option: Option | null) {
@@ -106,7 +103,7 @@ export default function CategorySelect({
               Sans catégorie
             </button>
           </li>
-          {matches.map((option) => (
+          {found.map((option) => (
             <li key={option.id}>
               <button type="button" className="combobox__option" onClick={() => select(option)}>
                 {option.label}

@@ -130,6 +130,8 @@ def complete_task(
     *,
     performed_on: str,
     performed_by: str | None,
+    performed_by_member_id: int | None = None,
+    performed_by_provider_id: int | None = None,
     notes: str | None,
 ) -> Intervention:
     if task.asset_id is None:
@@ -141,6 +143,8 @@ def complete_task(
         intervention_type="maintenance",
         performed_on=performed_on,
         performed_by=performed_by,
+        performed_by_member_id=performed_by_member_id,
+        performed_by_provider_id=performed_by_provider_id,
         notes=notes,
         created_at=now,
         updated_at=now,

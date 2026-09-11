@@ -3,6 +3,121 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.26.0
+
+- **Une recherche dans l'annuaire des prestataires**, qui fouille toute la fiche
+  et pas seulement le nom : le métier, le téléphone, l'adresse, le numéro de
+  client et les notes. On cherche « le chauffagiste » ou « celui du 69300 » aussi
+  souvent qu'une raison sociale — dont on ne se souvient justement pas. Un filtre
+  par métier apparaît dès qu'il y en a deux différents.
+
+- **Les accents ne comptent plus, nulle part.** Taper « refrigerateur » trouve
+  « Réfrigérateur », « electricien » trouve « Électricité Générale ». Cela valait
+  pour la nouvelle recherche mais aussi pour tous les champs existants :
+  équipement, catégorie, assigné, et la liste d'objets du didacticiel — où exiger
+  l'accent revenait à demander l'orthographe exacte de ce qu'on cherche, souvent
+  sur un clavier de téléphone.
+
+- **Au passage, un garde-fou qui ne tenait pas.** Dans le tour de la maison,
+  « refrigerateur » sans accent ne trouvait pas « Réfrigérateur » et proposait
+  donc d'en créer un second. Le doublon que la version 0.24 voulait éviter passait
+  par cette porte.
+
+- **Les mots comptent séparément.** « clim 88 » trouve « Clim Services 69 » dont
+  le numéro de client finit par 88 : deux mots, deux champs différents, sans
+  imposer l'ordre.
+
+## 0.25.0
+
+- **Les prestataires ont leur propre annuaire.** Une entreprise était jusqu'ici un
+  « membre » d'un type particulier, et le formulaire lui demandait sa personne
+  Home Assistant et son service de notification — deux questions qui n'ont aucun
+  sens pour un chauffagiste. Un membre du foyer est quelqu'un qu'on **notifie**,
+  un prestataire quelqu'un qu'on **appelle** : ce sont deux profils, ils ont
+  désormais deux pages. Raisonnement complet dans
+  [ADR-0011](../../docs/adr/0011-prestataires-table-a-part.md).
+
+- **Une vraie fiche prestataire** : métier, téléphone et email cliquables, site,
+  adresse, numéro de client (celui qu'on vous réclame au téléphone) et notes. Le
+  formulaire ne demande d'abord que le nom, le métier et le numéro — le reste est
+  derrière « Plus de détails », parce qu'une fiche se crée souvent à la volée.
+
+- **Ce qu'il fait et ce qu'il a coûté, sur sa fiche.** Déplier un prestataire
+  montre les entretiens qui lui sont confiés et les interventions qu'il a
+  réalisées, avec le total facturé.
+
+- **Le métier est choisi dans une liste**, pas tapé : « chauffagiste »,
+  « Chauffagiste » et « chauffage » auraient été trois métiers différents.
+
+- **Vos entreprises existantes ont déménagé toutes seules.** Celles saisies en
+  0.22 et 0.23 deviennent des prestataires, et les entretiens comme l'historique
+  qui les désignaient continuent de pointer vers elles. Leur contact part dans le
+  champ email s'il contenait une arobase, dans le téléphone sinon.
+
+- **Un seul sélecteur pour les deux annuaires.** Au moment d'assigner un entretien
+  ou de dire qui l'a fait, on tape un nom : les propositions arrivent en deux
+  groupes, Foyer et Prestataires, et un nom inconnu se crée sur place en l'un ou
+  en l'autre. Ouvrir la liste montre désormais tout l'annuaire au lieu de la seule
+  fiche déjà choisie.
+
+## 0.24.0
+
+- **Le tour de la maison accepte ce que le catalogue ignore.** Chaque zone du
+  didacticiel offrait une liste fermée : un adoucisseur, un aquarium ou une cave à
+  vin n'avaient aucun moyen d'y entrer, et il fallait attendre la fin du parcours
+  pour créer la fiche à la main. Un champ « Ajouter autre chose » accepte
+  maintenant n'importe quel nom, en appareil ou en élément de la maison.
+
+- **Sans créer de sosie.** Taper un nom que le catalogue connaît propose sa fiche
+  type plutôt qu'une jumelle vide — une jumelle n'aurait aucun entretien à
+  proposer à l'écran suivant. Un objet déjà coché dans la zone est signalé
+  (« dans la liste ci-dessus, cochez-le ») au lieu d'être caché, et un nom déjà
+  présent ailleurs dans la maison affiche où : deux lavabos dans deux salles
+  d'eau restent possibles, deux fois le même ne l'est pas par accident.
+
+- **Un objet rangé ailleurs par le catalogue peut rejoindre la zone du moment.**
+  Le chauffe-eau était proposé en salle de bain ; s'il est au garage, il se
+  trouve en tapant son nom, sans perdre ses entretiens types.
+
+## 0.23.0
+
+- **L'historique retient qui est venu, pas seulement ce qui a été tapé.** En
+  marquant un entretien comme fait, le champ « Qui » propose les fiches de
+  l'annuaire — et crée l'entreprise sur place si elle n'y est pas encore.
+  Jusqu'ici c'était du texte libre : « Dupont Chauffage », « dupont chauf. » et
+  « Dupont » étaient trois intervenants différents pour l'application. L'assigné
+  de l'entretien est proposé par défaut, puisque c'est presque toujours lui qui
+  s'est déplacé. Un coup de main qui ne mérite pas de fiche reste possible : ce
+  qu'on tape sans rien choisir reste une simple mention.
+
+- **Chaque membre affiche ce qu'il a réalisé.** Dans l'annuaire, le bouton
+  « Interventions » déplie les entretiens faits par cette personne ou cette
+  entreprise, avec leur date et leur montant — de quoi retrouver ce qu'a coûté un
+  prestataire sur l'année.
+
+- **Choisir une entreprise coche « réalisé par un pro »** et ouvre les champs
+  montant et facture, au lieu d'attendre un clic de plus.
+
+- Supprimer un membre ne réécrit pas l'historique : le nom saisi ce jour-là reste
+  affiché, seul le lien vers sa fiche disparaît.
+
+## 0.22.0
+
+- **Un entretien peut être confié à une entreprise depuis sa fiche.** « Assigné à »
+  ne proposait, dans une liste à plat, que les membres déjà présents dans
+  l'annuaire : pour confier l'entretien annuel de la pompe à chaleur à
+  l'installateur, il fallait quitter le formulaire, créer sa fiche dans Membres,
+  puis revenir. Le champ devient un champ de recherche, comme celui des
+  équipements : les propositions sont groupées en Foyer, Amis et Entreprises, et
+  un nom inconnu se crée sur place — en entreprise ou en personne, au choix.
+
+- L'entreprise ainsi créée est un membre de plein droit, pas un simple texte :
+  elle entre à l'annuaire avec son type, apparaît dans les autres fiches et
+  porte la liste des entretiens qui lui sont confiés. Un prestataire n'a pas de
+  service de notification Home Assistant : le rappel d'échéance revient alors au
+  service par défaut de la maison, pour que l'entretien ne disparaisse pas du
+  radar.
+
 ## 0.21.0
 
 - **« Passer la tondeuse » entre enfin au catalogue.** L'entretien de pelouse le

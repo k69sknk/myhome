@@ -676,6 +676,27 @@ code {
   align-items: end;
 }
 
+/* Barre de recherche d'une liste : le champ prend la place, le filtre et le
+   compte se rangent a cote et passent dessous quand l'ecran est etroit. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.filters input[type='search'] {
+  flex: 1 1 14rem;
+}
+
+/* Le filtre et le compte ne prennent que leur place : sans cela le select, qui
+   vaut 100% de large par defaut dans les formulaires, se paie une ligne entiere. */
+.filters select {
+  flex: 0 1 12rem;
+  width: auto;
+}
+
 .form__actions {
   display: flex;
   flex-wrap: wrap;

@@ -3,6 +3,7 @@ import type {
   ApplyRoomResult,
   Asset,
   AssetIn,
+  AssetKind,
   AssetListItem,
   AssetPatch,
   CalendarSyncResult,
@@ -29,10 +30,13 @@ import type {
   MaintenanceSelection,
   Member,
   MemberIn,
+  Provider,
+  ProviderIn,
   ReminderRunResult,
   Task,
   TaskIn,
   TaskPatch,
+  Trade,
 } from './types'
 
 export class ApiError extends Error {
@@ -137,8 +141,17 @@ export const api = {
     request<Task>(`tasks/${taskId}/complete`, { method: 'POST', ...jsonBody(body) }),
   taskInterventions: (taskId: number) =>
     request<Intervention[]>(`tasks/${taskId}/interventions`),
-  interventions: (params: { limit: number; offset: number }) =>
-    request<HistoryEntry[]>(`interventions?limit=${params.limit}&offset=${params.offset}`),
+  interventions: (params: {
+    limit: number
+    offset: number
+    memberId?: number
+    providerId?: number
+  }) =>
+    request<HistoryEntry[]>(
+      `interventions?limit=${params.limit}&offset=${params.offset}` +
+        (params.memberId != null ? `&member_id=${params.memberId}` : '') +
+        (params.providerId != null ? `&provider_id=${params.providerId}` : ''),
+    ),
   deleteTask: (taskId: number) => request<{ ok: boolean }>(`tasks/${taskId}`, { method: 'DELETE' }),
   deleteIntervention: (interventionId: number) =>
     request<{ ok: boolean }>(`interventions/${interventionId}`, { method: 'DELETE' }),
@@ -190,10 +203,22 @@ export const api = {
   deleteMember: (memberId: number) =>
     request<{ ok: boolean }>(`members/${memberId}`, { method: 'DELETE' }),
 
+  providers: () => request<Provider[]>('providers'),
+  createProvider: (body: ProviderIn) =>
+    request<Provider>('providers', { method: 'POST', ...jsonBody(body) }),
+  patchProvider: (providerId: number, body: Partial<ProviderIn>) =>
+    request<Provider>(`providers/${providerId}`, { method: 'PATCH', ...jsonBody(body) }),
+  deleteProvider: (providerId: number) =>
+    request<{ ok: boolean }>(`providers/${providerId}`, { method: 'DELETE' }),
+  trades: () => request<Trade[]>('trades'),
+
   catalog: () => request<Catalog>('catalog'),
   applyCatalogRoom: (
     target: { roomKey: string | null; locationId: number | null },
     itemKeys: string[],
+    /** Objets absents du catalogue, saisis pendant le tour. Un nom que le
+     *  catalogue connait est ramene a sa fiche type cote serveur. */
+    customItems: { name: string; kind: AssetKind }[] = [],
   ) =>
     request<ApplyRoomResult>('catalog/rooms', {
       method: 'POST',
@@ -201,6 +226,7 @@ export const api = {
         room_key: target.roomKey,
         location_id: target.locationId,
         item_keys: itemKeys,
+        custom_items: customItems,
       }),
     }),
   catalogState: () => request<CatalogRoomState[]>('catalog/state'),

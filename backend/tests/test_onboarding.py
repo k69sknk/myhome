@@ -356,3 +356,79 @@ def test_il_faut_choisir_entre_zone_du_catalogue_et_lieu(client: TestClient) -> 
     response = client.post("/api/catalog/rooms", json={"item_keys": []})
 
     assert response.status_code == 422
+
+
+def _apply_custom(client: TestClient, room_key: str, names: list[str], **kwargs: object) -> dict:
+    response = client.post(
+        "/api/catalog/rooms",
+        json={
+            "room_key": room_key,
+            "item_keys": kwargs.get("item_keys", []),
+            "custom_items": [{"name": name} for name in names],
+        },
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+def test_ajouter_un_objet_absent_du_catalogue(client: TestClient) -> None:
+    """Le catalogue ne couvrira jamais tout : une cave a vin doit pouvoir entrer."""
+    body = _apply_custom(client, "cuisine", ["Cave a vin"], item_keys=["refrigerateur"])
+
+    ajoute = next(asset for asset in body["created"] if asset["name"] == "Cave a vin")
+    assert ajoute["catalog_key"] == ""  # aucune provenance : ce n'est pas un modele
+
+    assets = client.get("/api/assets").json()
+    assert {asset["name"] for asset in assets} == {"Réfrigérateur", "Cave a vin"}
+    # Rangee dans la zone du tour, pas hors les murs.
+    assert {asset["location_path"] for asset in assets} == {"Cuisine"}
+
+
+def test_un_nom_que_le_catalogue_connait_ne_cree_pas_de_jumelle(client: TestClient) -> None:
+    """Taper « hotte aspirante » plutot que de cocher la case doit donner la meme
+    fiche : sinon l'objet existe en double et le sosie n'a aucun entretien type."""
+    body = _apply_custom(client, "cuisine", ["hotte aspirante"])
+
+    assert [asset["catalog_key"] for asset in body["created"]] == ["hotte"]
+    assert [asset["name"] for asset in client.get("/api/assets").json()] == ["Hotte aspirante"]
+
+    # Et l'entretien type de la hotte est bien propose, ce qui serait perdu avec
+    # une fiche sans cle.
+    keys = {row["maintenance"]["key"] for row in client.get("/api/catalog/proposals").json()}
+    assert any(key.startswith("hotte") for key in keys)
+
+
+def test_un_ajout_manuel_deja_present_dans_la_zone_est_ignore(client: TestClient) -> None:
+    _apply_custom(client, "cuisine", ["Cave a vin"])
+    second = _apply_custom(client, "cuisine", ["cave a vin"])
+
+    assert second["created"] == []
+    assert len(client.get("/api/assets").json()) == 1
+
+
+def test_un_ajout_manuel_en_double_dans_la_meme_requete_ne_compte_quune_fois(
+    client: TestClient,
+) -> None:
+    body = _apply_custom(client, "cuisine", ["Aquarium", "aquarium"])
+
+    assert [asset["name"] for asset in body["created"]] == ["Aquarium"]
+
+
+def test_le_meme_nom_dans_deux_zones_reste_deux_objets(client: TestClient) -> None:
+    """Deux zones, deux objets : un lavabo par salle d'eau n'est pas un doublon."""
+    _apply_custom(client, "cuisine", ["Adoucisseur"])
+    _apply_custom(client, "salle_de_bain", ["Adoucisseur"])
+
+    assets = client.get("/api/assets").json()
+    assert [asset["name"] for asset in assets] == ["Adoucisseur", "Adoucisseur"]
+    assert {asset["location_path"] for asset in assets} == {"Cuisine", "Salle de bain"}
+
+
+def test_un_ajout_manuel_vide_est_refuse(client: TestClient) -> None:
+    response = client.post(
+        "/api/catalog/rooms",
+        json={"room_key": "cuisine", "item_keys": [], "custom_items": [{"name": " "}]},
+    )
+    # Un nom fait d'espaces passe la validation de longueur mais ne cree rien.
+    assert response.status_code == 201
+    assert response.json()["created"] == []

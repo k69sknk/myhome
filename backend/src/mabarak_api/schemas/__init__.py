@@ -1,15 +1,18 @@
 """Modeles Pydantic d'entree et de sortie."""
 
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 RecurrenceType = Literal["none", "days", "months", "years", "annual_fixed", "custom_date"]
 TaskStatus = Literal["ok", "due_soon", "overdue", "unscheduled"]
 TaskPriority = Literal["low", "normal", "high", "critical"]
 AssetStatus = Literal["planned", "active", "inactive", "removed"]
 AssetKind = Literal["equipment", "building_element"]
-MemberType = Literal["household", "friend", "company"]
+# 'company' a disparu en 0.25.0 : une entreprise est un `provider` (adr/0011).
+# Le CHECK de schema.sql ne peut pas etre repris sur les bases deja installees,
+# c'est donc ce type qui interdit d'en ecrire une nouvelle.
+MemberType = Literal["household", "friend"]
 
 
 class HomeOut(BaseModel):
@@ -160,7 +163,10 @@ class TaskOut(BaseModel):
     replacement_parts: list[ReplacementPartOut] = Field(default_factory=list)
     preparation_notes: str | None = None
     notes: str | None = None
+    # Au plus un des deux (adr/0011). `assignee_name` vaut pour les deux : celui
+    # qui affiche n'a pas a savoir de quelle table vient le nom.
     assignee_id: int | None = None
+    assignee_provider_id: int | None = None
     assignee_name: str | None = None
 
 
@@ -181,6 +187,11 @@ class TaskIn(BaseModel):
     preparation_notes: str | None = None
     notes: str | None = None
     assignee_id: int | None = None
+    assignee_provider_id: int | None = None
+
+    @model_validator(mode="after")
+    def _un_seul_responsable(self) -> Self:
+        return _refuser_deux_responsables(self.assignee_id, self.assignee_provider_id, self)
 
 
 class TaskPatch(BaseModel):
@@ -200,13 +211,41 @@ class TaskPatch(BaseModel):
     preparation_notes: str | None = None
     notes: str | None = None
     assignee_id: int | None = None
+    assignee_provider_id: int | None = None
+
+    @model_validator(mode="after")
+    def _un_seul_responsable(self) -> Self:
+        return _refuser_deux_responsables(self.assignee_id, self.assignee_provider_id, self)
+
+
+def _refuser_deux_responsables[T](member_id: int | None, provider_id: int | None, model: T) -> T:
+    """Le CHECK d'exclusivite de schema.sql, rejoue ici.
+
+    SQLite ne sait pas ajouter une contrainte a une table existante (adr/0011) :
+    sur une base migree, ce validateur est la seule chose qui empeche un entretien
+    d'avoir deux responsables.
+    """
+    if member_id is not None and provider_id is not None:
+        raise ValueError("un entretien a un seul responsable : un membre ou un prestataire")
+    return model
 
 
 class CompleteIn(BaseModel):
     performed_on: str | None = None
+    # Trois facons de dire qui a fait l'entretien : un membre du foyer, un
+    # prestataire, ou du texte libre pour un coup de main qui ne merite pas de
+    # fiche. Avec une fiche, `performed_by` est ignore : le nom vient d'elle.
     performed_by: str | None = None
+    performed_by_member_id: int | None = None
+    performed_by_provider_id: int | None = None
     notes: str | None = None
     amount_cents: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def _un_seul_auteur(self) -> Self:
+        if self.performed_by_member_id is not None and self.performed_by_provider_id is not None:
+            raise ValueError("un entretien a un seul auteur : un membre ou un prestataire")
+        return self
 
 
 class DocumentOut(BaseModel):
@@ -229,6 +268,8 @@ class InterventionOut(BaseModel):
     id: int
     performed_on: str
     performed_by: str | None
+    performed_by_member_id: int | None
+    performed_by_provider_id: int | None
     notes: str | None
     cost: CostOut | None
     documents: list[DocumentOut]
@@ -242,6 +283,8 @@ class HistoryEntryOut(BaseModel):
     task_name: str | None
     performed_on: str
     performed_by: str | None
+    performed_by_member_id: int | None
+    performed_by_provider_id: int | None
     notes: str | None
     cost: CostOut | None
     documents: list[DocumentOut]
@@ -357,6 +400,48 @@ class MemberOut(BaseModel):
     contact: str | None = None
     ha_person_entity_id: str | None = None
     ha_notify_service: str | None = None
+
+
+class ProviderOut(BaseModel):
+    id: int
+    name: str
+    specialty: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    website: str | None = None
+    address: str | None = None
+    customer_ref: str | None = None
+    notes: str | None = None
+
+
+class ProviderIn(BaseModel):
+    name: str = Field(min_length=1)
+    # Slug d'un metier de trades.yaml. Non valide contre la liste : un metier
+    # retire du fichier ne doit pas rendre une fiche existante impossible a
+    # enregistrer (meme principe que les cles de catalogue, adr/0008).
+    specialty: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    website: str | None = None
+    address: str | None = None
+    customer_ref: str | None = None
+    notes: str | None = None
+
+
+class ProviderPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
+    specialty: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    website: str | None = None
+    address: str | None = None
+    customer_ref: str | None = None
+    notes: str | None = None
+
+
+class TradeOut(BaseModel):
+    slug: str
+    label: str
 
 
 class MemberIn(BaseModel):

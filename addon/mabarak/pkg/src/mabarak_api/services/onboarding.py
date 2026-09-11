@@ -14,7 +14,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..catalog import CatalogMaintenance, load_catalog
+from ..catalog import Catalog, CatalogMaintenance, load_catalog
 from ..clock import utc_now_iso, utc_today
 from ..models import (
     Asset,
@@ -44,6 +44,20 @@ class Proposal:
     # Un meme objet existe souvent dans plusieurs zones (volets, fenetres, siphon) :
     # sans le lieu, l'ecran de recapitulatif empile des propositions identiques.
     location_path: str | None
+
+
+@dataclass(frozen=True)
+class CustomItem:
+    """Objet que le catalogue ne propose pas, saisi pendant le tour de la maison.
+
+    Le catalogue ne couvrira jamais tout ce qu'on trouve chez les gens (aquarium,
+    cave a vin, adoucisseur). Une fiche creee ainsi n'a pas de `catalog_key` : elle
+    n'a donc aucun entretien type a proposer, et c'est normal — l'utilisateur les
+    ajoutera a la main a l'ecran suivant.
+    """
+
+    name: str
+    kind: str = "equipment"
 
 
 @dataclass(frozen=True)
@@ -95,7 +109,11 @@ def house_state(session: Session, home: Home) -> list[RoomState]:
 
 
 def apply_room(
-    session: Session, home: Home, room_key: str, item_keys: list[str]
+    session: Session,
+    home: Home,
+    room_key: str,
+    item_keys: list[str],
+    custom_items: list[CustomItem] | None = None,
 ) -> tuple[Location, list[Asset]]:
     """Cree la zone et les fiches cochees, en sautant ce qui existe deja.
 
@@ -141,11 +159,15 @@ def apply_room(
         session.add(location)
         session.flush()
 
-    return location, add_items(session, home, location, item_keys)
+    return location, add_items(session, home, location, item_keys, custom_items)
 
 
 def apply_items_to_location(
-    session: Session, home: Home, location_id: int, item_keys: list[str]
+    session: Session,
+    home: Home,
+    location_id: int,
+    item_keys: list[str],
+    custom_items: list[CustomItem] | None = None,
 ) -> tuple[Location, list[Asset]]:
     """Meme chose, dans un lieu quelconque : les zones que l'utilisateur a creees
     lui-meme n'ont pas de cle de catalogue mais accueillent les memes objets."""
@@ -157,11 +179,19 @@ def apply_items_to_location(
     if unknown:
         raise UnknownCatalogKeyError(f"objets inconnus : {', '.join(sorted(unknown))}")
 
-    return location, add_items(session, home, location, item_keys)
+    return location, add_items(session, home, location, item_keys, custom_items)
+
+
+def _normalized(name: str) -> str:
+    return name.strip().casefold()
 
 
 def add_items(
-    session: Session, home: Home, location: Location, item_keys: list[str]
+    session: Session,
+    home: Home,
+    location: Location,
+    item_keys: list[str],
+    custom_items: list[CustomItem] | None = None,
 ) -> list[Asset]:
     """Cree les fiches cochees dans un lieu, en sautant ou adoptant ce qui existe."""
     catalog = load_catalog()
@@ -173,6 +203,8 @@ def add_items(
     by_name = {asset.name: asset for asset in existing}
 
     by_key = {item.key: item for item in catalog.items}
+    item_keys, free_items = _route_custom_items(catalog, item_keys, custom_items or [])
+
     created: list[Asset] = []
     for item_key in item_keys:
         item = by_key[item_key]
@@ -203,8 +235,53 @@ def add_items(
         session.add(asset)
         created.append(asset)
 
+    # Les fiches hors catalogue viennent apres, pour que la comparaison des noms
+    # tienne compte de ce que les cases cochees viennent d'ajouter.
+    taken = {_normalized(name) for name in by_name}
+    taken |= {_normalized(asset.name) for asset in created}
+    for entry in free_items:
+        name = entry.name.strip()
+        if _normalized(name) in taken:
+            continue  # deja dans cette zone : cocher deux fois ne fait pas deux objets
+        taken.add(_normalized(name))
+        asset = Asset(
+            home_id=home.id,
+            kind=entry.kind,
+            name=name,
+            location_id=location.id,
+            status="active",
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(asset)
+        created.append(asset)
+
     session.flush()
     return created
+
+
+def _route_custom_items(
+    catalog: Catalog, item_keys: list[str], custom_items: list[CustomItem]
+) -> tuple[list[str], list[CustomItem]]:
+    """Separe les saisies libres de celles que le catalogue connait deja.
+
+    Taper « Hotte aspirante » plutot que de cocher la case doit donner la MEME
+    fiche : sans cela l'utilisateur obtient une jumelle sans cle de catalogue,
+    donc sans aucun entretien type propose a l'ecran suivant. Le nom est compare
+    sans tenir compte de la casse, la saisie n'etant pas un identifiant.
+    """
+    by_label = {_normalized(item.label): item for item in catalog.items if not item.deprecated}
+    keys = list(item_keys)
+    free: list[CustomItem] = []
+    for entry in custom_items:
+        if not entry.name.strip():
+            continue
+        known = by_label.get(_normalized(entry.name))
+        if known is None:
+            free.append(entry)
+        elif known.key not in keys:
+            keys.append(known.key)
+    return keys, free
 
 
 def pending_proposals(session: Session, home: Home) -> list[Proposal]:
@@ -309,6 +386,7 @@ def apply_maintenance(
         asset_id=asset_id,
         home_id=None if asset_id is not None else home.id,
         assignee_id=body.assignee_id,
+        assignee_provider_id=body.assignee_provider_id,
         name=body.name.strip(),
         description=(body.notes or "").strip() or None,
         preparation_notes=(body.preparation_notes or "").strip() or None,

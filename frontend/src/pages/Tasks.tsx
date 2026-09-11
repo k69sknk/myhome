@@ -2,7 +2,15 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { api } from '../api/client'
-import type { AssetListItem, Category, Member, Task, TaskStatus } from '../api/types'
+import type {
+  AssetListItem,
+  Category,
+  Member,
+  Provider,
+  Task,
+  TaskStatus,
+  Trade,
+} from '../api/types'
 import AssetSelect from '../components/AssetSelect'
 import CompleteTask from '../components/CompleteTask'
 import Field from '../components/Field'
@@ -20,6 +28,8 @@ export default function Tasks() {
   const [assets, setAssets] = useState<AssetListItem[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [members, setMembers] = useState<Member[]>([])
+  const [providers, setProviders] = useState<Provider[]>([])
+  const [trades, setTrades] = useState<Trade[]>([])
   const [selectedAssetId, setSelectedAssetId] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -29,13 +39,22 @@ export default function Tasks() {
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([api.tasks(), api.assets(), api.categories(), api.members()])
-      .then(([taskList, assetList, categoryList, memberList]) => {
+    Promise.all([
+      api.tasks(),
+      api.assets(),
+      api.categories(),
+      api.members(),
+      api.providers(),
+      api.trades(),
+    ])
+      .then(([taskList, assetList, categoryList, memberList, providerList, tradeList]) => {
         if (cancelled) return
         setTasks(taskList)
         setAssets(assetList)
         setCategories(categoryList)
         setMembers(memberList)
+        setProviders(providerList)
+        setTrades(tradeList)
       })
       .catch((caught: unknown) => {
         if (!cancelled) setError(errorMessage(caught))
@@ -66,6 +85,10 @@ export default function Tasks() {
         {selectedAssetId && (
           <TaskForm
             members={members}
+            providers={providers}
+            trades={trades}
+            onMemberCreated={(member) => setMembers((current) => [...current, member])}
+            onProviderCreated={(provider) => setProviders((current) => [...current, provider])}
             onSubmit={async (body) => {
               await api.createTask(Number(selectedAssetId), body)
               await reload()
@@ -118,6 +141,12 @@ export default function Tasks() {
                       <CompleteTask
                         task={task}
                         members={members}
+                        providers={providers}
+                        trades={trades}
+                        onMemberCreated={(member) => setMembers((current) => [...current, member])}
+                        onProviderCreated={(provider) =>
+                          setProviders((current) => [...current, provider])
+                        }
                         onCompleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
                         onEdited={() => void reload().catch((caught) => setError(errorMessage(caught)))}
                         onDeleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}

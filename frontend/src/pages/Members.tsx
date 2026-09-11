@@ -2,17 +2,16 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ApiError, api } from '../api/client'
-import type { HaPersonOption, Member, MemberIn, MemberType, Task } from '../api/types'
+import type { HaPersonOption, HistoryEntry, Member, MemberIn, MemberType, Task } from '../api/types'
 import Field from '../components/Field'
 import StatusBadge from '../components/StatusBadge'
 import { useToast } from '../components/Toast'
 import { EditIcon, TrashIcon } from '../components/icons'
-import { errorMessage, formatDate, formatRecurrence } from '../lib/format'
+import { errorMessage, formatAmount, formatDate, formatRecurrence } from '../lib/format'
 
 const MEMBER_TYPE_LABEL: Record<MemberType, string> = {
   household: 'Foyer',
   friend: 'Ami',
-  company: 'Entreprise',
 }
 
 export default function Members() {
@@ -100,7 +99,8 @@ export default function Members() {
     <section className="page">
       <h1 className="page__title">Membres</h1>
       <p className="page__lead">
-        Personnes, amis ou entreprises a qui deleguer des entretiens.
+        Le foyer et les proches a qui confier un entretien. Les entreprises ont leur propre
+        annuaire, <Link to="/prestataires">Prestataires</Link>.
       </p>
 
       {error && <p className="status status--error">{error}</p>}
@@ -124,7 +124,6 @@ export default function Members() {
             >
               <option value="household">Foyer</option>
               <option value="friend">Ami</option>
-              <option value="company">Entreprise</option>
             </select>
           </Field>
           <Field label="Contact (facultatif)">
@@ -210,6 +209,10 @@ function MemberRow({
   onDelete: () => void
 }) {
   const [renaming, setRenaming] = useState(false)
+  /** Ce que ce membre a deja realise. Charge a la demande, comme l'historique
+   *  d'un entretien : la plupart des lignes de l'annuaire ne seront pas ouvertes. */
+  const [history, setHistory] = useState<HistoryEntry[] | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [name, setName] = useState(member.name)
   const [memberType, setMemberType] = useState<MemberType>(member.member_type)
   const [contact, setContact] = useState(member.contact ?? '')
@@ -236,12 +239,27 @@ function MemberRow({
     }
   }
 
+  async function toggleHistory() {
+    const next = !historyOpen
+    setHistoryOpen(next)
+    if (next && history === null) {
+      try {
+        setHistory(await api.interventions({ limit: 20, offset: 0, memberId: member.id }))
+      } catch (caught: unknown) {
+        onError(errorMessage(caught))
+      }
+    }
+  }
+
   return (
     <li>
       <div className="tree__row">
         <strong>{member.name}</strong>
         <span className="muted">{MEMBER_TYPE_LABEL[member.member_type]}</span>
         {member.contact && <span className="muted">{member.contact}</span>}
+        <button type="button" className="btn btn--small" onClick={() => void toggleHistory()}>
+          {historyOpen ? 'Masquer' : 'Interventions'}
+        </button>
         <button
           type="button"
           className="btn btn--small btn--edit"
@@ -265,7 +283,6 @@ function MemberRow({
             >
               <option value="household">Foyer</option>
               <option value="friend">Ami</option>
-              <option value="company">Entreprise</option>
             </select>
           </Field>
           <Field label="Contact">
@@ -299,6 +316,42 @@ function MemberRow({
             OK
           </button>
         </form>
+      )}
+      {historyOpen && (
+        <ul className="rows">
+          {history === null && (
+            <li>
+              <span className="muted">Chargement...</span>
+            </li>
+          )}
+          {history !== null && history.length === 0 && (
+            <li>
+              <span className="muted">
+                Aucun entretien realise a son nom. L'historique se remplit quand on choisit cette
+                fiche en marquant un entretien comme fait.
+              </span>
+            </li>
+          )}
+          {history?.map((entry) => (
+            <li key={entry.id}>
+              <div className="rows__link">
+                <span>
+                  <Link to={`/equipements/${entry.asset_id}`}>
+                    {entry.task_name ?? entry.asset_name}
+                  </Link>
+                  <span className="muted">
+                    {entry.task_name ? ` · ${entry.asset_name}` : ''}
+                    {' · '}
+                    {formatDate(entry.performed_on)}
+                    {entry.cost
+                      ? ` · ${formatAmount(entry.cost.amount_cents, entry.cost.currency)}`
+                      : ''}
+                  </span>
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
       {tasks.length > 0 && (
         <ul className="rows">

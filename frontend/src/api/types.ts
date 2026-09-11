@@ -202,7 +202,8 @@ export interface ReplacementPartIn {
   source?: string | null
 }
 
-export type MemberType = 'household' | 'friend' | 'company'
+/** Une entreprise n'est plus un type de membre mais un `Provider` (ADR-0011). */
+export type MemberType = 'household' | 'friend'
 
 export interface Member {
   id: number
@@ -219,6 +220,28 @@ export interface MemberIn {
   contact?: string | null
   ha_person_entity_id?: string | null
   ha_notify_service?: string | null
+}
+
+/** L'entreprise ou l'artisan qui intervient. Profil distinct d'un membre : on
+ *  l'appelle, on ne le notifie pas (ADR-0011). */
+export interface Provider {
+  id: number
+  name: string
+  specialty: string | null
+  phone: string | null
+  email: string | null
+  website: string | null
+  address: string | null
+  customer_ref: string | null
+  notes: string | null
+}
+
+export type ProviderIn = Omit<Provider, 'id'>
+
+/** Metier, pris dans une liste versionnee avec le catalogue. */
+export interface Trade {
+  slug: string
+  label: string
 }
 
 export interface HaPersonOption {
@@ -249,6 +272,9 @@ export interface Task {
   preparation_notes: string | null
   notes: string | null
   assignee_id: number | null
+  assignee_provider_id: number | null
+  /** Le nom de celui qui s'en occupe, membre ou prestataire : l'affichage n'a pas
+   *  a savoir de quelle table il sort. */
   assignee_name: string | null
 }
 
@@ -271,7 +297,11 @@ export interface Cost {
 export interface Intervention {
   id: number
   performed_on: string
+  /** Le nom affiche, fige a la saisie ; le membre, quand il y en a un, releve de
+   *  l'annuaire et survit aux fautes de frappe. */
   performed_by: string | null
+  performed_by_member_id: number | null
+  performed_by_provider_id: number | null
   notes: string | null
   cost: Cost | null
   documents: DocumentMeta[]
@@ -299,14 +329,19 @@ export interface TaskIn {
   replacement_parts?: ReplacementPartIn[]
   preparation_notes?: string | null
   notes?: string | null
+  /** Au plus un des deux : un membre du foyer, ou un prestataire (ADR-0011). */
   assignee_id?: number | null
+  assignee_provider_id?: number | null
 }
 
 export type TaskPatch = Partial<TaskIn>
 
 export interface CompleteIn {
   performed_on?: string | null
+  /** Avec un membre, le backend ignore `performed_by` : le nom vient de sa fiche. */
   performed_by?: string | null
+  performed_by_member_id?: number | null
+  performed_by_provider_id?: number | null
   notes?: string | null
   amount_cents?: number | null
 }
@@ -393,10 +428,13 @@ export interface CatalogMaintenance {
   preparation_notes: string | null
 }
 
+/** Un objet du catalogue ou une fiche : un appareil, ou une partie du bati. */
+export type AssetKind = 'equipment' | 'building_element'
+
 export interface CatalogItem {
   key: string
   label: string
-  kind: 'equipment' | 'building_element'
+  kind: AssetKind
   category: string | null
   deprecated: boolean
   maintenances: CatalogMaintenance[]

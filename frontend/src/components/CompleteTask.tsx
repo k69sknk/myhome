@@ -1,31 +1,52 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
 import { ApiError, api } from '../api/client'
-import type { Intervention, Member, Task } from '../api/types'
+import type { Intervention, Member, Provider, Task, Trade } from '../api/types'
 import { errorMessage, formatAmount, formatDate, todayIso } from '../lib/format'
+import AssigneeSelect, { assigneeValue, parseAssignee } from './AssigneeSelect'
 import Field from './Field'
 import TaskForm from './TaskForm'
 import { useToast } from './Toast'
 import { EditIcon, TrashIcon } from './icons'
 
+/** L'assigne de l'entretien, pre-selectionne comme auteur probable. */
+function defaultPerformedBy(task: Task): string {
+  if (task.assignee_id != null) return assigneeValue('member', task.assignee_id)
+  if (task.assignee_provider_id != null) return assigneeValue('provider', task.assignee_provider_id)
+  return ''
+}
+
 export default function CompleteTask({
   task,
   members,
+  providers,
+  trades,
   onCompleted,
   onEdited,
   onDeleted,
+  onMemberCreated,
+  onProviderCreated,
 }: {
   task: Task
   members: Member[]
+  providers: Provider[]
+  trades?: Trade[]
   onCompleted: () => void
   onEdited: () => void
   onDeleted: () => void
+  onMemberCreated?: (member: Member) => void
+  onProviderCreated?: (provider: Provider) => void
 }) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [performedOn, setPerformedOn] = useState(todayIso())
+  /** Qui l'a fait, de deux facons : une fiche — l'entretien rejoint alors
+   *  l'historique de ce membre ou de ce prestataire — ou du texte libre pour un
+   *  coup de main qui n'en merite pas. L'assigne de l'entretien est le defaut :
+   *  c'est presque toujours lui qui s'est deplace. */
+  const [performedBySelection, setPerformedBySelection] = useState(defaultPerformedBy(task))
   const [performedBy, setPerformedBy] = useState('')
   const [notes, setNotes] = useState('')
   const [isPro, setIsPro] = useState(false)
@@ -71,9 +92,12 @@ export default function CompleteTask({
     setError(null)
     try {
       const amountCents = isPro && amount.trim() ? Math.round(Number(amount) * 100) : null
+      const author = parseAssignee(performedBySelection)
       const completed = await api.completeTask(task.id, {
         performed_on: performedOn,
-        performed_by: performedBy.trim() || null,
+        performed_by: author ? null : performedBy.trim() || null,
+        performed_by_member_id: author?.kind === 'member' ? author.id : null,
+        performed_by_provider_id: author?.kind === 'provider' ? author.id : null,
         notes: notes.trim() || null,
         amount_cents: amountCents,
       })
@@ -86,6 +110,7 @@ export default function CompleteTask({
         }
       }
       setOpen(false)
+      setPerformedBySelection(defaultPerformedBy(task))
       setPerformedBy('')
       setNotes('')
       setIsPro(false)
@@ -196,6 +221,10 @@ export default function CompleteTask({
       {editing && (
         <TaskForm
           members={members}
+          providers={providers}
+          trades={trades}
+          onMemberCreated={onMemberCreated}
+          onProviderCreated={onProviderCreated}
           initial={task}
           onCancel={() => setEditing(false)}
           onSubmit={async (body) => {
@@ -218,12 +247,26 @@ export default function CompleteTask({
                 onChange={(event) => setPerformedOn(event.target.value)}
               />
             </Field>
-            <Field label={isPro ? 'Entreprise' : 'Qui (facultatif)'}>
-              <input
-                type="text"
-                value={performedBy}
-                onChange={(event) => setPerformedBy(event.target.value)}
-                placeholder={isPro ? 'Dupont Chauffage...' : 'Vous, un pro...'}
+            <Field
+              label="Qui (facultatif)"
+              hint="Une fiche — l'entretien rejoint alors son historique — ou un simple nom."
+            >
+              <AssigneeSelect
+                members={members}
+                providers={providers}
+                trades={trades}
+                value={performedBySelection}
+                onChange={(value, picked) => {
+                  setPerformedBySelection(value)
+                  // Un prestataire, c'est une facture et un montant : autant
+                  // ouvrir les champs plutot que d'attendre la case a cocher.
+                  if (picked?.kind === 'provider') setIsPro(true)
+                }}
+                onMemberCreated={onMemberCreated}
+                onProviderCreated={onProviderCreated}
+                freeText={performedBy}
+                onFreeText={setPerformedBy}
+                placeholder="Vous, un proche, un prestataire..."
               />
             </Field>
             <Field label="Note (facultatif)">

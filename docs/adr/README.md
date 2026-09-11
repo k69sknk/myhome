@@ -22,6 +22,7 @@ l'ancien passe en statut `Remplacé par ADR-XXXX`.
 | [0008](0008-catalogue-en-fichier-versionne.md) | Le catalogue de démarrage est un fichier versionné, jamais des données en base | Accepté |
 | [0009](0009-planificateur-des-rappels.md) | Le planificateur des rappels vit dans le processus de l'API | Accepté |
 | [0010](0010-saisonnalite.md) | La saisonnalité est une fenêtre sur la récurrence, pas un type de récurrence | Accepté |
+| [0011](0011-prestataires-table-a-part.md) | Les prestataires sont une table à part, pas un type de membre | Accepté |
 
 Le choix de l'architecture hybride add-on plus intégration est documenté directement dans
 [../ARCHITECTURE.md](../ARCHITECTURE.md), section 2, avec les options écartées.

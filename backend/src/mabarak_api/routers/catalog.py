@@ -6,9 +6,10 @@ from sqlalchemy.orm import Session
 
 from ..catalog import Catalog, CatalogMaintenance, load_catalog
 from ..db import get_session
-from ..schemas import TaskIn
+from ..schemas import AssetKind, TaskIn
 from ..services.home import ensure_home
 from ..services.onboarding import (
+    CustomItem,
     UnknownCatalogKeyError,
     apply_items_to_location,
     apply_maintenance,
@@ -21,16 +22,25 @@ from ..services.onboarding import (
 router = APIRouter(tags=["catalogue"])
 
 
+class CustomItemIn(BaseModel):
+    # Un objet absent du catalogue, tape pendant le tour. Un nom que le catalogue
+    # connait pourtant n'est pas cree en double : il est ramene a sa fiche type.
+    name: str = Field(min_length=1)
+    kind: AssetKind = "equipment"
+
+
 class ApplyRoomIn(BaseModel):
     # Une zone du catalogue, ou un lieu que l'utilisateur a cree lui-meme.
     room_key: str | None = None
     location_id: int | None = None
     item_keys: list[str] = Field(default_factory=list)
+    custom_items: list[CustomItemIn] = Field(default_factory=list)
 
 
 class CreatedAsset(BaseModel):
     id: int
     name: str
+    # Vide pour une fiche saisie a la main : elle ne vient d'aucun modele.
     catalog_key: str
 
 
@@ -85,12 +95,13 @@ def apply_room_endpoint(body: ApplyRoomIn, session: Session = Depends(get_sessio
     home = ensure_home(session)
     if (body.room_key is None) == (body.location_id is None):
         raise HTTPException(422, "renseignez soit 'room_key', soit 'location_id'")
+    custom = [CustomItem(name=row.name, kind=row.kind) for row in body.custom_items]
     try:
         if body.room_key is not None:
-            location, created = apply_room(session, home, body.room_key, body.item_keys)
+            location, created = apply_room(session, home, body.room_key, body.item_keys, custom)
         else:
             location, created = apply_items_to_location(
-                session, home, body.location_id or 0, body.item_keys
+                session, home, body.location_id or 0, body.item_keys, custom
             )
     except UnknownCatalogKeyError as error:
         raise HTTPException(404, str(error)) from error

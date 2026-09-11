@@ -136,6 +136,17 @@ class Catalog(BaseModel):
         return self
 
 
+class Trade(BaseModel):
+    """Metier d'un prestataire. Liste fermee et versionnee, jamais du texte libre :
+    « chauffagiste », « Chauffagiste » et « chauffage » seraient sinon trois metiers
+    differents et le regroupement par corps de metier ne voudrait plus rien dire."""
+
+    model_config = {"extra": "forbid"}
+
+    slug: str
+    label: str
+
+
 def _reject_duplicates(keys: list[str], label: str) -> None:
     seen: set[str] = set()
     for key in keys:
@@ -146,6 +157,17 @@ def _reject_duplicates(keys: list[str], label: str) -> None:
 
 def _read(name: str) -> object:
     return yaml.safe_load((_CATALOG_DIR / name).read_text(encoding="utf-8"))
+
+
+@lru_cache(maxsize=1)
+def load_trades() -> tuple[Trade, ...]:
+    """Charge la liste des metiers. Separee du catalogue : elle n'a rien a voir
+    avec les pieces et les objets, et l'ecran des prestataires n'a pas a telecharger
+    tout le catalogue pour remplir un menu deroulant."""
+    rows: list[dict[str, str]] = _read("trades.yaml")  # type: ignore[assignment]
+    trades = [Trade(**row) for row in rows]
+    _reject_duplicates([trade.slug for trade in trades], "metier")
+    return tuple(trades)
 
 
 @lru_cache(maxsize=1)

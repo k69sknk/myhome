@@ -1,12 +1,12 @@
 """Annuaire des membres (delegation d'entretiens)."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ..clock import utc_now_iso
 from ..db import get_session
-from ..models import Member
+from ..models import Intervention, Member
 from ..schemas import MemberIn, MemberOut, MemberPatch
 from ..services.home import ensure_home
 
@@ -77,6 +77,16 @@ def patch_member(
 @router.delete("/members/{member_id}")
 def delete_member(member_id: int, session: Session = Depends(get_session)) -> dict[str, bool]:
     row = _member_or_404(session, member_id)
+    # Le ON DELETE SET NULL de schema.sql ne vaut que pour les installations
+    # neuves : la colonne ajoutee par la migration 0011 n'a pas pu emporter sa
+    # clause REFERENCES (SQLite ne sait pas l'ajouter apres coup). On coupe donc
+    # le lien ici, sur les deux schemas a la fois. L'historique garde son texte :
+    # `performed_by` reste rempli, l'entretien ne perd pas son auteur.
+    session.execute(
+        update(Intervention)
+        .where(Intervention.performed_by_member_id == member_id)
+        .values(performed_by_member_id=None)
+    )
     session.delete(row)
     session.flush()
     return {"ok": True}

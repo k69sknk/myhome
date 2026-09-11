@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { AssetListItem, Category } from '../api/types'
 import { errorMessage } from '../lib/format'
+import { matches as matchesQuery, normalize } from '../lib/search'
 import { useToast } from './Toast'
 
 interface Option {
@@ -168,13 +169,10 @@ export default function AssetSelect({
   }, [selectedLabel])
 
   const trimmed = query.trim()
-  const matches = trimmed
-    ? options.filter((option) => option.label.toLowerCase().includes(trimmed.toLowerCase()))
-    : options
+  const matches = options.filter((option) => matchesQuery([option.label], trimmed))
+  const normalized = normalize(trimmed)
   const hasExactMatch = options.some(
-    (option) =>
-      option.name.toLowerCase() === trimmed.toLowerCase() ||
-      option.label.toLowerCase() === trimmed.toLowerCase(),
+    (option) => normalize(option.name) === normalized || normalize(option.label) === normalized,
   )
   const canCreate = trimmed !== '' && !hasExactMatch
   const tree = useMemo(() => buildLocationTree(matches), [matches])
