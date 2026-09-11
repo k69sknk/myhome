@@ -4,14 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from ..catalog import Catalog, CatalogMaintenance, CatalogRecurrence, load_catalog
+from ..catalog import Catalog, CatalogMaintenance, load_catalog
 from ..db import get_session
+from ..schemas import TaskIn
 from ..services.home import ensure_home
 from ..services.onboarding import (
     UnknownCatalogKeyError,
     apply_items_to_location,
     apply_maintenance,
     apply_room,
+    draft_from_catalog,
     house_state,
     pending_proposals,
 )
@@ -50,13 +52,17 @@ class ProposalOut(BaseModel):
     asset_id: int | None
     asset_name: str | None
     location_path: str | None
+    # Le modele du catalogue sous forme de fiche editable : l'ecran de
+    # recapitulatif la presente pre-remplie et laisse tout modifier.
+    draft: TaskIn
 
 
 class MaintenanceSelection(BaseModel):
-    key: str
+    # Provenance : l'ancrage de recurrence et la tracabilite viennent du
+    # catalogue. Absente pour un entretien ajoute de toutes pieces.
+    key: str | None = None
     asset_id: int | None = None
-    # Frequence ajustee par l'utilisateur dans l'ecran de recapitulatif.
-    recurrence: CatalogRecurrence | None = None
+    task: TaskIn
 
 
 class ApplyMaintenancesIn(BaseModel):
@@ -122,6 +128,7 @@ def proposals(session: Session = Depends(get_session)) -> list[ProposalOut]:
             asset_id=proposal.asset_id,
             asset_name=proposal.asset_name,
             location_path=proposal.location_path,
+            draft=draft_from_catalog(proposal.maintenance.key),
         )
         for proposal in pending_proposals(session, home)
     ]
@@ -138,9 +145,9 @@ def apply_maintenances_endpoint(
             apply_maintenance(
                 session,
                 home,
-                key=selection.key,
+                body=selection.task,
                 asset_id=selection.asset_id,
-                recurrence_override=selection.recurrence,
+                key=selection.key,
             )
     except UnknownCatalogKeyError as error:
         raise HTTPException(404, str(error)) from error

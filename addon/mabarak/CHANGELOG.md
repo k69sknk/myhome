@@ -3,6 +3,18 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.19.0
+
+- **Chaque entretien proposé est modifiable avant d'être planifié.** Un crayon
+  ouvre la fiche complète (nom, priorité, fréquence, dernier entretien,
+  personne assignée, pièces à remplacer, notes) dans une boîte qui s'ouvre
+  par-dessus le récapitulatif : les cases déjà cochées et les fréquences déjà
+  ajustées restent intactes.
+
+- **Ajouter un entretien que le catalogue ne propose pas**, avec le bouton
+  « + Ajouter un entretien » sous chaque élément. Le catalogue donne un point de
+  départ, pas une limite.
+
 ## 0.18.0
 
 - **Fin des entretiens en double dans le récapitulatif.** Un objet présent dans

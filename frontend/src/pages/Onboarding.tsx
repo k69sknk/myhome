@@ -5,16 +5,33 @@ import { api } from '../api/client'
 import type {
   Catalog,
   CatalogProposal,
-  CatalogRecurrence,
   CatalogRoomState,
   LocationType,
   MaintenanceSelection,
+  Member,
+  RecurrenceType,
+  TaskIn,
 } from '../api/types'
 import Field from '../components/Field'
+import Modal from '../components/Modal'
+import TaskForm from '../components/TaskForm'
 import { useToast } from '../components/Toast'
-import { errorMessage, formatCatalogRecurrence } from '../lib/format'
+import { EditIcon } from '../components/icons'
+import { errorMessage, formatRecurrence } from '../lib/format'
 
 type Phase = 'zones' | 'objets' | 'entretiens' | 'fin'
+
+/** Un entretien en attente de validation : pré-rempli depuis le catalogue, ou
+ *  ajouté de toutes pièces. Rien n'est créé en base avant le clic final, donc le
+ *  crayon édite ce brouillon — et on ne perd pas le reste du récapitulatif. */
+interface Draft {
+  id: string
+  catalogKey: string | null
+  assetId: number | null
+  assetName: string | null
+  locationPath: string | null
+  task: TaskIn
+}
 
 /** Zone ajoutee par l'utilisateur : le catalogue ne couvrira jamais tous les
  *  logements (atelier, veranda, cellier...). Elle n'a pas de cle de catalogue. */
@@ -36,20 +53,22 @@ export default function Onboarding() {
   const [roomIndex, setRoomIndex] = useState(0)
   const [checked, setChecked] = useState<string[]>([])
   const [filter, setFilter] = useState('')
-  const [proposals, setProposals] = useState<CatalogProposal[]>([])
+  const [drafts, setDrafts] = useState<Draft[]>([])
+  const [members, setMembers] = useState<Member[]>([])
   const [rejected, setRejected] = useState<string[]>([])
-  const [intervals, setIntervals] = useState<Record<string, number>>({})
+  const [editing, setEditing] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    Promise.all([api.catalog(), api.catalogState(), api.locationTypes()])
-      .then(([nextCatalog, nextState, nextTypes]) => {
+    Promise.all([api.catalog(), api.catalogState(), api.locationTypes(), api.members()])
+      .then(([nextCatalog, nextState, nextTypes, nextMembers]) => {
         if (cancelled) return
         setCatalog(nextCatalog)
         setState(nextState)
         setLocationTypes(nextTypes)
+        setMembers(nextMembers)
       })
       .catch((caught: unknown) => {
         if (!cancelled) setError(errorMessage(caught))
@@ -143,13 +162,35 @@ export default function Onboarding() {
     setBusy(true)
     setError(null)
     try {
-      setProposals(await api.catalogProposals())
+      const rows = await api.catalogProposals()
+      setDrafts(rows.map(toDraft))
       setPhase('entretiens')
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     } finally {
       setBusy(false)
     }
+  }
+
+  function updateDraft(id: string, task: TaskIn) {
+    setDrafts(drafts.map((draft) => (draft.id === id ? { ...draft, task } : draft)))
+  }
+
+  /** Le « + » d'un élément : un entretien que le catalogue ne propose pas. */
+  function addDraft(assetId: number | null, assetName: string | null, path: string | null) {
+    const id = `ajout:${assetId ?? 'maison'}:${Date.now()}`
+    setDrafts([
+      ...drafts,
+      {
+        id,
+        catalogKey: null,
+        assetId,
+        assetName,
+        locationPath: path,
+        task: { name: '', recurrence_type: 'months', recurrence_interval: 6 },
+      },
+    ])
+    setEditing(id)
   }
 
   /** Enregistre la zone courante avant d'avancer : l'app est utilisable a mi-parcours. */
@@ -178,18 +219,20 @@ export default function Onboarding() {
     }
   }
 
-  const retained = proposals.filter((proposal) => !rejected.includes(proposalId(proposal)))
+  const retained = drafts.filter(
+    (draft) => !rejected.includes(draft.id) && draft.task.name.trim() !== '',
+  )
+  const editingDraft = drafts.find((draft) => draft.id === editing)
 
   async function createMaintenances() {
     setBusy(true)
     setError(null)
     try {
-      const selections: MaintenanceSelection[] = retained
-        .map((proposal) => ({
-          key: proposal.maintenance.key,
-          asset_id: proposal.asset_id,
-          recurrence: adjusted(proposal, intervals[proposalId(proposal)]),
-        }))
+      const selections: MaintenanceSelection[] = retained.map((draft) => ({
+        key: draft.catalogKey,
+        asset_id: draft.assetId,
+        task: draft.task,
+      }))
       await api.applyCatalogMaintenances(selections)
       showToast(`${selections.length} entretiens planifiés`)
       setPhase('fin')
@@ -333,8 +376,8 @@ export default function Onboarding() {
             Voici les entretiens qu'on vous propose. Décochez ce qui ne vous concerne pas et
             ajustez les fréquences qui comptent — tout reste modifiable ensuite.
           </p>
-          {proposals.length > 0 && <Volume proposals={retained} intervals={intervals} />}
-          {proposals.length === 0 ? (
+          {drafts.length > 0 && <Volume drafts={retained} />}
+          {drafts.length === 0 ? (
             <div className="card">
               <p className="muted">
                 Rien à proposer : aucune fiche n'a été créée, ou tous les entretiens existent déjà.
@@ -347,46 +390,64 @@ export default function Onboarding() {
             </div>
           ) : (
             <>
-              {groupByAsset(proposals).map(([groupName, groupProposals]) => (
-                <div className="card" key={groupName}>
-                  <h2 className="card__title">{groupName}</h2>
-                  {groupProposals.map((proposal) => {
-                    const id = proposalId(proposal)
-                    const recurrence = proposal.maintenance.recurrence
-                    return (
-                      <div key={id} className="task">
-                        <div className="task__main">
+              {groupDrafts(drafts).map((group) => (
+                <div className="card" key={group.key}>
+                  <h2 className="card__title">{group.label}</h2>
+                  {group.drafts.map((draft) => (
+                    <div key={draft.id} className="task">
+                      <div className="task__main">
+                        <div className="proposal__header">
                           <label className="complete__checkbox">
                             <input
                               type="checkbox"
-                              checked={!rejected.includes(id)}
-                              onChange={() => setRejected(toggle(rejected, id))}
+                              checked={!rejected.includes(draft.id)}
+                              onChange={() => setRejected(toggle(rejected, draft.id))}
                             />
-                            <strong>{proposal.maintenance.label}</strong>
+                            <strong>{draft.task.name || 'Sans nom'}</strong>
                           </label>
-                          {proposal.maintenance.description && (
-                            <p className="muted">{proposal.maintenance.description}</p>
-                          )}
-                          {recurrence.type === 'annual_fixed' ? (
-                            <p className="muted">{formatCatalogRecurrence(recurrence)}</p>
-                          ) : (
-                            <p className="muted interval">
-                              Tous les
-                              <input
-                                type="number"
-                                min={1}
-                                value={intervals[id] ?? recurrence.interval ?? 1}
-                                onChange={(event) =>
-                                  setIntervals({ ...intervals, [id]: Number(event.target.value) })
-                                }
-                              />
-                              {unitLabel(recurrence)}
-                            </p>
-                          )}
+                          <button
+                            type="button"
+                            className="btn btn--small"
+                            aria-label={`Modifier ${draft.task.name}`}
+                            onClick={() => setEditing(draft.id)}
+                          >
+                            <EditIcon />
+                          </button>
                         </div>
+                        {draft.task.notes && <p className="muted">{draft.task.notes}</p>}
+                        {draft.task.recurrence_type === 'annual_fixed' ? (
+                          <p className="muted">{formatRecurrence(draft.task)}</p>
+                        ) : (
+                          <p className="muted interval">
+                            Tous les
+                            <input
+                              type="number"
+                              min={1}
+                              value={draft.task.recurrence_interval ?? 1}
+                              onChange={(event) =>
+                                updateDraft(draft.id, {
+                                  ...draft.task,
+                                  recurrence_interval: Number(event.target.value),
+                                })
+                              }
+                            />
+                            {unitLabel(draft.task.recurrence_type)}
+                          </p>
+                        )}
                       </div>
-                    )
-                  })}
+                    </div>
+                  ))}
+                  <div className="form__actions">
+                    <button
+                      type="button"
+                      className="btn btn--small"
+                      onClick={() =>
+                        addDraft(group.assetId, group.assetName, group.locationPath)
+                      }
+                    >
+                      + Ajouter un entretien
+                    </button>
+                  </div>
                 </div>
               ))}
               <div className="form__actions">
@@ -400,6 +461,29 @@ export default function Onboarding() {
                 </button>
               </div>
             </>
+          )}
+
+          {editingDraft !== undefined && (
+            <Modal
+              title={editingDraft.task.name || 'Nouvel entretien'}
+              onClose={() => {
+                // Un ajout abandonne sans nom ne doit pas rester dans la liste.
+                if (editingDraft.task.name.trim() === '') {
+                  setDrafts(drafts.filter((draft) => draft.id !== editingDraft.id))
+                }
+                setEditing(null)
+              }}
+            >
+              <TaskForm
+                members={members}
+                initial={editingDraft.task}
+                onSubmit={async (body) => {
+                  updateDraft(editingDraft.id, body)
+                  setEditing(null)
+                }}
+                onCancel={() => setEditing(null)}
+              />
+            </Modal>
           )}
         </>
       )}
@@ -491,19 +575,13 @@ function CustomRoomForm({
 
 /** Ce que la sélection engage réellement, pour que le choix soit éclairé plutôt
  *  que validé d'un clic sur quarante entretiens pré-cochés. */
-function Volume({
-  proposals,
-  intervals,
-}: {
-  proposals: CatalogProposal[]
-  intervals: Record<string, number>
-}) {
-  const perYear = proposals.reduce((total, proposal) => {
-    const recurrence = proposal.maintenance.recurrence
-    const interval = intervals[proposalId(proposal)] ?? recurrence.interval ?? 1
-    if (recurrence.type === 'annual_fixed') return total + 1
-    if (recurrence.type === 'days') return total + 365 / interval
-    if (recurrence.type === 'years') return total + 1 / interval
+function Volume({ drafts }: { drafts: Draft[] }) {
+  const perYear = drafts.reduce((total, draft) => {
+    const interval = draft.task.recurrence_interval ?? 1
+    if (draft.task.recurrence_type === 'annual_fixed') return total + 1
+    if (draft.task.recurrence_type === 'days') return total + 365 / interval
+    if (draft.task.recurrence_type === 'years') return total + 1 / interval
+    if (draft.task.recurrence_type === 'custom_date') return total + 1
     return total + 12 / interval
   }, 0)
   // Sous un par mois, la cadence annuelle se lit beaucoup mieux que « 0,8 par mois ».
@@ -512,59 +590,72 @@ function Volume({
       ? `environ ${Math.round(perYear / 12)} par mois`
       : `environ ${Math.round(perYear)} par an`
 
-  if (proposals.length === 0) {
+  if (drafts.length === 0) {
     return <p className="notice">Aucun entretien retenu pour l'instant.</p>
   }
   return (
     <p className="notice">
       <strong>
-        {proposals.length} entretien{proposals.length > 1 ? 's' : ''} retenu
-        {proposals.length > 1 ? 's' : ''}
+        {drafts.length} entretien{drafts.length > 1 ? 's' : ''} retenu
+        {drafts.length > 1 ? 's' : ''}
       </strong>{' '}
       — {cadence} une fois en place.
     </p>
   )
 }
 
-/** Un meme entretien peut concerner plusieurs fiches : la cle seule ne suffit pas. */
-function proposalId(proposal: CatalogProposal): string {
-  return `${proposal.maintenance.key}:${proposal.asset_id ?? 'maison'}`
+function toDraft(proposal: CatalogProposal): Draft {
+  return {
+    // Un meme entretien concerne parfois plusieurs fiches : la cle seule ne suffit pas.
+    id: `${proposal.maintenance.key}:${proposal.asset_id ?? 'maison'}`,
+    catalogKey: proposal.maintenance.key,
+    assetId: proposal.asset_id,
+    assetName: proposal.asset_name,
+    locationPath: proposal.location_path,
+    task: proposal.draft,
+  }
+}
+
+interface DraftGroup {
+  key: string
+  label: string
+  assetId: number | null
+  assetName: string | null
+  locationPath: string | null
+  drafts: Draft[]
 }
 
 /** Groupe par FICHE et non par nom : un même objet existe souvent dans plusieurs
- *  zones (volets, fenêtres, siphon), et grouper par nom empilait des propositions
+ *  zones (volets, fenêtres, siphon), et grouper par nom empilait des entretiens
  *  identiques sans rien pour les distinguer. Le lieu lève l'ambiguïté. */
-function groupByAsset(proposals: CatalogProposal[]): [string, CatalogProposal[]][] {
-  const groups = new Map<number | 'maison', CatalogProposal[]>()
-  const labels = new Map<number | 'maison', string>()
-  for (const proposal of proposals) {
-    const key = proposal.asset_id ?? 'maison'
-    groups.set(key, [...(groups.get(key) ?? []), proposal])
-    if (proposal.asset_name === null) {
-      labels.set(key, 'Toute la maison')
-    } else {
-      labels.set(
+function groupDrafts(drafts: Draft[]): DraftGroup[] {
+  const groups = new Map<string, DraftGroup>()
+  for (const draft of drafts) {
+    const key = String(draft.assetId ?? 'maison')
+    const existing = groups.get(key)
+    if (existing === undefined) {
+      groups.set(key, {
         key,
-        proposal.location_path
-          ? `${proposal.asset_name} — ${proposal.location_path}`
-          : proposal.asset_name,
-      )
+        label:
+          draft.assetName === null
+            ? 'Toute la maison'
+            : draft.locationPath
+              ? `${draft.assetName} — ${draft.locationPath}`
+              : draft.assetName,
+        assetId: draft.assetId,
+        assetName: draft.assetName,
+        locationPath: draft.locationPath,
+        drafts: [draft],
+      })
+    } else {
+      existing.drafts.push(draft)
     }
   }
-  return [...groups.entries()].map(([key, items]) => [labels.get(key) ?? '', items])
+  return [...groups.values()]
 }
 
-function unitLabel(recurrence: CatalogRecurrence): string {
-  if (recurrence.type === 'days') return 'jours'
-  if (recurrence.type === 'years') return 'ans'
+function unitLabel(type: RecurrenceType): string {
+  if (type === 'days') return 'jours'
+  if (type === 'years') return 'ans'
   return 'mois'
-}
-
-function adjusted(
-  proposal: CatalogProposal,
-  interval: number | undefined,
-): CatalogRecurrence | null {
-  const recurrence = proposal.maintenance.recurrence
-  if (interval === undefined || interval === recurrence.interval) return null
-  return { ...recurrence, interval }
 }

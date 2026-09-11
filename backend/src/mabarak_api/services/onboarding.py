@@ -9,15 +9,25 @@ ligne existante (adr/0008).
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..catalog import CatalogMaintenance, CatalogRecurrence, load_catalog
+from ..catalog import CatalogMaintenance, load_catalog
 from ..clock import utc_now_iso, utc_today
-from ..models import Asset, Category, Home, Location, LocationType, MaintenanceTask
+from ..models import (
+    Asset,
+    Category,
+    Home,
+    Location,
+    LocationType,
+    MaintenanceTask,
+    ReplacementPart,
+)
+from ..schemas import TaskIn
 from .catalog import location_path
-from .recurrence import Recurrence, initial_next_due
+from .recurrence import Recurrence, hidden_anchor, initial_next_due
 
 
 class UnknownCatalogKeyError(LookupError):
@@ -241,47 +251,82 @@ def pending_proposals(session: Session, home: Home) -> list[Proposal]:
     return proposals
 
 
+def draft_from_catalog(key: str) -> TaskIn:
+    """Le modele du catalogue, sous la forme d'une fiche d'entretien editable.
+
+    C'est ce que l'ecran de recapitulatif presente : une fiche pre-remplie que
+    l'utilisateur peut modifier entierement avant de la valider.
+    """
+    maintenance = _find_maintenance(key)
+    recurrence = maintenance.recurrence
+    return TaskIn(
+        name=maintenance.label,
+        recurrence_type=recurrence.type,
+        recurrence_interval=recurrence.interval,
+        fixed_month=recurrence.month,
+        fixed_day=recurrence.day,
+        notes=maintenance.description,
+        preparation_notes=maintenance.preparation_notes,
+    )
+
+
 def apply_maintenance(
     session: Session,
     home: Home,
     *,
-    key: str,
+    body: TaskIn,
     asset_id: int | None,
-    recurrence_override: CatalogRecurrence | None = None,
+    key: str | None = None,
 ) -> MaintenanceTask:
-    """Cree un entretien depuis son modele, avec une frequence eventuellement ajustee."""
-    maintenance = _find_maintenance(key)
-    recurrence_spec = recurrence_override or maintenance.recurrence
+    """Cree l'entretien tel que l'utilisateur l'a valide.
 
-    # L'ancrage vient du catalogue et non de `hidden_anchor` : lui seul sait
-    # qu'un entretien annuel de chaudiere est contractuel et ne doit pas deriver
-    # d'annee en annee (adr/0004). L'interface ne permet pas de le saisir.
+    `key` ne sert plus qu'a la provenance et a l'ancrage : le contenu vient
+    entierement de `body`, que l'ecran de recapitulatif a pu faire modifier.
+    """
+    maintenance = _find_maintenance(key) if key is not None else None
+
+    # L'ancrage vient du catalogue et non de `hidden_anchor`, qui le deduit du
+    # seul type de recurrence : lui seul sait qu'un entretien annuel de chaudiere
+    # est contractuel et ne doit pas deriver d'annee en annee (adr/0004).
+    anchor = maintenance.anchor if maintenance is not None else hidden_anchor(body.recurrence_type)
     recurrence = Recurrence(
-        recurrence_type=recurrence_spec.type,
-        interval=recurrence_spec.interval,
-        anchor=maintenance.anchor,
-        fixed_month=recurrence_spec.month,
-        fixed_day=recurrence_spec.day,
-        custom_due_date=None,
+        recurrence_type=body.recurrence_type,
+        interval=body.recurrence_interval,
+        anchor=anchor,
+        fixed_month=body.fixed_month,
+        fixed_day=body.fixed_day,
+        custom_due_date=date.fromisoformat(body.custom_due_date) if body.custom_due_date else None,
     )
-    next_due = initial_next_due(last_completed_on=None, today=utc_today(), recurrence=recurrence)
+    last = date.fromisoformat(body.last_completed_on) if body.last_completed_on else None
+    next_due = initial_next_due(last_completed_on=last, today=utc_today(), recurrence=recurrence)
 
     now = utc_now_iso()
     task = MaintenanceTask(
         asset_id=asset_id,
         home_id=None if asset_id is not None else home.id,
-        name=maintenance.label,
-        description=maintenance.description,
-        preparation_notes=maintenance.preparation_notes,
-        priority="normal",
-        recurrence_type=recurrence_spec.type,
-        recurrence_interval=recurrence_spec.interval,
-        recurrence_anchor=maintenance.anchor,
-        fixed_month=recurrence_spec.month,
-        fixed_day=recurrence_spec.day,
+        assignee_id=body.assignee_id,
+        name=body.name.strip(),
+        description=(body.notes or "").strip() or None,
+        preparation_notes=(body.preparation_notes or "").strip() or None,
+        priority=body.priority,
+        recurrence_type=body.recurrence_type,
+        recurrence_interval=body.recurrence_interval,
+        recurrence_anchor=anchor,
+        fixed_month=body.fixed_month,
+        fixed_day=body.fixed_day,
+        custom_due_date=body.custom_due_date,
+        last_completed_on=body.last_completed_on,
         next_due_on=next_due.isoformat() if next_due else None,
         is_active=1,
-        catalog_key=maintenance.key,
+        replacement_parts=[
+            ReplacementPart(
+                name=part.name.strip(),
+                source=(part.source or "").strip() or None,
+                sort_order=index,
+            )
+            for index, part in enumerate(body.replacement_parts)
+        ],
+        catalog_key=key,
         created_at=now,
         updated_at=now,
     )
