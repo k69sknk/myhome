@@ -159,9 +159,17 @@ champs sont ce qui le définit.
 Home Assistant : MaBarak ne démarche pas les prestataires, et un rappel sur un entretien qui leur
 est confié part vers le service par défaut de la maison.
 
-`specialty` est le slug d'un métier pris dans `catalog/trades.yaml`, versionné avec l'application
-et jamais écrit en base ([adr/0008](adr/0008-catalogue-en-fichier-versionne.md)). Un slug retiré
-du fichier reste affiché tel quel plutôt que de perdre l'information.
+`specialty` est le slug d'un métier de la table `trade`, jamais du texte libre : c'est ce qui
+permet de regrouper (« mes chauffagistes ») et de proposer le bon prestataire pour un entretien.
+Un slug inconnu reste affiché tel quel plutôt que de perdre l'information.
+
+`trade` — les métiers. Les métiers intégrés viennent de `catalog/trades.yaml`, versionné avec
+l'application ([adr/0008](adr/0008-catalogue-en-fichier-versionne.md)), et y sont semés au
+démarrage : `slug`, `name`, `is_builtin`, `sort_order`. La table existe pour ce que cette liste
+ignore — un vitrier, un cuisiniste — que l'utilisateur ajoute lui-même, et qui devient alors un
+métier comme les autres. Deux saisies qui ne diffèrent que par la casse ou les accents désignent
+le même métier. Raisonnement et options écartées dans
+[adr/0012](adr/0012-metiers-liste-semee-et-extensible.md).
 
 ### 2.7 `maintenance_task`
 

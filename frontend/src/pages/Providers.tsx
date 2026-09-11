@@ -6,6 +6,7 @@ import type { HistoryEntry, Provider, ProviderIn, Task, Trade } from '../api/typ
 import Field from '../components/Field'
 import StatusBadge from '../components/StatusBadge'
 import { useToast } from '../components/Toast'
+import TradeSelect, { resolveTrade } from '../components/TradeSelect'
 import { EditIcon, TrashIcon } from '../components/icons'
 import { errorMessage, formatAmount, formatDate } from '../lib/format'
 import { matches } from '../lib/search'
@@ -39,6 +40,7 @@ export default function Providers() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<ProviderIn>(EMPTY)
+  const [otherTrade, setOtherTrade] = useState('')
   const [detailed, setDetailed] = useState(false)
   const [query, setQuery] = useState('')
   const [specialty, setSpecialty] = useState('')
@@ -48,6 +50,12 @@ export default function Providers() {
     const [providerList, taskList] = await Promise.all([api.providers(), api.tasks()])
     setProviders(providerList)
     setTasks(taskList)
+  }
+
+  /** Rejoue apres chaque saisie : un metier ajoute doit apparaitre dans la liste
+   *  sans recharger la page. */
+  async function reloadTrades() {
+    setTrades(await api.trades())
   }
 
   useEffect(() => {
@@ -72,11 +80,14 @@ export default function Providers() {
     if (!name) return
     setError(null)
     try {
-      await api.createProvider({ ...form, name })
+      // Un metier precise rejoint la liste avant d'etre pose sur la fiche.
+      const specialty = await resolveTrade(form.specialty, otherTrade)
+      await api.createProvider({ ...form, name, specialty })
       setForm(EMPTY)
+      setOtherTrade('')
       setDetailed(false)
       showToast('Prestataire ajouté')
-      await reload()
+      await Promise.all([reload(), reloadTrades()])
     } catch (caught: unknown) {
       setError(errorMessage(caught))
     }
@@ -137,19 +148,13 @@ export default function Providers() {
               placeholder="Dupont Chauffage..."
             />
           </Field>
-          <Field label="Metier">
-            <select
-              value={form.specialty ?? ''}
-              onChange={(event) => setForm({ ...form, specialty: event.target.value || null })}
-            >
-              <option value="">Non precise</option>
-              {trades.map((trade) => (
-                <option key={trade.slug} value={trade.slug}>
-                  {trade.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <TradeSelect
+            trades={trades}
+            value={form.specialty}
+            other={otherTrade}
+            onChange={(specialty) => setForm({ ...form, specialty })}
+            onOther={setOtherTrade}
+          />
           <Field label="Telephone">
             <input
               value={form.phone ?? ''}
@@ -260,7 +265,12 @@ export default function Providers() {
                     trades={trades}
                     tasks={tasks.filter((task) => task.assignee_provider_id === provider.id)}
                     onError={setError}
-                    onChanged={() => void reload()}
+                    onChanged={() => {
+                      void reload()
+                      // Un metier precise pendant la modification doit rejoindre
+                      // la liste et le filtre.
+                      void reloadTrades()
+                    }}
                     onDelete={() => void remove(provider.id)}
                   />
                 ))}
@@ -291,6 +301,7 @@ function ProviderRow({
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState<ProviderIn>(provider)
+  const [otherTrade, setOtherTrade] = useState('')
   /** Ce que ce prestataire a realise. Charge a l'ouverture de la fiche : la
    *  plupart des lignes de l'annuaire ne seront pas depliees. */
   const [history, setHistory] = useState<HistoryEntry[] | null>(null)
@@ -316,8 +327,10 @@ function ProviderRow({
     event.preventDefault()
     onError(null)
     try {
-      await api.patchProvider(provider.id, { ...form, name: form.name.trim() })
+      const specialty = await resolveTrade(form.specialty, otherTrade)
+      await api.patchProvider(provider.id, { ...form, name: form.name.trim(), specialty })
       setEditing(false)
+      setOtherTrade('')
       showToast('Prestataire modifié')
       onChanged()
     } catch (caught: unknown) {
@@ -354,19 +367,13 @@ function ProviderRow({
               onChange={(event) => setForm({ ...form, name: event.target.value })}
             />
           </Field>
-          <Field label="Metier">
-            <select
-              value={form.specialty ?? ''}
-              onChange={(event) => setForm({ ...form, specialty: event.target.value || null })}
-            >
-              <option value="">Non precise</option>
-              {trades.map((trade) => (
-                <option key={trade.slug} value={trade.slug}>
-                  {trade.label}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <TradeSelect
+            trades={trades}
+            value={form.specialty}
+            other={otherTrade}
+            onChange={(specialty) => setForm({ ...form, specialty })}
+            onOther={setOtherTrade}
+          />
           <Field label="Telephone">
             <input
               value={form.phone ?? ''}

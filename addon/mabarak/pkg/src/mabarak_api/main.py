@@ -19,6 +19,7 @@ from .migrate import upgrade_to_head
 from .routers import assets, catalog, ha, health, house, members, providers
 from .services.home import ensure_home
 from .services.scheduler import reminder_scheduler
+from .services.trades import ensure_trades
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,6 +48,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     session: Session = factory()
     try:
         ensure_home(session)
+        # Les metiers integres suivent le fichier versionne : une entree ajoutee
+        # a `trades.yaml` rejoint ainsi les installations existantes.
+        ensure_trades(session)
         session.commit()
     except Exception:
         session.rollback()

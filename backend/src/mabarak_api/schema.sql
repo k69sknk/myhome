@@ -431,9 +431,10 @@ CREATE INDEX ix_member_home ON member(home_id);
 -- Assistant, et un membre du foyer n'a pas de numero de client. Raisonnement
 -- complet et options ecartees dans adr/0011.
 --
--- `specialty` est le slug d'un metier pris dans une liste versionnee avec le
--- catalogue (adr/0008) et jamais du texte libre : c'est ce qui permet de proposer
--- un chauffagiste pour l'entretien d'une chaudiere.
+-- `specialty` est le slug d'un metier de la table `trade` et jamais du texte
+-- libre : c'est ce qui permet de proposer un chauffagiste pour l'entretien d'une
+-- chaudiere. Les metiers integres viennent de la liste versionnee avec le
+-- catalogue (adr/0008) ; l'utilisateur peut en ajouter pour ce qu'elle ignore.
 --
 -- Deliberement absents : SIRET (aucun usage dans une application domestique),
 -- tarif horaire (un tarif saisi une fois ment au bout d'un an, les montants reels
@@ -460,6 +461,42 @@ CREATE TABLE provider (
 
 CREATE INDEX ix_provider_home ON provider(home_id);
 
+
+-- =============================================================================
+-- 6d. trade — les metiers proposes sur une fiche prestataire
+-- =============================================================================
+-- La liste integree est versionnee avec le catalogue (`catalog/trades.yaml`,
+-- adr/0008) et semee dans cette table au demarrage : c'est elle qui fait foi
+-- pour les metiers integres, et une entree ajoutee a la liste rejoint ainsi les
+-- installations existantes.
+--
+-- La table existe pour la raison inverse : ce que la liste ignore. Un vitrier,
+-- un cuisiniste, un antenniste n'y sont pas, et « Autre » seul perdait
+-- l'information — on ne sait plus qui on appelle. L'utilisateur peut donc
+-- ajouter son metier, qui devient alors un metier comme les autres : il regroupe
+-- ses fiches et sert a proposer le bon prestataire pour un entretien. Meme
+-- raisonnement que `location_type` pour les lieux.
+--
+-- `provider.specialty` continue de porter le slug, sans cle etrangere : un slug
+-- inconnu s'affiche brut plutot que de faire perdre l'information, et c'est ce
+-- qui permet aux fiches d'une base plus ancienne de rester lisibles.
+
+CREATE TABLE trade (
+    id         INTEGER PRIMARY KEY,
+    slug       TEXT    NOT NULL UNIQUE,   -- 'chauffagiste', 'vitrier'...
+    name       TEXT    NOT NULL,
+
+    -- Les metiers integres ne sont pas supprimables : le seed les recreerait au
+    -- demarrage suivant.
+    is_builtin INTEGER NOT NULL DEFAULT 0 CHECK (is_builtin IN (0, 1)),
+
+    -- Les metiers ajoutes par l'utilisateur se rangent apres les integres, mais
+    -- avant « Autre », qui reste le dernier choix de la liste.
+    sort_order INTEGER NOT NULL DEFAULT 500,
+
+    created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+    updated_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
 
 -- =============================================================================
 -- 7. maintenance_task — taches d'entretien

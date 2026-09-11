@@ -41,6 +41,21 @@ class LocationType(Base):
     updated_at: Mapped[str] = mapped_column(Text)
 
 
+class Trade(Base):
+    """Metier d'un prestataire. Les integres viennent de `catalog/trades.yaml`,
+    les autres sont ajoutes par l'utilisateur quand la liste ne suffit pas."""
+
+    __tablename__ = "trade"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slug: Mapped[str] = mapped_column(Text, unique=True)
+    name: Mapped[str] = mapped_column(Text)
+    is_builtin: Mapped[int] = mapped_column(Integer, default=0)
+    sort_order: Mapped[int] = mapped_column(Integer, default=500)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+
 class Location(Base):
     __tablename__ = "location"
 

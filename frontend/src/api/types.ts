@@ -242,6 +242,8 @@ export type ProviderIn = Omit<Provider, 'id'>
 export interface Trade {
   slug: string
   label: string
+  /** Un metier livre avec l'application, par opposition a un metier ajoute. */
+  is_builtin: boolean
 }
 
 export interface HaPersonOption {

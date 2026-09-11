@@ -676,6 +676,26 @@ code {
   align-items: end;
 }
 
+/* Le metier et sa precision : le conteneur s'efface de la grille pour que le
+   menu garde sa case et que la precision prenne la ligne suivante en entier. */
+.trade-select {
+  display: contents;
+}
+
+.trade-select__other {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+/* Sur telephone, deux colonnes ne laissent au champ ni la place de son libelle
+   ni celle de sa valeur : « Site / espace client » s'y ecrit sur trois lignes
+   au-dessus d'un champ deux fois trop court. Une seule colonne, donc. */
+@media (max-width: 30rem) {
+  .form--inline {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Barre de recherche d'une liste : le champ prend la place, le filtre et le
    compte se rangent a cote et passent dessous quand l'ecran est etroit. */
 .filters {

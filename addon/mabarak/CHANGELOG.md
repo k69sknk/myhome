@@ -3,6 +3,25 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.29.0
+
+- **Un métier qui n'est pas dans la liste peut enfin être précisé.** La liste proposée sur une
+  fiche prestataire est volontairement courte — elle sert à regrouper, pas à décrire un annuaire
+  professionnel — mais courte veut dire incomplète : un vitrier, un cuisiniste, un antenniste
+  n'y étaient pas, et « Autre » ne dit pas qui on appelle. Choisir « Autre » ouvre désormais un
+  champ : le métier saisi rejoint la liste et sert aux fiches suivantes.
+
+- **Un métier ajouté est un métier comme les autres.** Il apparaît dans le menu, dans le filtre
+  de l'annuaire et dans le regroupement de la liste d'assignation, exactement comme
+  « Chauffagiste ». Et « Vitrier », « vitrier » ou « VITRIER » restent un seul métier : la casse
+  et les accents ne créent pas de sosie. Raisonnement complet dans
+  [ADR-0012](../../docs/adr/0012-metiers-liste-semee-et-extensible.md).
+
+- **Les formulaires à deux colonnes tiennent enfin sur un téléphone.** « Site / espace client »
+  s'écrivait sur trois lignes au-dessus d'un champ deux fois trop court. En dessous de 480 px,
+  ces formulaires passent à une seule colonne — sur la page des prestataires comme sur celles
+  des membres, des lieux et des paramètres.
+
 ## 0.28.0
 
 - **Une page Documents, qui les rassemble tous.** Jusqu'ici un document ne se voyait que depuis
