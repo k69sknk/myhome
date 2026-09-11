@@ -2,7 +2,6 @@ import type {
   CatalogRecurrence,
   Category,
   RecurrenceType,
-  Task,
   TaskPriority,
   TaskStatus,
 } from '../api/types'
@@ -78,7 +77,12 @@ export function priorityLabel(priority: TaskPriority): string {
   }
 }
 
-export function formatRecurrence(task: Pick<Task, 'recurrence_type' | 'recurrence_interval' | 'fixed_month' | 'fixed_day'>): string {
+export function formatRecurrence(task: {
+  recurrence_type: RecurrenceType | string
+  recurrence_interval?: number | null
+  fixed_month?: number | null
+  fixed_day?: number | null
+}): string {
   const type = task.recurrence_type as RecurrenceType | string
   if (type === 'none' || type === 'custom_date') return 'Ponctuel'
   if (type === 'months') {

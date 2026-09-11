@@ -8,6 +8,7 @@ import type {
   CalendarSyncResult,
   Catalog,
   CatalogProposal,
+  CatalogRoomState,
   Category,
   CategoryIn,
   CompleteIn,
@@ -185,11 +186,19 @@ export const api = {
     request<{ ok: boolean }>(`members/${memberId}`, { method: 'DELETE' }),
 
   catalog: () => request<Catalog>('catalog'),
-  applyCatalogRoom: (roomKey: string, itemKeys: string[]) =>
+  applyCatalogRoom: (
+    target: { roomKey: string | null; locationId: number | null },
+    itemKeys: string[],
+  ) =>
     request<ApplyRoomResult>('catalog/rooms', {
       method: 'POST',
-      ...jsonBody({ room_key: roomKey, item_keys: itemKeys }),
+      ...jsonBody({
+        room_key: target.roomKey,
+        location_id: target.locationId,
+        item_keys: itemKeys,
+      }),
     }),
+  catalogState: () => request<CatalogRoomState[]>('catalog/state'),
   catalogProposals: () => request<CatalogProposal[]>('catalog/proposals'),
   applyCatalogMaintenances: (selections: MaintenanceSelection[]) =>
     request<{ created: number }>('catalog/maintenances', {

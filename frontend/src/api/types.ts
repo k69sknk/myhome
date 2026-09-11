@@ -403,6 +403,9 @@ export interface CatalogProposal {
   maintenance: CatalogMaintenance
   asset_id: number | null
   asset_name: string | null
+  location_path: string | null
+  /** Le modèle du catalogue sous forme de fiche éditable. */
+  draft: TaskIn
 }
 
 export interface ApplyRoomResult {
@@ -412,7 +415,15 @@ export interface ApplyRoomResult {
 }
 
 export interface MaintenanceSelection {
-  key: string
+  /** Provenance catalogue : absente pour un entretien ajouté de toutes pièces. */
+  key?: string | null
   asset_id?: number | null
-  recurrence?: CatalogRecurrence | null
+  task: TaskIn
+}
+
+export interface CatalogRoomState {
+  room_key: string
+  location_id: number | null
+  location_name: string | null
+  present_items: string[]
 }

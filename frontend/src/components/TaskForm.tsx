@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 
-import type { Member, RecurrenceType, ReplacementPartIn, Task, TaskIn, TaskPriority } from '../api/types'
+import type { Member, RecurrenceType, ReplacementPartIn, TaskIn, TaskPriority } from '../api/types'
 import { emptyToNull, errorMessage, priorityLabel, todayIso } from '../lib/format'
 import Field from './Field'
 import { useToast } from './Toast'
@@ -14,7 +14,24 @@ function defaultFixedDate(): string {
   return `${year}-01-15`
 }
 
-function initialFrequency(task?: Task): Frequency {
+/** Ce dont le formulaire a besoin pour se pre-remplir : un entretien existant
+ *  comme un brouillon du didacticiel, qui n'a pas encore d'identifiant. */
+export interface TaskFormInitial {
+  name?: string
+  priority?: TaskPriority
+  recurrence_type?: RecurrenceType | string
+  recurrence_interval?: number | null
+  fixed_month?: number | null
+  fixed_day?: number | null
+  custom_due_date?: string | null
+  last_completed_on?: string | null
+  replacement_parts?: { name: string; source?: string | null }[]
+  preparation_notes?: string | null
+  notes?: string | null
+  assignee_id?: number | null
+}
+
+function initialFrequency(task?: TaskFormInitial): Frequency {
   const type = task?.recurrence_type
   if (type === 'months' || type === 'years' || type === 'annual_fixed') return type
   if (type === 'custom_date' || type === 'none' || !type) return 'custom_date'
@@ -33,7 +50,7 @@ export default function TaskForm({
   onCancel,
 }: {
   members: Member[]
-  initial?: Task
+  initial?: TaskFormInitial
   onSubmit: (body: TaskIn) => Promise<void>
   onCancel?: () => void
 }) {
@@ -49,7 +66,7 @@ export default function TaskForm({
   const [customDate, setCustomDate] = useState(initial?.custom_due_date ?? todayIso())
   const [lastCompleted, setLastCompleted] = useState(initial?.last_completed_on ?? '')
   const [parts, setParts] = useState<PartRow[]>(
-    initial?.replacement_parts.map((part) => ({ name: part.name, source: part.source ?? '' })) ??
+    initial?.replacement_parts?.map((part) => ({ name: part.name, source: part.source ?? '' })) ??
       [],
   )
   const [prepNotes, setPrepNotes] = useState(initial?.preparation_notes ?? '')
