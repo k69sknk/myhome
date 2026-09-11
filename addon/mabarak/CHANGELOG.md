@@ -3,6 +3,23 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.22.0
+
+- **Un entretien peut être confié à une entreprise depuis sa fiche.** « Assigné à »
+  ne proposait, dans une liste à plat, que les membres déjà présents dans
+  l'annuaire : pour confier l'entretien annuel de la pompe à chaleur à
+  l'installateur, il fallait quitter le formulaire, créer sa fiche dans Membres,
+  puis revenir. Le champ devient un champ de recherche, comme celui des
+  équipements : les propositions sont groupées en Foyer, Amis et Entreprises, et
+  un nom inconnu se crée sur place — en entreprise ou en personne, au choix.
+
+- L'entreprise ainsi créée est un membre de plein droit, pas un simple texte :
+  elle entre à l'annuaire avec son type, apparaît dans les autres fiches et
+  porte la liste des entretiens qui lui sont confiés. Un prestataire n'a pas de
+  service de notification Home Assistant : le rappel d'échéance revient alors au
+  service par défaut de la maison, pour que l'entretien ne disparaisse pas du
+  radar.
+
 ## 0.21.0
 
 - **« Passer la tondeuse » entre enfin au catalogue.** L'entretien de pelouse le

@@ -243,6 +243,7 @@ export default function AssetDetail() {
           <h3 className="card__subtitle">Ajouter un entretien</h3>
           <TaskForm
             members={members}
+            onMemberCreated={(member) => setMembers((current) => [...current, member])}
             onSubmit={async (body) => {
               await api.createTask(asset.id, body)
               await reload()

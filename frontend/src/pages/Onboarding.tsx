@@ -483,6 +483,7 @@ export default function Onboarding() {
             >
               <TaskForm
                 members={members}
+                onMemberCreated={(member) => setMembers((current) => [...current, member])}
                 initial={editingDraft.task}
                 onSubmit={async (body) => {
                   updateDraft(editingDraft.id, body)

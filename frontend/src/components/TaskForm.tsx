@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 
 import type { Member, RecurrenceType, ReplacementPartIn, TaskIn, TaskPriority } from '../api/types'
 import { emptyToNull, errorMessage, monthName, priorityLabel, todayIso } from '../lib/format'
+import AssigneeSelect from './AssigneeSelect'
 import Field from './Field'
 import { useToast } from './Toast'
 
@@ -64,11 +65,13 @@ export default function TaskForm({
   initial,
   onSubmit,
   onCancel,
+  onMemberCreated,
 }: {
   members: Member[]
   initial?: TaskFormInitial
   onSubmit: (body: TaskIn) => Promise<void>
   onCancel?: () => void
+  onMemberCreated?: (member: Member) => void
 }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'normal')
@@ -93,9 +96,17 @@ export default function TaskForm({
   const [assigneeId, setAssigneeId] = useState(
     initial?.assignee_id != null ? String(initial.assignee_id) : '',
   )
+  /** Les membres crees depuis le formulaire : la page parente ne se recharge
+   *  qu'apres l'enregistrement, l'assigne doit etre choisissable avant. */
+  const [createdMembers, setCreatedMembers] = useState<Member[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { showToast } = useToast()
+
+  const knownMembers = [
+    ...members,
+    ...createdMembers.filter((created) => !members.some((member) => member.id === created.id)),
+  ]
 
   function addPart() {
     setParts((current) => [...current, { name: '', source: '' }])
@@ -274,15 +285,19 @@ export default function TaskForm({
           onChange={(event) => setLastCompleted(event.target.value)}
         />
       </Field>
-      <Field label="Assigne a (facultatif)">
-        <select value={assigneeId} onChange={(event) => setAssigneeId(event.target.value)}>
-          <option value="">Personne</option>
-          {members.map((member) => (
-            <option key={member.id} value={member.id}>
-              {member.name}
-            </option>
-          ))}
-        </select>
+      <Field
+        label="Assigne a (facultatif)"
+        hint="Une personne du foyer, un ami, ou l'entreprise qui s'en occupe (installateur de la pompe a chaleur, ramoneur...). Si l'entreprise n'est pas encore dans l'annuaire, tapez son nom pour creer sa fiche ici."
+      >
+        <AssigneeSelect
+          members={knownMembers}
+          value={assigneeId}
+          onChange={setAssigneeId}
+          onCreated={(member) => {
+            setCreatedMembers((current) => [...current, member])
+            onMemberCreated?.(member)
+          }}
+        />
       </Field>
       <Field label="Pieces a remplacer" hint="Facultatif, plusieurs pieces possibles.">
         <div className="complete__form-fields">

@@ -66,6 +66,7 @@ export default function Tasks() {
         {selectedAssetId && (
           <TaskForm
             members={members}
+            onMemberCreated={(member) => setMembers((current) => [...current, member])}
             onSubmit={async (body) => {
               await api.createTask(Number(selectedAssetId), body)
               await reload()
