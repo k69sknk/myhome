@@ -486,11 +486,19 @@ def mark_task_done(
         raise HTTPException(404, "Entretien introuvable")
     asset = _get_asset(session, task.asset_id)
     performed_on = body.performed_on or utc_today().isoformat()
+    # Le nom affiche vient de la fiche du membre quand il y en a une : c'est ce
+    # qui evite qu'une meme entreprise s'ecrive de trois facons dans l'historique.
+    member = (
+        _get_member(session, body.performed_by_member_id)
+        if body.performed_by_member_id is not None
+        else None
+    )
     intervention = complete_task(
         session,
         task,
         performed_on=performed_on,
-        performed_by=body.performed_by,
+        performed_by=member.name if member is not None else body.performed_by,
+        performed_by_member_id=member.id if member is not None else None,
         notes=body.notes,
     )
     if body.amount_cents is not None:
@@ -538,6 +546,7 @@ def list_task_interventions(
             id=row.id,
             performed_on=row.performed_on,
             performed_by=row.performed_by,
+            performed_by_member_id=row.performed_by_member_id,
             notes=row.notes,
             cost=_cost_out(row),
             documents=[_document_out(doc) for doc in row.documents],
@@ -550,15 +559,24 @@ def list_task_interventions(
 def list_interventions(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    member_id: int | None = Query(default=None),
     session: Session = Depends(get_session),
 ) -> list[HistoryEntryOut]:
-    """Historique global, toutes les interventions de la maison confondues (page /entretiens)."""
+    """Historique global, toutes les interventions de la maison confondues (page /entretiens).
+
+    `member_id` le restreint a ce qu'une personne ou une entreprise a realise :
+    c'est la contrepartie visible du lien pose a la saisie (page /membres).
+    """
     home = _home(session)
-    rows = session.scalars(
+    query = (
         select(Intervention)
         .join(Asset, Intervention.asset_id == Asset.id)
         .where(Asset.home_id == home.id)
-        .options(selectinload(Intervention.costs), selectinload(Intervention.documents))
+    )
+    if member_id is not None:
+        query = query.where(Intervention.performed_by_member_id == member_id)
+    rows = session.scalars(
+        query.options(selectinload(Intervention.costs), selectinload(Intervention.documents))
         .order_by(Intervention.performed_on.desc(), Intervention.id.desc())
         .limit(limit)
         .offset(offset)
@@ -591,6 +609,7 @@ def list_interventions(
             task_name=tasks[row.task_id].name if row.task_id in tasks else None,
             performed_on=row.performed_on,
             performed_by=row.performed_by,
+            performed_by_member_id=row.performed_by_member_id,
             notes=row.notes,
             cost=_cost_out(row),
             documents=[_document_out(doc) for doc in row.documents],

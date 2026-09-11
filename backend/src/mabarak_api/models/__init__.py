@@ -227,7 +227,12 @@ class Intervention(Base):
     issue_id: Mapped[int | None] = mapped_column(Integer)
     intervention_type: Mapped[str] = mapped_column(Text, default="maintenance")
     performed_on: Mapped[str] = mapped_column(Text)
+    # Le nom affiche, fige a la saisie ; le membre, quand il y en a un, permet de
+    # regrouper les interventions d'un meme prestataire (voir schema.sql).
     performed_by: Mapped[str | None] = mapped_column(Text)
+    performed_by_member_id: Mapped[int | None] = mapped_column(
+        ForeignKey("member.id", ondelete="SET NULL")
+    )
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(Text)

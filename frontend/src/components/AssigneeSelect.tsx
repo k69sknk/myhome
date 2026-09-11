@@ -25,22 +25,35 @@ function memberLabel(member: Member): string {
   return `${member.name} — ${context}`
 }
 
-/** Choix de l'assigne : une personne du foyer, un ami, ou une entreprise —
- *  qu'on peut creer sans quitter la fiche (l'installateur de la pompe a chaleur
- *  n'a pas a passer par l'annuaire avant d'exister). */
+/** Choix d'un membre : une personne du foyer, un ami, ou une entreprise — qu'on
+ *  peut creer sans quitter la fiche (l'installateur de la pompe a chaleur n'a pas
+ *  a passer par l'annuaire avant d'exister).
+ *
+ *  `onFreeText` ouvre un second usage : l'historique, ou l'on veut bien noter
+ *  « le voisin » sans lui ouvrir une fiche. Fourni, ce qui est tape et non
+ *  choisi reste du texte ; absent, seul un membre existant est acceptable. */
 export default function AssigneeSelect({
   members,
   value,
   onChange,
   onCreated,
+  freeText,
+  onFreeText,
+  placeholder = 'Personne, ou tapez un nom...',
 }: {
   members: Member[]
   value: string
-  onChange: (value: string) => void
+  /** Le membre accompagne son identifiant : l'appelant qui vient de le faire
+   *  creer ne l'a pas encore dans `members`, et attendre le prochain rendu pour
+   *  savoir de qui il s'agit se paie en comportements d'un coup en retard. */
+  onChange: (value: string, member: Member | null) => void
   onCreated?: (member: Member) => void
+  freeText?: string
+  onFreeText?: (text: string) => void
+  placeholder?: string
 }) {
   const selected = members.find((member) => String(member.id) === value)
-  const selectedLabel = selected ? memberLabel(selected) : ''
+  const selectedLabel = selected ? memberLabel(selected) : (freeText ?? '')
 
   const [query, setQuery] = useState(selectedLabel)
   const [open, setOpen] = useState(false)
@@ -58,12 +71,14 @@ export default function AssigneeSelect({
     function onPointerDown(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setOpen(false)
-        setQuery(selectedLabel)
+        // Sans texte libre, une saisie qui ne designe personne ne veut rien dire
+        // et on revient au choix courant. Avec, elle est la reponse : on la garde.
+        if (onFreeText === undefined) setQuery(selectedLabel)
       }
     }
     document.addEventListener('mousedown', onPointerDown)
     return () => document.removeEventListener('mousedown', onPointerDown)
-  }, [selectedLabel])
+  }, [selectedLabel, onFreeText])
 
   const trimmed = query.trim()
   const matches = useMemo(() => {
@@ -80,13 +95,15 @@ export default function AssigneeSelect({
   const canCreate = trimmed !== '' && !hasExactMatch
 
   function select(member: Member) {
-    onChange(String(member.id))
+    onChange(String(member.id), member)
+    onFreeText?.('')
     setQuery(memberLabel(member))
     setOpen(false)
   }
 
   function clear() {
-    onChange('')
+    onChange('', null)
+    onFreeText?.('')
     setQuery('')
     setOpen(true)
     inputRef.current?.focus()
@@ -99,7 +116,8 @@ export default function AssigneeSelect({
     try {
       const created = await api.createMember({ name: trimmed, member_type: memberType })
       onCreated?.(created)
-      onChange(String(created.id))
+      onChange(String(created.id), created)
+      onFreeText?.('')
       setQuery(memberLabel(created))
       setOpen(false)
       showToast(memberType === 'company' ? 'Entreprise ajoutée' : 'Membre ajouté')
@@ -118,10 +136,16 @@ export default function AssigneeSelect({
         onChange={(event) => {
           setQuery(event.target.value)
           setOpen(true)
-          if (event.target.value.trim() === '') onChange('')
+          if (onFreeText !== undefined) {
+            // Taper defait le choix precedent : le texte ne designe plus ce membre.
+            onChange('', null)
+            onFreeText(event.target.value.trim())
+          } else if (event.target.value.trim() === '') {
+            onChange('', null)
+          }
         }}
         onFocus={() => setOpen(true)}
-        placeholder="Personne, ou tapez un nom..."
+        placeholder={placeholder}
       />
       {query !== '' && (
         <button type="button" className="combobox__clear" aria-label="Effacer" onClick={clear}>

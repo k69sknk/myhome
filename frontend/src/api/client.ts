@@ -137,8 +137,11 @@ export const api = {
     request<Task>(`tasks/${taskId}/complete`, { method: 'POST', ...jsonBody(body) }),
   taskInterventions: (taskId: number) =>
     request<Intervention[]>(`tasks/${taskId}/interventions`),
-  interventions: (params: { limit: number; offset: number }) =>
-    request<HistoryEntry[]>(`interventions?limit=${params.limit}&offset=${params.offset}`),
+  interventions: (params: { limit: number; offset: number; memberId?: number }) =>
+    request<HistoryEntry[]>(
+      `interventions?limit=${params.limit}&offset=${params.offset}` +
+        (params.memberId != null ? `&member_id=${params.memberId}` : ''),
+    ),
   deleteTask: (taskId: number) => request<{ ok: boolean }>(`tasks/${taskId}`, { method: 'DELETE' }),
   deleteIntervention: (interventionId: number) =>
     request<{ ok: boolean }>(`interventions/${interventionId}`, { method: 'DELETE' }),

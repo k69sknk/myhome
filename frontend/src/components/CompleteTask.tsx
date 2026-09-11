@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ApiError, api } from '../api/client'
 import type { Intervention, Member, Task } from '../api/types'
 import { errorMessage, formatAmount, formatDate, todayIso } from '../lib/format'
+import AssigneeSelect from './AssigneeSelect'
 import Field from './Field'
 import TaskForm from './TaskForm'
 import { useToast } from './Toast'
@@ -14,18 +15,27 @@ export default function CompleteTask({
   onCompleted,
   onEdited,
   onDeleted,
+  onMemberCreated,
 }: {
   task: Task
   members: Member[]
   onCompleted: () => void
   onEdited: () => void
   onDeleted: () => void
+  onMemberCreated?: (member: Member) => void
 }) {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [performedOn, setPerformedOn] = useState(todayIso())
+  /** Qui l'a fait, de deux facons : une fiche de l'annuaire — l'entretien rejoint
+   *  alors l'historique de ce prestataire — ou du texte libre pour un coup de
+   *  main qui ne merite pas une fiche. L'assigne de l'entretien est le defaut :
+   *  c'est presque toujours lui qui est venu. */
+  const [performedByMemberId, setPerformedByMemberId] = useState(
+    task.assignee_id != null ? String(task.assignee_id) : '',
+  )
   const [performedBy, setPerformedBy] = useState('')
   const [notes, setNotes] = useState('')
   const [isPro, setIsPro] = useState(false)
@@ -73,7 +83,8 @@ export default function CompleteTask({
       const amountCents = isPro && amount.trim() ? Math.round(Number(amount) * 100) : null
       const completed = await api.completeTask(task.id, {
         performed_on: performedOn,
-        performed_by: performedBy.trim() || null,
+        performed_by: performedByMemberId ? null : performedBy.trim() || null,
+        performed_by_member_id: performedByMemberId ? Number(performedByMemberId) : null,
         notes: notes.trim() || null,
         amount_cents: amountCents,
       })
@@ -86,6 +97,7 @@ export default function CompleteTask({
         }
       }
       setOpen(false)
+      setPerformedByMemberId(task.assignee_id != null ? String(task.assignee_id) : '')
       setPerformedBy('')
       setNotes('')
       setIsPro(false)
@@ -196,6 +208,7 @@ export default function CompleteTask({
       {editing && (
         <TaskForm
           members={members}
+          onMemberCreated={onMemberCreated}
           initial={task}
           onCancel={() => setEditing(false)}
           onSubmit={async (body) => {
@@ -218,12 +231,23 @@ export default function CompleteTask({
                 onChange={(event) => setPerformedOn(event.target.value)}
               />
             </Field>
-            <Field label={isPro ? 'Entreprise' : 'Qui (facultatif)'}>
-              <input
-                type="text"
-                value={performedBy}
-                onChange={(event) => setPerformedBy(event.target.value)}
-                placeholder={isPro ? 'Dupont Chauffage...' : 'Vous, un pro...'}
+            <Field
+              label="Qui (facultatif)"
+              hint="Une fiche de l'annuaire — l'entretien rejoint alors son historique — ou un simple nom."
+            >
+              <AssigneeSelect
+                members={members}
+                value={performedByMemberId}
+                onChange={(value, member) => {
+                  setPerformedByMemberId(value)
+                  // Une entreprise, c'est une facture et un montant : autant
+                  // ouvrir les champs plutot que d'attendre la case a cocher.
+                  if (member?.member_type === 'company') setIsPro(true)
+                }}
+                onCreated={onMemberCreated}
+                freeText={performedBy}
+                onFreeText={setPerformedBy}
+                placeholder="Vous, un proche, une entreprise..."
               />
             </Field>
             <Field label="Note (facultatif)">

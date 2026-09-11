@@ -3,6 +3,28 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.23.0
+
+- **L'historique retient qui est venu, pas seulement ce qui a été tapé.** En
+  marquant un entretien comme fait, le champ « Qui » propose les fiches de
+  l'annuaire — et crée l'entreprise sur place si elle n'y est pas encore.
+  Jusqu'ici c'était du texte libre : « Dupont Chauffage », « dupont chauf. » et
+  « Dupont » étaient trois intervenants différents pour l'application. L'assigné
+  de l'entretien est proposé par défaut, puisque c'est presque toujours lui qui
+  s'est déplacé. Un coup de main qui ne mérite pas de fiche reste possible : ce
+  qu'on tape sans rien choisir reste une simple mention.
+
+- **Chaque membre affiche ce qu'il a réalisé.** Dans l'annuaire, le bouton
+  « Interventions » déplie les entretiens faits par cette personne ou cette
+  entreprise, avec leur date et leur montant — de quoi retrouver ce qu'a coûté un
+  prestataire sur l'année.
+
+- **Choisir une entreprise coche « réalisé par un pro »** et ouvre les champs
+  montant et facture, au lieu d'attendre un clic de plus.
+
+- Supprimer un membre ne réécrit pas l'historique : le nom saisi ce jour-là reste
+  affiché, seul le lien vers sa fiche disparaît.
+
 ## 0.22.0
 
 - **Un entretien peut être confié à une entreprise depuis sa fiche.** « Assigné à »

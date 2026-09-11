@@ -238,3 +238,109 @@ def test_assignation_notification_indisponible_ne_bloque_pas(client: TestClient)
         json={"name": "Nettoyer la gouttiere", "assignee_id": member["id"]},
     )
     assert response.status_code == 201
+
+
+def test_entretien_realise_par_un_membre_prend_le_nom_de_sa_fiche(client: TestClient) -> None:
+    """Le nom vient de l'annuaire : une meme entreprise ne peut pas s'ecrire de
+    trois facons selon l'humeur de la saisie."""
+    asset_id = _create_asset(client)
+    entreprise = client.post(
+        "/api/members", json={"name": "Dupont Chauffage", "member_type": "company"}
+    ).json()
+    task = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Revision annuelle", "recurrence_type": "months", "recurrence_interval": 12},
+    ).json()
+
+    client.post(
+        f"/api/tasks/{task['id']}/complete",
+        json={
+            "performed_on": "2026-03-01",
+            "performed_by": "dupont chauf.",  # ignore : la fiche fait foi
+            "performed_by_member_id": entreprise["id"],
+        },
+    )
+
+    entry = client.get(f"/api/tasks/{task['id']}/interventions").json()[0]
+    assert entry["performed_by"] == "Dupont Chauffage"
+    assert entry["performed_by_member_id"] == entreprise["id"]
+
+
+def test_entretien_realise_sans_membre_garde_le_texte_libre(client: TestClient) -> None:
+    """Un coup de main ne merite pas toujours une fiche dans l'annuaire."""
+    asset_id = _create_asset(client)
+    task = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Filtres", "recurrence_type": "months", "recurrence_interval": 3},
+    ).json()
+
+    client.post(
+        f"/api/tasks/{task['id']}/complete",
+        json={"performed_on": "2026-03-01", "performed_by": "le voisin"},
+    )
+
+    entry = client.get(f"/api/tasks/{task['id']}/interventions").json()[0]
+    assert entry["performed_by"] == "le voisin"
+    assert entry["performed_by_member_id"] is None
+
+
+def test_historique_filtre_par_membre(client: TestClient) -> None:
+    asset_id = _create_asset(client)
+    entreprise = client.post(
+        "/api/members", json={"name": "Dupont Chauffage", "member_type": "company"}
+    ).json()
+    chaudiere = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Revision annuelle", "recurrence_type": "months", "recurrence_interval": 12},
+    ).json()
+    filtres = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Filtres", "recurrence_type": "months", "recurrence_interval": 3},
+    ).json()
+
+    client.post(
+        f"/api/tasks/{chaudiere['id']}/complete",
+        json={"performed_on": "2026-03-01", "performed_by_member_id": entreprise["id"]},
+    )
+    client.post(f"/api/tasks/{filtres['id']}/complete", json={"performed_on": "2026-03-02"})
+
+    assert len(client.get("/api/interventions").json()) == 2
+    filtre = client.get("/api/interventions", params={"member_id": entreprise["id"]}).json()
+    assert [row["task_name"] for row in filtre] == ["Revision annuelle"]
+
+
+def test_supprimer_un_membre_garde_son_nom_dans_lhistorique(client: TestClient) -> None:
+    """L'historique est un journal : il ne se reecrit pas quand l'annuaire change.
+    Seul le lien disparait, le nom saisi ce jour-la reste."""
+    asset_id = _create_asset(client)
+    entreprise = client.post(
+        "/api/members", json={"name": "Dupont Chauffage", "member_type": "company"}
+    ).json()
+    task = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Revision annuelle", "recurrence_type": "months", "recurrence_interval": 12},
+    ).json()
+    client.post(
+        f"/api/tasks/{task['id']}/complete",
+        json={"performed_on": "2026-03-01", "performed_by_member_id": entreprise["id"]},
+    )
+
+    client.delete(f"/api/members/{entreprise['id']}")
+
+    entry = client.get(f"/api/tasks/{task['id']}/interventions").json()[0]
+    assert entry["performed_by"] == "Dupont Chauffage"
+    assert entry["performed_by_member_id"] is None
+
+
+def test_entretien_realise_par_un_membre_inconnu_est_refuse(client: TestClient) -> None:
+    asset_id = _create_asset(client)
+    task = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Filtres", "recurrence_type": "months", "recurrence_interval": 3},
+    ).json()
+
+    response = client.post(
+        f"/api/tasks/{task['id']}/complete",
+        json={"performed_on": "2026-03-01", "performed_by_member_id": 404},
+    )
+    assert response.status_code == 404

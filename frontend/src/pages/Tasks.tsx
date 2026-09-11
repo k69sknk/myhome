@@ -119,6 +119,7 @@ export default function Tasks() {
                       <CompleteTask
                         task={task}
                         members={members}
+                        onMemberCreated={(member) => setMembers((current) => [...current, member])}
                         onCompleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}
                         onEdited={() => void reload().catch((caught) => setError(errorMessage(caught)))}
                         onDeleted={() => void reload().catch((caught) => setError(errorMessage(caught)))}

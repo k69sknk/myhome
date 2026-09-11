@@ -211,8 +211,16 @@ inspection, remplacement. C'est la table qui alimente l'historique.
 et relie une intervention au problème qu'elle traite.
 
 Champs : `performed_on`, `performed_by` (texte libre : « moi », « Dupont Chauffage »),
-`notes`, `created_at`. Les coûts et les documents associés sont dans leurs tables respectives,
-reliés par `intervention_id`.
+`performed_by_member_id`, `notes`, `created_at`. Les coûts et les documents associés sont dans
+leurs tables respectives, reliés par `intervention_id`.
+
+Qui a fait l'entretien s'écrit en **deux colonnes et non une**. `performed_by` est le nom
+affiché, figé au moment de la saisie : un historique de 2019 garde son sens même si la fiche du
+prestataire a disparu depuis — un journal ne se réécrit pas. `performed_by_member_id` pointe, lui,
+vers l'annuaire (`member`) quand l'intervenant y a une fiche, ce qui permet de regrouper ce qu'une
+même entreprise a réalisé sans dépendre de l'orthographe d'une saisie libre. Les deux se
+remplissent ensemble : choisir une fiche recopie son nom. Supprimer un membre coupe le lien
+(`ON DELETE SET NULL`) et laisse le nom en place.
 
 ### 2.9 `issue`
 

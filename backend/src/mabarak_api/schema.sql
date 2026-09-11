@@ -615,7 +615,14 @@ CREATE TABLE intervention (
                                                    'inspection', 'replacement', 'other')),
 
     performed_on      TEXT    NOT NULL,
+
+    -- Qui a fait l'entretien. Deux colonnes et non une : `performed_by` reste le
+    -- texte affiche, fige au moment de la saisie, pour qu'un historique ancien
+    -- garde son sens meme si la fiche du prestataire disparait ; le lien vers
+    -- l'annuaire, lui, permet de regrouper les interventions d'une meme
+    -- entreprise au lieu de compter sur l'orthographe d'une saisie libre.
     performed_by      TEXT,            -- texte libre : 'moi', 'Dupont Chauffage'
+    performed_by_member_id INTEGER     REFERENCES member(id) ON DELETE SET NULL,
     notes             TEXT,
 
     created_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),

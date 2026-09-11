@@ -204,7 +204,11 @@ class TaskPatch(BaseModel):
 
 class CompleteIn(BaseModel):
     performed_on: str | None = None
+    # Deux facons de dire qui a fait l'entretien : un membre de l'annuaire, ou du
+    # texte libre pour un coup de main qui ne merite pas une fiche. Avec un
+    # membre, `performed_by` est ignore : le nom vient de sa fiche.
     performed_by: str | None = None
+    performed_by_member_id: int | None = None
     notes: str | None = None
     amount_cents: int | None = Field(default=None, ge=1)
 
@@ -229,6 +233,7 @@ class InterventionOut(BaseModel):
     id: int
     performed_on: str
     performed_by: str | None
+    performed_by_member_id: int | None
     notes: str | None
     cost: CostOut | None
     documents: list[DocumentOut]
@@ -242,6 +247,7 @@ class HistoryEntryOut(BaseModel):
     task_name: str | None
     performed_on: str
     performed_by: str | None
+    performed_by_member_id: int | None
     notes: str | None
     cost: CostOut | None
     documents: list[DocumentOut]

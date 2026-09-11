@@ -271,7 +271,10 @@ export interface Cost {
 export interface Intervention {
   id: number
   performed_on: string
+  /** Le nom affiche, fige a la saisie ; le membre, quand il y en a un, releve de
+   *  l'annuaire et survit aux fautes de frappe. */
   performed_by: string | null
+  performed_by_member_id: number | null
   notes: string | null
   cost: Cost | null
   documents: DocumentMeta[]
@@ -306,7 +309,9 @@ export type TaskPatch = Partial<TaskIn>
 
 export interface CompleteIn {
   performed_on?: string | null
+  /** Avec un membre, le backend ignore `performed_by` : le nom vient de sa fiche. */
   performed_by?: string | null
+  performed_by_member_id?: number | null
   notes?: string | null
   amount_cents?: number | null
 }
