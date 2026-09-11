@@ -139,10 +139,25 @@ export default function Settings() {
 
   return (
     <section className="page">
-      <h1 className="page__title">Parametres</h1>
-      <p className="page__lead">Reglages de la maison et types de lieux personnalisables.</p>
+      <h1 className="page__title">Paramètres</h1>
+      <p className="page__lead">Réglages de la maison et types de lieux personnalisables.</p>
 
       {error && <p className="status status--error">{error}</p>}
+
+      <div className="card">
+        <h2 className="card__title">Configurer MaBarak</h2>
+        <p className="muted">
+          Le tour guidé de la maison : vous cochez vos pièces, ce que vous avez dans chacune, et
+          l'application vous propose les entretiens correspondants. Vous pouvez le relancer autant
+          de fois que vous voulez pour compléter — ce qui existe déjà n'est jamais recréé ni
+          reproposé.
+        </p>
+        <div className="form__actions">
+          <Link to="/demarrage" className="btn btn--primary">
+            Faire le tour de la maison
+          </Link>
+        </div>
+      </div>
 
       {home && (
         <div className="card">

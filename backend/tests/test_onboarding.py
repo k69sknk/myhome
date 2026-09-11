@@ -165,3 +165,51 @@ def test_un_entretien_inconnu_est_refuse(client: TestClient) -> None:
     )
 
     assert response.status_code == 404
+
+
+def test_relancer_le_tour_adopte_les_lieux_crees_a_la_main(client: TestClient) -> None:
+    """Une maison deja remplie n'a pas de cle de catalogue sur ses lieux.
+
+    Sans adoption par le nom, le tour creait une deuxieme « Cuisine » a cote de
+    celle saisie a la main. La contrainte UNIQUE (home_id, parent_id, name) ne
+    protege pas : sous SQLite deux NULL sont distincts, donc elle ne s'applique
+    pas aux lieux de premier niveau, dont le parent est NULL.
+    """
+    existante = client.post("/api/locations", json={"name": "Cuisine"}).json()
+
+    body = _apply_room(client, "cuisine", ["refrigerateur"])
+
+    assert body["location_id"] == existante["id"]
+    assert len(client.get("/api/locations").json()) == 1
+
+
+def test_relancer_le_tour_ne_duplique_pas_une_fiche_saisie_a_la_main(client: TestClient) -> None:
+    existante = client.post("/api/locations", json={"name": "Cuisine"}).json()
+    client.post("/api/assets", json={"name": "Réfrigérateur", "location_id": existante["id"]})
+
+    _apply_room(client, "cuisine", ["refrigerateur", "four"])
+
+    noms = [asset["name"] for asset in client.get("/api/assets").json()]
+    assert sorted(noms) == ["Four", "Réfrigérateur"]
+
+
+def test_relancer_le_tour_propose_les_entretiens_des_fiches_deja_saisies(
+    client: TestClient,
+) -> None:
+    """Le coeur de l'interet du bouton « refaire le tour ».
+
+    Une fiche creee a la main n'a pas de cle de catalogue. Si le tour se contente
+    de l'ignorer, il ne propose rien a une maison deja remplie. Il l'adopte donc,
+    et ses entretiens types deviennent proposables.
+    """
+    lieu = client.post("/api/locations", json={"name": "Cuisine"}).json()
+    client.post("/api/assets", json={"name": "Réfrigérateur", "location_id": lieu["id"]})
+
+    _apply_room(client, "cuisine", ["refrigerateur"])
+
+    proposals = client.get("/api/catalog/proposals").json()
+    pour_le_frigo = [p for p in proposals if p["asset_name"] == "Réfrigérateur"]
+    assert {p["maintenance"]["key"] for p in pour_le_frigo} == {
+        "refrigerateur_degivrage",
+        "refrigerateur_grille",
+    }

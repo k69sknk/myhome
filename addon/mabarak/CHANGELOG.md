@@ -3,6 +3,18 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.17.0
+
+- **Le didacticiel se relance quand on veut**, depuis Paramètres → « Faire le
+  tour de la maison ». Jusqu'ici l'invitation n'apparaissait que sur une
+  installation vierge : une maison déjà remplie n'avait aucun moyen d'y accéder.
+
+- **Le tour s'adapte à une maison déjà remplie.** Si vous avez déjà une cuisine
+  et un réfrigérateur saisis à la main, cocher « Cuisine » puis
+  « Réfrigérateur » ne crée plus de doublons : le tour adopte ce qui existe, et
+  vous propose les entretiens correspondants. C'est tout l'intérêt de le
+  relancer — compléter, sans repartir de zéro.
+
 ## 0.16.0
 
 - **Didacticiel de démarrage « Configurer MaBarak »**. Une installation neuve
