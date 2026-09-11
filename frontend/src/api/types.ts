@@ -242,6 +242,8 @@ export interface Task {
   fixed_month: number | null
   fixed_day: number | null
   custom_due_date: string | null
+  season_start_month: number | null
+  season_end_month: number | null
   last_intervention_id: number | null
   replacement_parts: ReplacementPart[]
   preparation_notes: string | null
@@ -290,6 +292,9 @@ export interface TaskIn {
   fixed_month?: number | null
   fixed_day?: number | null
   custom_due_date?: string | null
+  /** Fenetre de saison (ADR-0010) : les deux bornes ensemble, ou aucune. */
+  season_start_month?: number | null
+  season_end_month?: number | null
   last_completed_on?: string | null
   replacement_parts?: ReplacementPartIn[]
   preparation_notes?: string | null
@@ -375,6 +380,8 @@ export interface CatalogRecurrence {
   interval: number | null
   month: number | null
   day: number | null
+  season_start_month: number | null
+  season_end_month: number | null
 }
 
 export interface CatalogMaintenance {

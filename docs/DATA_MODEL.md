@@ -156,6 +156,7 @@ Champs de planification :
 - `recurrence_anchor` : `from_completion` ou `from_due_date`
 - `fixed_month` / `fixed_day` : pour `annual_fixed` (« chaque année le 15 janvier »)
 - `custom_due_date` : pour `custom_date`
+- `season_start_month` / `season_end_month` : fenêtre de saison, bornes incluses
 - `last_completed_on` et `next_due_on`
 - `lead_time_days` : surcharge locale du seuil « bientôt » de la maison
 - `last_reminded_on` : date du dernier rappel envoyé pour l'échéance en cours
@@ -173,6 +174,18 @@ des charges ne mentionne pas explicitement mais qui sont tous deux nécessaires 
 
 Sans cette distinction, un entretien réglementaire finirait par dériver de plusieurs mois au
 bout de quelques années.
+
+La **fenêtre de saison** répond à une question distincte, et c'est pourquoi elle est portée par
+deux colonnes à part plutôt que par un septième type de récurrence
+([adr/0010](adr/0010-saisonnalite.md)). L'ancrage dit *depuis quoi* l'échéance se calcule ; la
+saison dit *quand ce calcul a un sens*. Une tonte revient bien toutes les semaines — mais de
+mars à octobre seulement, et exprimée en « tous les 7 jours » toute l'année, elle afficherait
+une tâche en retard pendant tout l'hiver.
+
+La saison s'applique **après** le calcul : `compute_next_due` fait exactement ce que décrit
+l'ADR-0004, puis repousse le résultat à l'ouverture de la saison suivante s'il tombe hors
+fenêtre. Elle ne s'applique qu'aux récurrences à intervalle (`days`, `months`, `years`) :
+`annual_fixed` porte déjà son mois. La fenêtre peut enjamber le nouvel an (`11` → `2`).
 
 `next_due_on` est une **dénormalisation assumée** : la valeur est recalculée par la couche
 service à chaque validation d'entretien et à chaque modification de la planification. Elle est

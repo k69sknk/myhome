@@ -129,6 +129,8 @@ def _task_out(
         fixed_month=task.fixed_month,
         fixed_day=task.fixed_day,
         custom_due_date=task.custom_due_date,
+        season_start_month=task.season_start_month,
+        season_end_month=task.season_end_month,
         last_intervention_id=last_intervention_id,
         replacement_parts=[
             ReplacementPartOut(id=part.id, name=part.name, source=part.source)
@@ -341,6 +343,8 @@ def create_task(asset_id: int, body: TaskIn, session: Session = Depends(get_sess
         body.fixed_month,
         body.fixed_day,
         body.custom_due_date,
+        body.season_start_month,
+        body.season_end_month,
     )
     assignee = _get_member(session, body.assignee_id) if body.assignee_id is not None else None
     anchor, next_due = plan_task(
@@ -350,6 +354,8 @@ def create_task(asset_id: int, body: TaskIn, session: Session = Depends(get_sess
         fixed_day=body.fixed_day,
         custom_due_date=body.custom_due_date,
         last_completed_on=body.last_completed_on,
+        season_start_month=body.season_start_month,
+        season_end_month=body.season_end_month,
     )
     now = utc_now_iso()
     task = MaintenanceTask(
@@ -364,6 +370,8 @@ def create_task(asset_id: int, body: TaskIn, session: Session = Depends(get_sess
         fixed_month=body.fixed_month,
         fixed_day=body.fixed_day,
         custom_due_date=body.custom_due_date,
+        season_start_month=body.season_start_month,
+        season_end_month=body.season_end_month,
         last_completed_on=body.last_completed_on,
         next_due_on=next_due,
         is_active=1,
@@ -397,6 +405,8 @@ def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_ses
         "fixed_month",
         "fixed_day",
         "custom_due_date",
+        "season_start_month",
+        "season_end_month",
         "last_completed_on",
     }
     if recurrence_fields & data.keys():
@@ -405,8 +415,12 @@ def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_ses
         fixed_month = data.get("fixed_month", task.fixed_month)
         fixed_day = data.get("fixed_day", task.fixed_day)
         custom_due_date = data.get("custom_due_date", task.custom_due_date)
+        season_start = data.get("season_start_month", task.season_start_month)
+        season_end = data.get("season_end_month", task.season_end_month)
         last_completed_on = data.get("last_completed_on", task.last_completed_on)
-        _validate_recurrence(rec_type, interval, fixed_month, fixed_day, custom_due_date)
+        _validate_recurrence(
+            rec_type, interval, fixed_month, fixed_day, custom_due_date, season_start, season_end
+        )
         anchor, next_due = plan_task(
             recurrence_type=rec_type,
             interval=interval,
@@ -414,6 +428,8 @@ def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_ses
             fixed_day=fixed_day,
             custom_due_date=custom_due_date,
             last_completed_on=last_completed_on,
+            season_start_month=season_start,
+            season_end_month=season_end,
         )
         task.recurrence_type = rec_type
         task.recurrence_interval = interval
@@ -421,6 +437,8 @@ def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_ses
         task.fixed_month = fixed_month
         task.fixed_day = fixed_day
         task.custom_due_date = custom_due_date
+        task.season_start_month = season_start
+        task.season_end_month = season_end
         task.last_completed_on = last_completed_on
         task.next_due_on = next_due
         task.last_reminded_on = None
@@ -922,6 +940,8 @@ def _validate_recurrence(
     fixed_month: int | None,
     fixed_day: int | None,
     custom_due_date: str | None,
+    season_start_month: int | None = None,
+    season_end_month: int | None = None,
 ) -> None:
     if rec_type in {"days", "months", "years"} and interval is None:
         raise HTTPException(422, "Indiquez l'intervalle (tous les X mois/ans/jours)")
@@ -929,3 +949,12 @@ def _validate_recurrence(
         raise HTTPException(422, "Indiquez le jour et le mois pour un entretien annuel")
     if rec_type == "custom_date" and custom_due_date is None:
         raise HTTPException(422, "Indiquez la date de l'entretien ponctuel")
+    # Les CHECK de saison de schema.sql ne sont pas presents sur les bases migrees
+    # (SQLite ne sait pas ajouter une contrainte, cf. 0010) : ce chemin est le seul
+    # garde-fou cote utilisateur, il doit donc les rejouer entierement.
+    if (season_start_month is None) != (season_end_month is None):
+        raise HTTPException(422, "Indiquez le debut ET la fin de la saison")
+    if season_start_month is not None and rec_type not in {"days", "months", "years"}:
+        raise HTTPException(
+            422, "Une saison ne s'applique qu'a un entretien qui revient tous les X jours/mois/ans"
+        )

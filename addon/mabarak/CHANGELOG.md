@@ -3,6 +3,34 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.21.0
+
+- **« Passer la tondeuse » entre enfin au catalogue.** L'entretien de pelouse le
+  plus évident y manquait, et ce n'était pas un oubli : le modèle ne savait pas
+  dire « toutes les semaines, mais de mars à octobre ». Exprimée en « tous les 7
+  jours » toute l'année, la tonte aurait affiché une tâche en retard pendant
+  quatre mois d'hiver.
+
+- **Une saison sur les entretiens qui ne valent qu'une partie de l'année.** Dans
+  le formulaire, cochez « Seulement à la belle saison » et choisissez les deux
+  mois. Hors saison, l'échéance se suspend et repart à l'ouverture suivante — une
+  seule, pas les vingt que l'hiver a sautées. La saison peut passer l'hiver
+  (novembre à février) pour un entretien de saison froide.
+
+- **Piscine.** Un nettoyage hebdomadaire du bassin est proposé de mai à
+  septembre, et le nettoyage du filtre devient saisonnier : entre l'hivernage et
+  la remise en service, le bassin est à l'arrêt, et six échéances en retard
+  s'accumulaient chaque printemps.
+
+- **Haie et terrasse, revues aussi** : elles restent à dates fixes. Les deux
+  tailles de haie encadrent délibérément la période de nidification, pendant
+  laquelle tailler est déconseillé ; ce sont deux rendez-vous précis, pas un
+  rythme qui se répète.
+
+- **« Tous les X jours » manquait à la liste des fréquences.** Plus gênant :
+  ouvrir un entretien exprimé en jours pour le modifier le convertissait
+  silencieusement en « tous les X mois ». Corrigé.
+
 ## 0.20.0
 
 - **Les échéances viennent à vous.** MaBarak envoie désormais un rappel Home

@@ -17,7 +17,7 @@ import Modal from '../components/Modal'
 import TaskForm from '../components/TaskForm'
 import { useToast } from '../components/Toast'
 import { EditIcon } from '../components/icons'
-import { errorMessage, formatRecurrence } from '../lib/format'
+import { errorMessage, formatRecurrence, formatSeason } from '../lib/format'
 
 type Phase = 'zones' | 'objets' | 'entretiens' | 'fin'
 
@@ -432,6 +432,13 @@ export default function Onboarding() {
                               }
                             />
                             {unitLabel(draft.task.recurrence_type)}
+                            {/* La saison n'est pas modifiable ici : le crayon ouvre
+                                la fiche complete. Elle est affichee pour qu'on ne
+                                croie pas a un entretien hebdomadaire toute l'annee. */}
+                            {formatSeason(
+                              draft.task.season_start_month,
+                              draft.task.season_end_month,
+                            )}
                           </p>
                         )}
                       </div>

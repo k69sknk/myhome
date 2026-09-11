@@ -474,6 +474,18 @@ CREATE TABLE maintenance_task (
     fixed_day           INTEGER CHECK (fixed_day   IS NULL OR fixed_day   BETWEEN 1 AND 31),
     custom_due_date     TEXT,
 
+    -- FENETRE DE SAISON, bornes incluses. Voir adr/0010-saisonnalite.md.
+    -- La tonte revient toutes les semaines, mais de mars a octobre seulement :
+    -- exprimee en 'tous les 7 jours' toute l'annee, elle afficherait une tache en
+    -- retard pendant tout l'hiver et noierait le planning.
+    -- Ce n'est PAS un type de recurrence de plus : la recurrence reste 'tous les
+    -- 7 jours', ces deux colonnes disent seulement quand elle s'applique. La
+    -- fenetre peut enjamber le nouvel an (11 -> 2 pour un entretien d'hiver).
+    season_start_month  INTEGER CHECK (season_start_month IS NULL
+                                       OR season_start_month BETWEEN 1 AND 12),
+    season_end_month    INTEGER CHECK (season_end_month IS NULL
+                                       OR season_end_month BETWEEN 1 AND 12),
+
     last_completed_on   TEXT,
 
     -- DENORMALISATION ASSUMEE : recalculee par la couche service a chaque validation
@@ -513,7 +525,15 @@ CREATE TABLE maintenance_task (
             AND fixed_month IS NOT NULL AND fixed_day IS NOT NULL)
         OR (recurrence_type = 'custom_date'
             AND custom_due_date IS NOT NULL)
-    )
+    ),
+
+    -- Les deux bornes de saison vont ensemble, ou aucune.
+    CHECK ((season_start_month IS NULL) = (season_end_month IS NULL)),
+
+    -- La saison ne s'applique qu'a une recurrence a intervalle. 'annual_fixed'
+    -- porte deja son mois, et une date ponctuelle n'a rien a repousser.
+    CHECK (season_start_month IS NULL
+           OR recurrence_type IN ('days', 'months', 'years'))
 );
 
 CREATE INDEX ix_task_asset     ON maintenance_task(asset_id);

@@ -151,6 +151,8 @@ class MaintenanceTask(Base):
     fixed_month: Mapped[int | None] = mapped_column(Integer)
     fixed_day: Mapped[int | None] = mapped_column(Integer)
     custom_due_date: Mapped[str | None] = mapped_column(Text)
+    season_start_month: Mapped[int | None] = mapped_column(Integer)
+    season_end_month: Mapped[int | None] = mapped_column(Integer)
     last_completed_on: Mapped[str | None] = mapped_column(Text)
     next_due_on: Mapped[str | None] = mapped_column(Text)
     lead_time_days: Mapped[int | None] = mapped_column(Integer)

@@ -1,11 +1,18 @@
 import { useState, type FormEvent } from 'react'
 
 import type { Member, RecurrenceType, ReplacementPartIn, TaskIn, TaskPriority } from '../api/types'
-import { emptyToNull, errorMessage, priorityLabel, todayIso } from '../lib/format'
+import { emptyToNull, errorMessage, monthName, priorityLabel, todayIso } from '../lib/format'
 import Field from './Field'
 import { useToast } from './Toast'
 
-type Frequency = Extract<RecurrenceType, 'months' | 'years' | 'annual_fixed'> | 'custom_date'
+type Frequency =
+  | Extract<RecurrenceType, 'days' | 'months' | 'years' | 'annual_fixed'>
+  | 'custom_date'
+
+/** Les frequences a intervalle sont les seules qui acceptent une saison (ADR-0010). */
+const INTERVAL_FREQUENCIES: Frequency[] = ['days', 'months', 'years']
+
+const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
 const PRIORITIES: TaskPriority[] = ['low', 'normal', 'high', 'critical']
 
@@ -24,6 +31,8 @@ export interface TaskFormInitial {
   fixed_month?: number | null
   fixed_day?: number | null
   custom_due_date?: string | null
+  season_start_month?: number | null
+  season_end_month?: number | null
   last_completed_on?: string | null
   replacement_parts?: { name: string; source?: string | null }[]
   preparation_notes?: string | null
@@ -33,9 +42,16 @@ export interface TaskFormInitial {
 
 function initialFrequency(task?: TaskFormInitial): Frequency {
   const type = task?.recurrence_type
-  if (type === 'months' || type === 'years' || type === 'annual_fixed') return type
-  if (type === 'custom_date' || type === 'none' || !type) return 'custom_date'
-  return 'months'
+  if (type === 'days' || type === 'months' || type === 'years' || type === 'annual_fixed') {
+    return type
+  }
+  return 'custom_date'
+}
+
+function intervalUnit(frequency: Frequency): string {
+  if (frequency === 'days') return 'de jours'
+  if (frequency === 'years') return "d'ans"
+  return 'de mois'
 }
 
 interface PartRow {
@@ -58,6 +74,9 @@ export default function TaskForm({
   const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? 'normal')
   const [frequency, setFrequency] = useState<Frequency>(initialFrequency(initial))
   const [interval, setInterval] = useState(initial?.recurrence_interval ?? 3)
+  const [seasonal, setSeasonal] = useState(initial?.season_start_month != null)
+  const [seasonStart, setSeasonStart] = useState(initial?.season_start_month ?? 3)
+  const [seasonEnd, setSeasonEnd] = useState(initial?.season_end_month ?? 10)
   const [fixedDate, setFixedDate] = useState(
     initial?.recurrence_type === 'annual_fixed' && initial.fixed_month && initial.fixed_day
       ? `${new Date().getFullYear()}-${String(initial.fixed_month).padStart(2, '0')}-${String(initial.fixed_day).padStart(2, '0')}`
@@ -109,8 +128,12 @@ export default function TaskForm({
       notes: emptyToNull(notes),
       assignee_id: assigneeId ? Number(assigneeId) : null,
     }
-    if (frequency === 'months' || frequency === 'years') {
+    if (INTERVAL_FREQUENCIES.includes(frequency)) {
       body.recurrence_interval = interval
+      if (seasonal) {
+        body.season_start_month = seasonStart
+        body.season_end_month = seasonEnd
+      }
     }
     if (frequency === 'annual_fixed') {
       const [, monthPart, dayPart] = fixedDate.split('-')
@@ -169,21 +192,60 @@ export default function TaskForm({
           value={frequency}
           onChange={(event) => setFrequency(event.target.value as Frequency)}
         >
+          <option value="days">Tous les X jours</option>
           <option value="months">Tous les X mois</option>
           <option value="years">Tous les X ans</option>
           <option value="annual_fixed">Une fois par an, a date fixe</option>
           <option value="custom_date">Ponctuel</option>
         </select>
       </Field>
-      {(frequency === 'months' || frequency === 'years') && (
-        <Field label={frequency === 'months' ? 'Tous les combien de mois' : "Tous les combien d'ans"}>
-          <input
-            type="number"
-            min={1}
-            value={interval}
-            onChange={(event) => setInterval(Number(event.target.value))}
-          />
-        </Field>
+      {INTERVAL_FREQUENCIES.includes(frequency) && (
+        <>
+          <Field label={`Tous les combien ${intervalUnit(frequency)}`}>
+            <input
+              type="number"
+              min={1}
+              value={interval}
+              onChange={(event) => setInterval(Number(event.target.value))}
+            />
+          </Field>
+          <Field
+            label="Seulement a la belle saison"
+            hint="Pour ce qui ne vaut qu'une partie de l'annee : tonte, piscine. Hors saison, l'echeance se suspend au lieu d'afficher une tache en retard tout l'hiver."
+          >
+            <input
+              type="checkbox"
+              checked={seasonal}
+              onChange={(event) => setSeasonal(event.target.checked)}
+            />
+          </Field>
+          {seasonal && (
+            <Field label="De ... a ..." hint="Mois inclus. La saison peut passer l'hiver (novembre a fevrier).">
+              <div className="task-form__part-row">
+                <select
+                  value={seasonStart}
+                  onChange={(event) => setSeasonStart(Number(event.target.value))}
+                >
+                  {MONTHS.map((month) => (
+                    <option key={month} value={month}>
+                      {monthName(month)}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={seasonEnd}
+                  onChange={(event) => setSeasonEnd(Number(event.target.value))}
+                >
+                  {MONTHS.map((month) => (
+                    <option key={month} value={month}>
+                      {monthName(month)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </Field>
+          )}
+        </>
       )}
       {frequency === 'annual_fixed' && (
         <Field label="Date fixe" hint="Seuls le jour et le mois sont retenus, l'annee saisie n'a pas d'importance.">

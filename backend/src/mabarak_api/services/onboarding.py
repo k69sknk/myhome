@@ -265,6 +265,8 @@ def draft_from_catalog(key: str) -> TaskIn:
         recurrence_interval=recurrence.interval,
         fixed_month=recurrence.month,
         fixed_day=recurrence.day,
+        season_start_month=recurrence.season_start_month,
+        season_end_month=recurrence.season_end_month,
         notes=maintenance.description,
         preparation_notes=maintenance.preparation_notes,
     )
@@ -296,6 +298,8 @@ def apply_maintenance(
         fixed_month=body.fixed_month,
         fixed_day=body.fixed_day,
         custom_due_date=date.fromisoformat(body.custom_due_date) if body.custom_due_date else None,
+        season_start_month=body.season_start_month,
+        season_end_month=body.season_end_month,
     )
     last = date.fromisoformat(body.last_completed_on) if body.last_completed_on else None
     next_due = initial_next_due(last_completed_on=last, today=utc_today(), recurrence=recurrence)
@@ -315,6 +319,8 @@ def apply_maintenance(
         fixed_month=body.fixed_month,
         fixed_day=body.fixed_day,
         custom_due_date=body.custom_due_date,
+        season_start_month=body.season_start_month,
+        season_end_month=body.season_end_month,
         last_completed_on=body.last_completed_on,
         next_due_on=next_due.isoformat() if next_due else None,
         is_active=1,
