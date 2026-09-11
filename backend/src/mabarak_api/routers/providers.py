@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from ..catalog import load_trades
 from ..clock import utc_now_iso
 from ..db import get_session
-from ..models import Intervention, MaintenanceTask, Provider
-from ..schemas import ProviderIn, ProviderOut, ProviderPatch, TradeOut
+from ..models import Intervention, MaintenanceTask, Provider, Trade
+from ..schemas import ProviderIn, ProviderOut, ProviderPatch, TradeIn, TradeOut
 from ..services.home import ensure_home
+from ..services.trades import ensure_trades, list_trades, trade_for_name
 
 router = APIRouter(tags=["prestataires"])
 
@@ -35,10 +35,32 @@ def _provider_or_404(session: Session, provider_id: int) -> Provider:
     return row
 
 
+def _trade_out(row: Trade) -> TradeOut:
+    return TradeOut(slug=row.slug, label=row.name, is_builtin=bool(row.is_builtin))
+
+
 @router.get("/trades", response_model=list[TradeOut])
-def list_trades() -> list[TradeOut]:
-    # Contenu statique livre avec l'application : ni base, ni session (adr/0008).
-    return [TradeOut(slug=trade.slug, label=trade.label) for trade in load_trades()]
+def read_trades(session: Session = Depends(get_session)) -> list[TradeOut]:
+    """Les metiers integres, puis ceux que l'utilisateur a ajoutes, « Autre » en
+    dernier. Le seed est rejoue ici aussi : une base creee avant la 0.29.0 n'a
+    pas encore ses metiers integres si l'add-on n'a pas redemarre depuis."""
+    ensure_trades(session)
+    return [_trade_out(row) for row in list_trades(session)]
+
+
+@router.post("/trades", response_model=TradeOut, status_code=201)
+def create_trade(body: TradeIn, session: Session = Depends(get_session)) -> TradeOut:
+    """Ajoute un metier que la liste ignore, ou retrouve celui qui existe deja.
+
+    Renvoyer l'existant plutot qu'un doublon est le point important : sans cela,
+    « Vitrier » saisi sur deux fiches donnerait deux metiers, et le regroupement
+    par metier ne regrouperait rien.
+    """
+    label = body.name.strip()
+    if not label:
+        raise HTTPException(422, "Ce metier a besoin d'un nom")
+    ensure_trades(session)
+    return _trade_out(trade_for_name(session, label))
 
 
 @router.get("/providers", response_model=list[ProviderOut])

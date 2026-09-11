@@ -514,6 +514,15 @@ class ProviderPatch(BaseModel):
 class TradeOut(BaseModel):
     slug: str
     label: str
+    # Un metier integre ne se supprime pas : le seed le recreerait au demarrage
+    # suivant.
+    is_builtin: bool = True
+
+
+class TradeIn(BaseModel):
+    """Un metier que la liste integree ignore, saisi par l'utilisateur."""
+
+    name: str = Field(min_length=1)
 
 
 class MemberIn(BaseModel):

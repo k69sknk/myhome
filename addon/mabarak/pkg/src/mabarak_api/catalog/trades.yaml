@@ -8,8 +8,13 @@
 #
 # La liste est volontairement courte. Elle sert a REGROUPER (« mes chauffagistes »)
 # et a proposer le bon prestataire au moment d'assigner un entretien, pas a
-# decrire un annuaire professionnel. « Autre » est donc une reponse acceptable
-# et non un aveu de manque.
+# decrire un annuaire professionnel. « Autre » reste une reponse acceptable : le
+# choix de ne pas repondre.
+#
+# Ce que la liste ignore ne s'arrete donc pas a « Autre ». Ces entrees sont semees
+# au demarrage dans la table `trade`, ou l'utilisateur peut ajouter le metier qui
+# lui manque — un vitrier, un cuisiniste (adr/0012). Inutile d'allonger ce fichier
+# pour un metier rare : il a desormais sa place.
 
 - slug: chauffagiste
   label: Chauffagiste

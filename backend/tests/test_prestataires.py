@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from mabarak_api.db import create_db_engine
+from mabarak_api.main import create_app
 from mabarak_api.migrate import upgrade_to_head
 
 
@@ -116,6 +117,82 @@ def test_liste_des_metiers(client: TestClient) -> None:
     slugs = {trade["slug"] for trade in trades}
     assert {"chauffagiste", "plombier", "autre"} <= slugs
     assert all(trade["label"] for trade in trades)
+
+
+def test_les_metiers_integres_sont_ordonnes_et_autre_ferme_la_liste(
+    client: TestClient,
+) -> None:
+    trades = client.get("/api/trades").json()
+    assert trades[-1]["slug"] == "autre"
+    assert all(trade["is_builtin"] for trade in trades)
+
+
+def test_un_metier_absent_de_la_liste_sajoute(client: TestClient) -> None:
+    """« Autre » seul faisait perdre l'information : on ne savait plus qui on
+    appelle. Un vitrier n'est pas dans la liste integree, il doit pouvoir y
+    entrer."""
+    created = client.post("/api/trades", json={"name": "Vitrier"})
+
+    assert created.status_code == 201
+    assert created.json() == {"slug": "vitrier", "label": "Vitrier", "is_builtin": False}
+
+    trades = client.get("/api/trades").json()
+    slugs = [trade["slug"] for trade in trades]
+    assert "vitrier" in slugs
+    # Un metier a part entiere : apres les integres, mais avant « Autre ».
+    assert slugs.index("vitrier") < slugs.index("autre")
+    assert slugs.index("chauffagiste") < slugs.index("vitrier")
+
+    # Et il se pose sur une fiche comme n'importe quel autre.
+    provider = client.post(
+        "/api/providers", json={"name": "Vitrerie du Rhone", "specialty": "vitrier"}
+    ).json()
+    assert provider["specialty"] == "vitrier"
+    assert client.get("/api/providers").json()[0]["specialty"] == "vitrier"
+
+
+def test_le_meme_metier_saisi_deux_fois_ne_fait_pas_de_sosie(client: TestClient) -> None:
+    """Deux saisies qui ne different que par la casse ou les accents designent le
+    meme metier (meme regle que le didacticiel en 0.24) : sans cela, regrouper
+    par metier ne regrouperait rien."""
+    premier = client.post("/api/trades", json={"name": "Vitrier"}).json()
+    avant = len(client.get("/api/trades").json())
+
+    for saisie in ("vitrier", "VITRIER", "  Vitrier  "):
+        again = client.post("/api/trades", json={"name": saisie})
+        assert again.status_code == 201
+        assert again.json()["slug"] == premier["slug"]
+
+    assert len(client.get("/api/trades").json()) == avant
+    assert client.get("/api/trades").json()[-1]["slug"] == "autre"
+
+
+def test_un_metier_integre_saisi_a_la_main_reste_integre(client: TestClient) -> None:
+    retrouve = client.post("/api/trades", json={"name": "Plombier"})
+
+    assert retrouve.json()["slug"] == "plombier"
+    assert retrouve.json()["is_builtin"] is True
+    assert len([t for t in client.get("/api/trades").json() if t["slug"] == "plombier"]) == 1
+
+
+def test_un_metier_sans_nom_est_refuse(client: TestClient) -> None:
+    assert client.post("/api/trades", json={"name": "   "}).status_code == 422
+    assert client.post("/api/trades", json={"name": ""}).status_code == 422
+
+
+def test_une_base_migree_recoit_les_metiers_integres(settings) -> None:
+    """Migration 0013 : la table est creee vide sur une base existante, et le
+    seed du demarrage la remplit — sinon l'ecran des prestataires serait vide."""
+    upgrade_to_head(settings)
+    engine = create_db_engine(settings)
+    with engine.connect() as connection:
+        avant = connection.execute(text("SELECT COUNT(*) FROM trade")).scalar_one()
+
+    with TestClient(create_app(settings)) as client:
+        trades = client.get("/api/trades").json()
+
+    assert avant == 0
+    assert {"chauffagiste", "plombier", "autre"} <= {trade["slug"] for trade in trades}
 
 
 def test_les_entreprises_dejà_saisies_demenagent_avec_leurs_liens(settings) -> None:

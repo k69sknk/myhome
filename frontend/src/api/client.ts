@@ -245,6 +245,9 @@ export const api = {
   deleteProvider: (providerId: number) =>
     request<{ ok: boolean }>(`providers/${providerId}`, { method: 'DELETE' }),
   trades: () => request<Trade[]>('trades'),
+  /** Ajoute un metier que la liste integree ignore, ou retrouve l'existant. */
+  createTrade: (name: string) =>
+    request<Trade>('trades', { method: 'POST', ...jsonBody({ name }) }),
 
   catalog: () => request<Catalog>('catalog'),
   applyCatalogRoom: (
