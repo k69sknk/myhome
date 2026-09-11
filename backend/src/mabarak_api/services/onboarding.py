@@ -53,6 +53,18 @@ def apply_room(
         select(Location).where(Location.home_id == home.id, Location.catalog_key == room_key)
     ).first()
     if location is None:
+        # Maison deja remplie a la main : ses lieux n'ont aucune cle de catalogue.
+        # On adopte celui qui porte deja ce nom plutot que d'en creer un double —
+        # la contrainte UNIQUE ne protege pas, `parent_id` valant NULL au premier
+        # niveau et deux NULL etant distincts sous SQLite.
+        location = session.scalars(
+            select(Location).where(Location.home_id == home.id, Location.name == room.label)
+        ).first()
+        if location is not None:
+            location.catalog_key = room.key
+            location.updated_at = now
+
+    if location is None:
         location_type = session.scalars(
             select(LocationType).where(LocationType.slug == room.location_type)
         ).one()
@@ -67,22 +79,29 @@ def apply_room(
         session.add(location)
         session.flush()
 
-    existing = {
-        key
-        for key in session.scalars(
-            select(Asset.catalog_key).where(
-                Asset.home_id == home.id, Asset.location_id == location.id
-            )
-        )
-        if key is not None
-    }
+    existing = session.scalars(
+        select(Asset).where(Asset.home_id == home.id, Asset.location_id == location.id)
+    ).all()
+    by_catalog_key = {asset.catalog_key: asset for asset in existing if asset.catalog_key}
+    by_name = {asset.name: asset for asset in existing}
 
     by_key = {item.key: item for item in catalog.items}
     created: list[Asset] = []
     for item_key in item_keys:
-        if item_key in existing:
-            continue
         item = by_key[item_key]
+        if item_key in by_catalog_key:
+            continue
+
+        adoptee = by_name.get(item.label)
+        if adoptee is not None:
+            # Fiche saisie a la main, donc sans cle. On l'adopte au lieu de
+            # simplement l'ignorer : sans cela, ses entretiens types ne seraient
+            # jamais proposes et relancer le tour n'apporterait rien a une maison
+            # deja remplie.
+            adoptee.catalog_key = item.key
+            adoptee.updated_at = now
+            continue
+
         asset = Asset(
             home_id=home.id,
             kind=item.kind,
