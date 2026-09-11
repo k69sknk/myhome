@@ -167,17 +167,13 @@ def test_une_date_fixe_ignore_la_saison() -> None:
 
 
 def test_une_tonte_creee_en_hiver_demarre_au_printemps() -> None:
-    next_due = initial_next_due(
-        last_completed_on=None, today=date(2027, 1, 10), recurrence=TONTE
-    )
+    next_due = initial_next_due(last_completed_on=None, today=date(2027, 1, 10), recurrence=TONTE)
 
     assert next_due == date(2027, 3, 1)
 
 
 def test_une_tonte_creee_en_saison_demarre_dans_la_semaine() -> None:
-    next_due = initial_next_due(
-        last_completed_on=None, today=date(2026, 5, 10), recurrence=TONTE
-    )
+    next_due = initial_next_due(last_completed_on=None, today=date(2026, 5, 10), recurrence=TONTE)
 
     assert next_due == date(2026, 5, 17)
 
