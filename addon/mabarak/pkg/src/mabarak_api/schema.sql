@@ -55,7 +55,24 @@ CREATE TABLE home (
     ha_calendar_sync_enabled  INTEGER NOT NULL DEFAULT 0,
 
     -- Notifier via Home Assistant (notify.*) la personne assignee a un entretien.
+    -- Sert aussi d'interrupteur au passage de rappel quotidien (adr/0009) : une
+    -- seule case a cocher pour tout ce qui sort de l'application vers le telephone.
     task_notifications_enabled INTEGER NOT NULL DEFAULT 0,
+
+    -- Heure LOCALE du passage quotidien de rappel. Une heure entiere suffit : un
+    -- rappel d'entretien domestique n'a pas besoin d'etre a la minute.
+    reminder_hour              INTEGER NOT NULL DEFAULT 8
+                               CHECK (reminder_hour BETWEEN 0 AND 23),
+
+    -- Service `notify.*` destinataire par defaut, quand l'entretien n'est assigne
+    -- a personne ou que la personne assignee n'a pas de service renseigne. Sans
+    -- lui, ces entretiens-la ne rappellent rien a personne.
+    default_notify_service     TEXT,
+
+    -- Date LOCALE du dernier passage de rappel REELLEMENT effectue. C'est elle qui
+    -- donne le rattrapage : si l'add-on etait eteint a l'heure prevue, le passage
+    -- a lieu au demarrage suivant au lieu d'etre saute.
+    last_reminder_run_on       TEXT,
 
     created_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -457,6 +474,18 @@ CREATE TABLE maintenance_task (
     fixed_day           INTEGER CHECK (fixed_day   IS NULL OR fixed_day   BETWEEN 1 AND 31),
     custom_due_date     TEXT,
 
+    -- FENETRE DE SAISON, bornes incluses. Voir adr/0010-saisonnalite.md.
+    -- La tonte revient toutes les semaines, mais de mars a octobre seulement :
+    -- exprimee en 'tous les 7 jours' toute l'annee, elle afficherait une tache en
+    -- retard pendant tout l'hiver et noierait le planning.
+    -- Ce n'est PAS un type de recurrence de plus : la recurrence reste 'tous les
+    -- 7 jours', ces deux colonnes disent seulement quand elle s'applique. La
+    -- fenetre peut enjamber le nouvel an (11 -> 2 pour un entretien d'hiver).
+    season_start_month  INTEGER CHECK (season_start_month IS NULL
+                                       OR season_start_month BETWEEN 1 AND 12),
+    season_end_month    INTEGER CHECK (season_end_month IS NULL
+                                       OR season_end_month BETWEEN 1 AND 12),
+
     last_completed_on   TEXT,
 
     -- DENORMALISATION ASSUMEE : recalculee par la couche service a chaque validation
@@ -467,6 +496,12 @@ CREATE TABLE maintenance_task (
 
     -- Surcharge locale du seuil 'bientot' de la maison.
     lead_time_days      INTEGER CHECK (lead_time_days IS NULL OR lead_time_days >= 0),
+
+    -- Date du dernier rappel envoye pour l'echeance EN COURS. Remise a NULL des
+    -- que `next_due_on` est recalculee : un entretien fraichement replanifie a
+    -- droit a son rappel. C'est ce qui empeche un entretien en retard de notifier
+    -- tous les jours (adr/0009).
+    last_reminded_on    TEXT,
 
     is_active           INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
 
@@ -490,7 +525,15 @@ CREATE TABLE maintenance_task (
             AND fixed_month IS NOT NULL AND fixed_day IS NOT NULL)
         OR (recurrence_type = 'custom_date'
             AND custom_due_date IS NOT NULL)
-    )
+    ),
+
+    -- Les deux bornes de saison vont ensemble, ou aucune.
+    CHECK ((season_start_month IS NULL) = (season_end_month IS NULL)),
+
+    -- La saison ne s'applique qu'a une recurrence a intervalle. 'annual_fixed'
+    -- porte deja son mois, et une date ponctuelle n'a rien a repousser.
+    CHECK (season_start_month IS NULL
+           OR recurrence_type IN ('days', 'months', 'years'))
 );
 
 CREATE INDEX ix_task_asset     ON maintenance_task(asset_id);

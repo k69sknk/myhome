@@ -12,6 +12,12 @@
 # `anchor` (voir adr/0004) : 'from_due_date' pour tout ce qui est reglementaire
 # ou contractuel et ne doit pas deriver si l'utilisateur s'y prend en retard ;
 # 'from_completion' (defaut) pour l'entretien d'usage.
+#
+# `season_start_month` / `season_end_month` (voir adr/0010) : fenetre de saison,
+# bornes incluses, pour un entretien qui ne vaut qu'une partie de l'annee. La
+# recurrence reste 'tous les 7 jours' ; la saison dit seulement quand elle
+# s'applique. Reserve aux recurrences a intervalle : une 'annual_fixed' porte
+# deja son mois.
 
 # --- Cuisine -----------------------------------------------------------------
 
@@ -366,6 +372,9 @@
   label: Terrasse
   kind: building_element
   category: terrace
+  # Revue a l'arrivee de la saison (adr/0010) : laissee en dates fixes. Le
+  # nettoyage de printemps et l'huilage sont des rendez-vous annuels uniques, pas
+  # un rythme qui se repete pendant une fenetre — une saison n'y ajouterait rien.
   maintenances:
     - key: terrasse_nettoyage
       label: Nettoyage de printemps
@@ -422,9 +431,18 @@
   kind: equipment
   category: pool
   maintenances:
+    - key: piscine_nettoyage
+      label: Nettoyer le bassin (epuisette, parois, ligne d'eau)
+      recurrence:
+        { type: days, interval: 7, season_start_month: 5, season_end_month: 9 }
     - key: piscine_filtre
       label: Nettoyer le filtre
-      recurrence: { type: months, interval: 1 }
+      # Saisonnier depuis 0.21.0 : entre l'hivernage (mi-octobre) et la remise en
+      # service (mi-avril), le bassin est a l'arret et le filtre avec lui. Un
+      # rappel mensuel toute l'annee affichait six echeances en retard chaque
+      # printemps.
+      recurrence:
+        { type: months, interval: 1, season_start_month: 5, season_end_month: 9 }
     - key: piscine_hivernage
       label: Hivernage
       recurrence: { type: annual_fixed, month: 10, day: 15 }
@@ -483,6 +501,13 @@
   kind: building_element
   # Rien dans les categories du bati ne couvre le vegetal.
   maintenances:
+    - key: pelouse_tonte
+      label: Tondre
+      description: >-
+        Toutes les semaines a la belle saison, et jamais l'hiver : l'echeance se
+        suspend d'elle-meme de novembre a fevrier.
+      recurrence:
+        { type: days, interval: 7, season_start_month: 3, season_end_month: 10 }
     - key: pelouse_scarification
       label: Scarifier
       recurrence: { type: annual_fixed, month: 4, day: 1 }
@@ -494,6 +519,12 @@
   label: Haie
   kind: building_element
   # Rien dans les categories du bati ne couvre le vegetal.
+  #
+  # Revue a l'arrivee de la saison (adr/0010) : laissee en dates fixes, et c'est
+  # delibere. Les deux tailles encadrent la periode de nidification, pendant
+  # laquelle tailler est deconseille et localement interdit ; une fenetre de
+  # saison exprimerait un rythme recurrent la ou il faut au contraire deux
+  # rendez-vous precis, de part et d'autre d'une periode a ne pas toucher.
   maintenances:
     - key: haie_taille_fin_hiver
       label: Taille de fin d'hiver

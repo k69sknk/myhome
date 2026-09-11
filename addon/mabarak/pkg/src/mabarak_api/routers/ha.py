@@ -17,10 +17,11 @@ from ..ha_client import (
     list_ha_persons,
 )
 from ..models import Asset, TaskStatusRow, Warranty
-from ..schemas import CalendarSyncResult, HaCalendarOut, HaPersonOut
+from ..schemas import CalendarSyncResult, HaCalendarOut, HaPersonOut, ReminderRunResult
 from ..services.calendar_sync import CalendarSyncConfigurationError, run_calendar_sync
 from ..services.catalog import worst_status
 from ..services.home import ensure_home
+from ..services.reminders import ReminderConfigurationError, run_reminders
 
 router = APIRouter(prefix="/ha", tags=["home assistant"])
 
@@ -207,3 +208,24 @@ def calendar_sync_run(session: Session = Depends(get_session)) -> CalendarSyncRe
         raise HTTPException(409, str(exc)) from exc
     except HaUnavailableError as exc:
         raise HTTPException(503, f"Home Assistant injoignable : {exc}") from exc
+
+
+@router.post("/reminders/run", response_model=ReminderRunResult)
+def reminders_run(session: Session = Depends(get_session)) -> ReminderRunResult:
+    """Declenche un passage de rappel a la demande.
+
+    Le passage quotidien est automatique (adr/0009) ; cette route existe pour que
+    l'utilisateur puisse verifier tout de suite que ses notifications arrivent
+    bien, sans attendre le lendemain matin. Elle ne touche pas a la date du
+    dernier passage : un essai ne doit pas faire sauter le passage du jour.
+    """
+    try:
+        result = run_reminders(session)
+    except ReminderConfigurationError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return ReminderRunResult(
+        sent=result.sent,
+        tasks=result.tasks,
+        without_recipient=result.without_recipient,
+        errors=result.errors,
+    )

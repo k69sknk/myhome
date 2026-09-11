@@ -1,5 +1,7 @@
 """Application FastAPI de MaBarak."""
 
+import asyncio
+import contextlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -16,6 +18,7 @@ from .ingress import INGRESS_HEADER, render_index, resolve_base_path
 from .migrate import upgrade_to_head
 from .routers import assets, catalog, ha, health, house, members
 from .services.home import ensure_home
+from .services.scheduler import reminder_scheduler
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,7 +54,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     finally:
         session.close()
     _LOGGER.info("%s %s demarre (donnees: %s)", APP_NAME, __version__, settings.data_dir)
-    yield
+
+    # Le planificateur des rappels d'echeance vit ici, et non dans un service s6
+    # a part : voir adr/0009. Il meurt avec l'API, que s6 relance, et rattrape au
+    # demarrage le passage qu'il aurait manque.
+    scheduler = asyncio.create_task(reminder_scheduler(factory))
+    try:
+        yield
+    finally:
+        scheduler.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await scheduler
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

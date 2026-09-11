@@ -93,6 +93,8 @@ def recurrence_from_task(task: MaintenanceTask) -> Recurrence:
         fixed_month=task.fixed_month,
         fixed_day=task.fixed_day,
         custom_due_date=date.fromisoformat(task.custom_due_date) if task.custom_due_date else None,
+        season_start_month=task.season_start_month,
+        season_end_month=task.season_end_month,
     )
 
 
@@ -104,6 +106,8 @@ def plan_task(
     fixed_day: int | None,
     custom_due_date: str | None,
     last_completed_on: str | None,
+    season_start_month: int | None = None,
+    season_end_month: int | None = None,
 ) -> tuple[str, str | None]:
     recurrence = Recurrence(
         recurrence_type=recurrence_type,
@@ -112,6 +116,8 @@ def plan_task(
         fixed_month=fixed_month,
         fixed_day=fixed_day,
         custom_due_date=date.fromisoformat(custom_due_date) if custom_due_date else None,
+        season_start_month=season_start_month,
+        season_end_month=season_end_month,
     )
     last = date.fromisoformat(last_completed_on) if last_completed_on else None
     nxt = initial_next_due(last_completed_on=last, today=utc_today(), recurrence=recurrence)
@@ -149,6 +155,10 @@ def complete_task(
     )
     task.last_completed_on = performed_on
     task.next_due_on = nxt.isoformat() if nxt else None
+    # Nouvelle echeance, nouveau droit a la parole : sans cette remise a zero, le
+    # rappel resterait muet pendant une semaine sur un entretien tout juste
+    # replanifie (services/reminders.py).
+    task.last_reminded_on = None
     task.updated_at = now
     session.flush()
     return intervention

@@ -36,21 +36,31 @@ class CatalogRecurrence(BaseModel):
     interval: int | None = Field(default=None, ge=1)
     month: int | None = Field(default=None, ge=1, le=12)
     day: int | None = Field(default=None, ge=1, le=31)
+    # Fenetre de saison (adr/0010) : 'la tonte revient toutes les semaines, mais
+    # de mars a octobre'. Les deux bornes ensemble ou aucune.
+    season_start_month: int | None = Field(default=None, ge=1, le=12)
+    season_end_month: int | None = Field(default=None, ge=1, le=12)
 
     @model_validator(mode="after")
     def _coherence(self) -> Self:
-        # Meme regle que le CHECK de `maintenance_task` : un catalogue invalide
+        # Memes regles que les CHECK de `maintenance_task` : un catalogue invalide
         # doit echouer ici, pas au moment de l'insertion chez l'utilisateur.
         if self.type == "annual_fixed":
             if self.month is None or self.day is None:
                 raise ValueError("une recurrence 'annual_fixed' exige 'month' et 'day'")
             if self.interval is not None:
                 raise ValueError("une recurrence 'annual_fixed' n'a pas d'intervalle")
+            if self.season_start_month is not None or self.season_end_month is not None:
+                # Une date fixe porte deja son mois : lui ajouter une saison, c'est
+                # dire deux fois la meme chose, ou se contredire.
+                raise ValueError("une recurrence 'annual_fixed' n'a pas de saison")
         else:
             if self.interval is None:
                 raise ValueError(f"une recurrence '{self.type}' exige un 'interval'")
             if self.month is not None or self.day is not None:
                 raise ValueError(f"une recurrence '{self.type}' n'a ni 'month' ni 'day'")
+        if (self.season_start_month is None) != (self.season_end_month is None):
+            raise ValueError("une saison exige 'season_start_month' ET 'season_end_month'")
         return self
 
 

@@ -82,6 +82,26 @@ export function formatRecurrence(task: {
   recurrence_interval?: number | null
   fixed_month?: number | null
   fixed_day?: number | null
+  season_start_month?: number | null
+  season_end_month?: number | null
+}): string {
+  return `${baseRecurrence(task)}${formatSeason(task.season_start_month, task.season_end_month)}`
+}
+
+/** « de mars à octobre », ou rien du tout hors saison declaree (ADR-0010). */
+export function formatSeason(
+  startMonth: number | null | undefined,
+  endMonth: number | null | undefined,
+): string {
+  if (!startMonth || !endMonth) return ''
+  return `, de ${monthName(startMonth)} à ${monthName(endMonth)}`
+}
+
+function baseRecurrence(task: {
+  recurrence_type: RecurrenceType | string
+  recurrence_interval?: number | null
+  fixed_month?: number | null
+  fixed_day?: number | null
 }): string {
   const type = task.recurrence_type as RecurrenceType | string
   if (type === 'none' || type === 'custom_date') return 'Ponctuel'
@@ -100,6 +120,9 @@ export function formatRecurrence(task: {
   }
   if (type === 'days') {
     const interval = task.recurrence_interval ?? 1
+    // 7 et 14 jours sont ce que les gens appellent une semaine et quinze jours.
+    if (interval === 7) return 'Toutes les semaines'
+    if (interval === 14) return 'Toutes les deux semaines'
     return interval === 1 ? 'Tous les jours' : `Tous les ${interval} jours`
   }
   return type
@@ -112,6 +135,8 @@ export function formatCatalogRecurrence(recurrence: CatalogRecurrence): string {
     recurrence_interval: recurrence.interval,
     fixed_month: recurrence.month,
     fixed_day: recurrence.day,
+    season_start_month: recurrence.season_start_month,
+    season_end_month: recurrence.season_end_month,
   })
 }
 

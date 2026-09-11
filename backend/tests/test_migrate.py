@@ -52,7 +52,9 @@ def test_premiere_migration_se_rejoue_si_le_stamp_manque(settings) -> None:
     with engine.connect() as connection:
         version = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
         homes = connection.execute(text("SELECT COUNT(*) FROM home")).scalar_one()
-    assert version == "0008_provenance_catalogue"
+    # Le head est lu et non ecrit en dur : ce test verifie que le stamp est bien
+    # repose, pas quelle est la derniere revision du jour.
+    assert version == ScriptDirectory.from_config(alembic_config(settings)).get_current_head()
     assert homes == 0
 
 

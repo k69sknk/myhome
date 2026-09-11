@@ -1,6 +1,18 @@
-"""Calcul de `next_due_on` (ADR-0004).
+"""Calcul de `next_due_on` (ADR-0004, ADR-0010).
 
 Point d'entree unique : validation d'entretien et changement de planification.
+
+Deux notions s'y croisent, et elles sont volontairement independantes :
+
+*   l'**ancrage** (ADR-0004) decide DEPUIS QUOI l'echeance se calcule — la date
+    reelle de realisation ou la date theorique ;
+*   la **saison** (ADR-0010) decide QUAND cette echeance a un sens. Une tonte
+    revient toutes les semaines, mais pas en janvier.
+
+La saison n'est donc pas un type de recurrence de plus : elle s'applique APRES le
+calcul, en repoussant a l'ouverture de la saison suivante une echeance qui
+tomberait hors saison. L'ancrage garde ainsi exactement le comportement decrit
+par l'ADR-0004.
 """
 
 from __future__ import annotations
@@ -23,6 +35,16 @@ class Recurrence:
     fixed_day: int | None = None
     custom_due_date: date | None = None
 
+    # Fenetre de saison, bornes incluses, ou None si l'entretien vaut toute
+    # l'annee. Les deux vont ensemble. La fenetre peut enjamber le nouvel an
+    # (11 -> 2 pour un entretien d'hiver).
+    season_start_month: int | None = None
+    season_end_month: int | None = None
+
+    @property
+    def has_season(self) -> bool:
+        return self.season_start_month is not None and self.season_end_month is not None
+
 
 def hidden_anchor(recurrence_type: RecurrenceType) -> RecurrenceAnchor:
     """Ancrage impose par l'UI, jamais saisi par l'utilisateur."""
@@ -43,16 +65,17 @@ def compute_next_due(
         return None
 
     if recurrence.recurrence_type == "annual_fixed":
+        # Une date fixe porte deja son mois : la saison ne s'y applique pas.
         return _next_annual_fixed(completed_on, previous_due, today, recurrence)
 
     if recurrence.anchor == "from_completion":
-        return _add_interval(completed_on, recurrence)
+        return in_season_or_next_opening(_add_interval(completed_on, recurrence), recurrence)
 
     origin = previous_due if previous_due is not None else completed_on
     candidate = _add_interval(origin, recurrence)
     while candidate < today:
         candidate = _add_interval(candidate, recurrence)
-    return candidate
+    return in_season_or_next_opening(candidate, recurrence)
 
 
 def initial_next_due(
@@ -80,8 +103,35 @@ def initial_next_due(
     if recurrence.recurrence_type in {"days", "months", "years"}:
         # Sans dernier entretien, la premiere echeance est dans un intervalle
         # a partir d'aujourd'hui (pas de rattrapage, pas de tache orpheline).
-        return _add_interval(today, recurrence)
+        return in_season_or_next_opening(_add_interval(today, recurrence), recurrence)
     return None
+
+
+def in_season(month: int, recurrence: Recurrence) -> bool:
+    """Ce mois tombe-t-il dans la fenetre de saison ? Vrai s'il n'y en a pas."""
+    start, end = recurrence.season_start_month, recurrence.season_end_month
+    if start is None or end is None:
+        return True
+    if start <= end:
+        return start <= month <= end
+    # Fenetre a cheval sur le nouvel an : novembre -> fevrier.
+    return month >= start or month <= end
+
+
+def in_season_or_next_opening(candidate: date, recurrence: Recurrence) -> date:
+    """`candidate` telle quelle si elle est en saison, sinon l'ouverture suivante.
+
+    Repousser plutot que decaler de proche en proche : une tonte hebdomadaire
+    interrompue en novembre reprend le 1er mars, elle ne rattrape pas les vingt
+    tontes que l'hiver a sautees.
+    """
+    start = recurrence.season_start_month
+    if start is None or in_season(candidate.month, recurrence):
+        return candidate
+    opening = date(candidate.year, start, 1)
+    if opening < candidate:
+        opening = date(candidate.year + 1, start, 1)
+    return opening
 
 
 def _add_interval(origin: date, recurrence: Recurrence) -> date:
