@@ -398,10 +398,13 @@ export interface CatalogMaintenance {
   preparation_notes: string | null
 }
 
+/** Un objet du catalogue ou une fiche : un appareil, ou une partie du bati. */
+export type AssetKind = 'equipment' | 'building_element'
+
 export interface CatalogItem {
   key: string
   label: string
-  kind: 'equipment' | 'building_element'
+  kind: AssetKind
   category: string | null
   deprecated: boolean
   maintenances: CatalogMaintenance[]

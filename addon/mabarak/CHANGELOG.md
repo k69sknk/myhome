@@ -3,6 +3,25 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.24.0
+
+- **Le tour de la maison accepte ce que le catalogue ignore.** Chaque zone du
+  didacticiel offrait une liste fermée : un adoucisseur, un aquarium ou une cave à
+  vin n'avaient aucun moyen d'y entrer, et il fallait attendre la fin du parcours
+  pour créer la fiche à la main. Un champ « Ajouter autre chose » accepte
+  maintenant n'importe quel nom, en appareil ou en élément de la maison.
+
+- **Sans créer de sosie.** Taper un nom que le catalogue connaît propose sa fiche
+  type plutôt qu'une jumelle vide — une jumelle n'aurait aucun entretien à
+  proposer à l'écran suivant. Un objet déjà coché dans la zone est signalé
+  (« dans la liste ci-dessus, cochez-le ») au lieu d'être caché, et un nom déjà
+  présent ailleurs dans la maison affiche où : deux lavabos dans deux salles
+  d'eau restent possibles, deux fois le même ne l'est pas par accident.
+
+- **Un objet rangé ailleurs par le catalogue peut rejoindre la zone du moment.**
+  Le chauffe-eau était proposé en salle de bain ; s'il est au garage, il se
+  trouve en tapant son nom, sans perdre ses entretiens types.
+
 ## 0.23.0
 
 - **L'historique retient qui est venu, pas seulement ce qui a été tapé.** En

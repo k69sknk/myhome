@@ -3,6 +3,7 @@ import type {
   ApplyRoomResult,
   Asset,
   AssetIn,
+  AssetKind,
   AssetListItem,
   AssetPatch,
   CalendarSyncResult,
@@ -197,6 +198,9 @@ export const api = {
   applyCatalogRoom: (
     target: { roomKey: string | null; locationId: number | null },
     itemKeys: string[],
+    /** Objets absents du catalogue, saisis pendant le tour. Un nom que le
+     *  catalogue connait est ramene a sa fiche type cote serveur. */
+    customItems: { name: string; kind: AssetKind }[] = [],
   ) =>
     request<ApplyRoomResult>('catalog/rooms', {
       method: 'POST',
@@ -204,6 +208,7 @@ export const api = {
         room_key: target.roomKey,
         location_id: target.locationId,
         item_keys: itemKeys,
+        custom_items: customItems,
       }),
     }),
   catalogState: () => request<CatalogRoomState[]>('catalog/state'),
