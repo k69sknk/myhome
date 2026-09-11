@@ -1070,9 +1070,12 @@ textarea {
   min-width: 0;
 }
 
+/* `align-items` explicite : sans lui les boutons s'etirent sur toute la hauteur
+   de la ligne, qui compte jusqu'a trois lignes de texte dans la vue d'ensemble. */
 .doc-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 0.35rem;
   flex-shrink: 0;
 }

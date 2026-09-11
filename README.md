@@ -11,11 +11,11 @@ est encore sous garantie.
 **Local-first.** Aucune donnée ne quitte votre machine. Pas de cloud, pas de compte, pas de
 télémétrie.
 
-> **État du projet : 0.27.0.**
+> **État du projet : 0.28.0.**
 > Maison, lieux en arbre, fiches d'appareils et d'éléments de construction, entretiens
-> (Fait / préciser), historique, membres, prestataires, rappels, et les documents d'une fiche
-> dans leurs trois modes de stockage. Il manque la page listant les documents de toute la
-> maison, et les problèmes (`issue`) n'ont pas encore d'interface.
+> (Fait / préciser), historique, membres, prestataires, rappels, et les documents — dans leurs
+> trois modes de stockage, rattachés à une fiche, à un entretien ou à la maison elle-même, avec
+> une page qui les rassemble tous. Les problèmes (`issue`) n'ont pas encore d'interface.
 
 ## Ce dépôt contient deux produits
 

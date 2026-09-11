@@ -3,6 +3,28 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.28.0
+
+- **Une page Documents, qui les rassemble tous.** Jusqu'ici un document ne se voyait que depuis
+  la fiche de son équipement : retrouver « la facture du plombier » demandait de se souvenir de
+  quel appareil il s'était occupé. La page dit, pour chaque document, son type, où il est rangé
+  (fichier, lien ou note) et à quoi il est rattaché — avec le lien vers la fiche. Une facture
+  d'entretien remonte à l'équipement : c'est la fiche qu'on veut ouvrir, pas l'intervention.
+
+- **La recherche traverse le document et l'équipement.** « facture chaudière » trouve la facture
+  rattachée à l'entretien de la chaudière, sans que les deux mots soient dans le même champ, et
+  sans les accents. Les filtres par type et par rangement n'apparaissent qu'à partir de deux
+  valeurs différentes dans la liste : en dessous, ce sont des menus à une seule réponse.
+
+- **Les papiers de la maison ont enfin leur place.** L'acte de propriété, l'assurance
+  habitation, le DPE, un diagnostic : ils ne relèvent d'aucun appareil, et les ranger sur la
+  fiche d'un radiateur n'aurait eu aucun sens. Le schéma prévoyait leur rattachement depuis
+  l'origine (`home_id`) mais rien ne l'écrivait. Ils s'ajoutent depuis la page Documents, dans
+  les trois mêmes modes de stockage que les autres, et se modifient de la même façon.
+
+- **Les photos d'équipement ne sont pas dans cette liste.** Elles vivent en haut de la fiche ;
+  les mêler aux notices et aux factures n'aurait fait que du bruit.
+
 ## 0.27.0
 
 - **Un document peut enfin être un lien ou une simple note.** Le modèle de données prévoyait

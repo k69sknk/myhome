@@ -307,6 +307,20 @@ export interface DocumentMeta {
   created_at: string
 }
 
+/** A quelle entite un document est rattache : le schema en impose une seule. */
+export type DocumentScope = 'home' | 'asset' | 'maintenance_task' | 'intervention' | 'issue'
+
+/** Un document de la vue d'ensemble, avec ce a quoi il est rattache. */
+export interface DocumentListItem extends DocumentMeta {
+  scope: DocumentScope
+  asset_id: number | null
+  /** `equipment` ou `building_element` : la fiche n'est pas a la meme URL. */
+  asset_kind: string | null
+  asset_name: string | null
+  task_name: string | null
+  performed_on: string | null
+}
+
 /** Un document en cours de saisie : le mode choisi porte son contenu. */
 export type DocumentDraft =
   | { mode: 'local_file'; file: File | null }

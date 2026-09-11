@@ -397,3 +397,147 @@ def test_document_introuvable(client: TestClient) -> None:
     assert client.patch("/api/documents/4242", json={"name": "Facture"}).status_code == 404
     assert client.delete("/api/documents/4242").status_code == 404
     assert client.get("/api/documents/4242/file").status_code == 404
+
+
+def test_les_papiers_de_la_maison(client: TestClient) -> None:
+    """`home_id` existait dans le schema sans que rien ne l'ecrive : l'acte, le
+    DPE et l'assurance ne relevent d'aucun appareil."""
+    acte = client.post(
+        "/api/homes/current/documents",
+        files={"file": ("acte.pdf", BytesIO(FAUX_PDF), "application/pdf")},
+        data={"doc_type": "certificate", "name": "Acte de propriete"},
+    )
+    assurance = client.post(
+        "/api/homes/current/documents",
+        data={
+            "storage_mode": "external_link",
+            "doc_type": "service_contract",
+            "name": "Assurance habitation",
+            "url": "https://nextcloud.exemple/maison/assurance.pdf",
+        },
+    )
+    dpe = client.post(
+        "/api/homes/current/documents",
+        data={
+            "storage_mode": "reference_note",
+            "doc_type": "certificate",
+            "name": "DPE",
+            "reference_note": "dossier de vente, classeur bleu",
+        },
+    )
+
+    assert [acte.status_code, assurance.status_code, dpe.status_code] == [201, 201, 201]
+    assert acte.json()["name"] == "Acte de propriete"
+
+    listed = client.get("/api/homes/current/documents").json()
+    # Du plus recent au plus ancien.
+    assert [row["name"] for row in listed] == ["DPE", "Assurance habitation", "Acte de propriete"]
+
+    # Et ils ne polluent pas la fiche d'un equipement.
+    asset_id = _asset(client)
+    assert client.get(f"/api/assets/{asset_id}/documents").json() == []
+
+
+def test_un_papier_de_la_maison_se_modifie_comme_les_autres(
+    client: TestClient, settings: Settings
+) -> None:
+    document = client.post(
+        "/api/homes/current/documents",
+        files={"file": ("dpe.pdf", BytesIO(FAUX_PDF), "application/pdf")},
+        data={"doc_type": "certificate"},
+    ).json()
+    assert len(_fichiers(settings)) == 1
+
+    patched = client.patch(
+        f"/api/documents/{document['id']}",
+        json={
+            "name": "DPE 2026",
+            "storage_mode": "reference_note",
+            "reference_note": "dossier de vente",
+        },
+    )
+    assert patched.status_code == 200
+    assert patched.json()["name"] == "DPE 2026"
+    assert _fichiers(settings) == []
+
+    # Et le retour au fichier, comme partout ailleurs.
+    attached = client.post(
+        f"/api/documents/{document['id']}/file",
+        files={"file": ("dpe.pdf", BytesIO(FAUX_PDF), "application/pdf")},
+    )
+    assert attached.status_code == 200
+    assert attached.json()["storage_mode"] == "local_file"
+
+    assert client.delete(f"/api/documents/{document['id']}").status_code == 200
+    assert _fichiers(settings) == []
+    assert client.get("/api/homes/current/documents").json() == []
+
+
+def test_la_vue_densemble_dit_a_quoi_chaque_document_est_rattache(client: TestClient) -> None:
+    asset_id = _asset(client, "Chaudiere")
+    element_id = client.post(
+        "/api/assets", json={"name": "Toiture", "kind": "building_element"}
+    ).json()["id"]
+    task = client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Revision annuelle", "recurrence_type": "months", "recurrence_interval": 12},
+    ).json()
+    completed = client.post(
+        f"/api/tasks/{task['id']}/complete", json={"performed_on": "2026-03-01"}
+    ).json()
+
+    client.post(
+        "/api/homes/current/documents",
+        data={
+            "storage_mode": "reference_note",
+            "name": "Acte de propriete",
+            "reference_note": "classeur bleu",
+        },
+    )
+    client.post(
+        f"/api/assets/{asset_id}/documents",
+        data={"storage_mode": "reference_note", "name": "Notice chaudiere", "reference_note": "?"},
+    )
+    client.post(
+        f"/api/assets/{element_id}/documents",
+        data={"storage_mode": "reference_note", "name": "Devis toiture", "reference_note": "?"},
+    )
+    client.post(
+        f"/api/interventions/{completed['last_intervention_id']}/documents",
+        files={"file": ("facture.pdf", BytesIO(FAUX_PDF), "application/pdf")},
+    )
+    # Une photo d'equipement n'est pas un document de la maison.
+    client.post(
+        f"/api/assets/{asset_id}/documents",
+        files={"file": ("photo.jpg", BytesIO(b"\xff\xd8\xff fake jpeg"), "image/jpeg")},
+        data={"doc_type": "photo"},
+    )
+
+    rows = client.get("/api/documents").json()
+
+    assert [row["name"] for row in rows] == [
+        "facture.pdf",
+        "Devis toiture",
+        "Notice chaudiere",
+        "Acte de propriete",
+    ]
+    par_nom = {row["name"]: row for row in rows}
+    assert par_nom["Acte de propriete"]["scope"] == "home"
+    assert par_nom["Acte de propriete"]["asset_id"] is None
+    assert par_nom["Notice chaudiere"]["scope"] == "asset"
+    assert par_nom["Notice chaudiere"]["asset_name"] == "Chaudiere"
+    assert par_nom["Notice chaudiere"]["asset_kind"] == "equipment"
+    # Un element de construction ne vit pas a la meme URL qu'un equipement.
+    assert par_nom["Devis toiture"]["asset_kind"] == "building_element"
+    # La facture suit son intervention, et remonte a l'equipement par jointure.
+    facture = par_nom["facture.pdf"]
+    assert facture["scope"] == "intervention"
+    assert facture["asset_id"] == asset_id
+    assert facture["asset_name"] == "Chaudiere"
+    assert facture["performed_on"] == "2026-03-01"
+    assert facture["storage_mode"] == "local_file"
+
+
+def test_la_vue_densemble_est_vide_sans_documents(client: TestClient) -> None:
+    _asset(client)
+    assert client.get("/api/documents").json() == []

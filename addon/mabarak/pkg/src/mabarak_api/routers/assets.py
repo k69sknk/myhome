@@ -35,8 +35,10 @@ from ..schemas import (
     CompleteIn,
     CostOut,
     DocType,
+    DocumentListItem,
     DocumentOut,
     DocumentPatch,
+    DocumentScope,
     HaDeviceOut,
     HaLinkIn,
     HaLinkOut,
@@ -62,12 +64,15 @@ from ..services.catalog import (
 )
 from ..services.documents import (
     UNSCOPED_DIR,
-    StoredFile,
     apply_external_link,
     apply_local_file,
     apply_reference_note,
+    contenu_a_la_creation,
     delete_document,
+    document_out,
+    reference_valide,
     store_upload,
+    url_valide,
 )
 from ..services.home import ensure_home
 from ..services.notifications import notify_assignee
@@ -602,7 +607,7 @@ def list_task_interventions(
             performed_by_provider_id=row.performed_by_provider_id,
             notes=row.notes,
             cost=_cost_out(row),
-            documents=[_document_out(doc) for doc in row.documents],
+            documents=[document_out(doc) for doc in row.documents],
         )
         for row in interventions
     ]
@@ -670,7 +675,7 @@ def list_interventions(
             performed_by_provider_id=row.performed_by_provider_id,
             notes=row.notes,
             cost=_cost_out(row),
-            documents=[_document_out(doc) for doc in row.documents],
+            documents=[document_out(doc) for doc in row.documents],
         )
         for row in rows
     ]
@@ -706,21 +711,6 @@ def delete_intervention(
     return {"ok": True}
 
 
-def _document_out(row: Document) -> DocumentOut:
-    return DocumentOut(
-        id=row.id,
-        name=row.name,
-        doc_type=row.doc_type,
-        storage_mode=row.storage_mode,
-        file_size=row.file_size,
-        mime_type=row.mime_type,
-        url=row.url,
-        reference_note=row.reference_note,
-        notes=row.notes,
-        created_at=row.created_at,
-    )
-
-
 def _cost_out(intervention: Intervention) -> CostOut | None:
     if not intervention.costs:
         return None
@@ -749,63 +739,6 @@ def _document_scope(session: Session, row: Document) -> str:
     return UNSCOPED_DIR
 
 
-def _url_valide(url: str | None) -> str:
-    value = (url or "").strip()
-    if not value:
-        raise HTTPException(422, "Un lien externe a besoin de son URL")
-    if "://" not in value:
-        raise HTTPException(
-            422, "Un lien doit porter son protocole, par exemple https:// ou smb://"
-        )
-    return value
-
-
-def _reference_valide(note: str | None) -> str:
-    value = (note or "").strip()
-    if not value:
-        raise HTTPException(422, "Une reference a besoin de son texte")
-    return value
-
-
-async def _contenu_a_la_creation(
-    settings: Settings,
-    *,
-    scope: str,
-    storage_mode: StorageMode,
-    file: UploadFile | None,
-    url: str | None,
-    reference_note: str | None,
-    name: str | None,
-) -> tuple[dict[str, object], str]:
-    """Colonnes de contenu et nom du document, pour le mode demande.
-
-    Les trois modes sont traites au meme endroit et au meme niveau : c'est la
-    forme que prend, dans le code, l'exigence de l'adr/0002 de ne pas faire du
-    fichier local le choix par defaut et des deux autres des options.
-    """
-    label = (name or "").strip()
-    if storage_mode == "local_file":
-        if file is None or not file.filename:
-            raise HTTPException(422, "Le mode fichier local a besoin d'un fichier")
-        stored: StoredFile = await store_upload(file, settings, scope=scope)
-        return {
-            "storage_mode": "local_file",
-            "file_path": stored.file_path,
-            "file_size": stored.file_size,
-            "mime_type": stored.mime_type,
-        }, label or stored.original_name
-
-    # Les deux modes sans fichier n'ont pas de nom de fichier a emprunter.
-    if not label:
-        raise HTTPException(422, "Ce document a besoin d'un nom")
-    if storage_mode == "external_link":
-        return {"storage_mode": "external_link", "url": _url_valide(url)}, label
-    return {
-        "storage_mode": "reference_note",
-        "reference_note": _reference_valide(reference_note),
-    }, label
-
-
 @router.post(
     "/interventions/{intervention_id}/documents", response_model=DocumentOut, status_code=201
 )
@@ -826,7 +759,7 @@ async def create_intervention_document(
         raise HTTPException(404, "Intervention introuvable")
     _get_asset(session, intervention.asset_id)
 
-    contenu, label = await _contenu_a_la_creation(
+    contenu, label = await contenu_a_la_creation(
         settings,
         scope=str(intervention.asset_id),
         storage_mode=storage_mode,
@@ -847,7 +780,7 @@ async def create_intervention_document(
     )
     session.add(row)
     session.flush()
-    return _document_out(row)
+    return document_out(row)
 
 
 @router.post("/assets/{asset_id}/documents", response_model=DocumentOut, status_code=201)
@@ -869,7 +802,7 @@ async def create_asset_document(
     if doc_type == "photo" and storage_mode != "local_file":
         raise HTTPException(422, "Une photo d'equipement est un fichier")
 
-    contenu, label = await _contenu_a_la_creation(
+    contenu, label = await contenu_a_la_creation(
         settings,
         scope=str(asset.id),
         storage_mode=storage_mode,
@@ -902,7 +835,100 @@ async def create_asset_document(
     )
     session.add(row)
     session.flush()
-    return _document_out(row)
+    return document_out(row)
+
+
+@router.get("/documents", response_model=list[DocumentListItem])
+def list_documents(session: Session = Depends(get_session)) -> list[DocumentListItem]:
+    """Tous les documents de la maison, du plus recent au plus ancien.
+
+    Les photos d'equipement n'y sont pas : elles vivent en haut de la fiche, et
+    les melanger aux notices et aux factures ne ferait que du bruit.
+
+    Le filtrage et la recherche restent a l'interface, qui normalise les accents
+    (`lib/search.ts`) : la liste des documents d'une maison se compte en dizaines,
+    pas en milliers, et un filtre serveur de plus n'apporterait rien qu'un
+    aller-retour.
+    """
+    rows = session.scalars(
+        select(Document)
+        .where(Document.doc_type != "photo")
+        .order_by(Document.created_at.desc(), Document.id.desc())
+    ).all()
+    if not rows:
+        return []
+
+    # Trois lectures groupees plutot qu'une par document : le rattachement d'un
+    # document est l'une des cinq cles, et deux d'entre elles menent a
+    # l'equipement par un saut de plus.
+    intervention_ids = {row.intervention_id for row in rows if row.intervention_id is not None}
+    task_ids = {row.maintenance_task_id for row in rows if row.maintenance_task_id is not None}
+    interventions = (
+        {
+            row.id: row
+            for row in session.scalars(
+                select(Intervention).where(Intervention.id.in_(intervention_ids))
+            )
+        }
+        if intervention_ids
+        else {}
+    )
+    tasks = (
+        {
+            row.id: row
+            for row in session.scalars(
+                select(MaintenanceTask).where(MaintenanceTask.id.in_(task_ids))
+            )
+        }
+        if task_ids
+        else {}
+    )
+    asset_ids = {row.asset_id for row in rows if row.asset_id is not None}
+    asset_ids |= {row.asset_id for row in interventions.values()}
+    asset_ids |= {row.asset_id for row in tasks.values() if row.asset_id is not None}
+    assets = (
+        {row.id: row for row in session.scalars(select(Asset).where(Asset.id.in_(asset_ids)))}
+        if asset_ids
+        else {}
+    )
+
+    items: list[DocumentListItem] = []
+    for row in rows:
+        scope: DocumentScope = "issue"
+        asset_id: int | None = None
+        task_name: str | None = None
+        performed_on: str | None = None
+        if row.home_id is not None:
+            scope = "home"
+        elif row.asset_id is not None:
+            scope = "asset"
+            asset_id = row.asset_id
+        elif row.intervention_id is not None:
+            scope = "intervention"
+            intervention = interventions.get(row.intervention_id)
+            if intervention is not None:
+                asset_id = intervention.asset_id
+                performed_on = intervention.performed_on
+        elif row.maintenance_task_id is not None:
+            scope = "maintenance_task"
+            task = tasks.get(row.maintenance_task_id)
+            if task is not None:
+                asset_id = task.asset_id
+                task_name = task.name
+
+        asset = assets.get(asset_id) if asset_id is not None else None
+        items.append(
+            DocumentListItem(
+                **document_out(row).model_dump(),
+                scope=scope,
+                asset_id=asset_id,
+                asset_kind=asset.kind if asset is not None else None,
+                asset_name=asset.name if asset is not None else None,
+                task_name=task_name,
+                performed_on=performed_on,
+            )
+        )
+    return items
 
 
 @router.get("/assets/{asset_id}/documents", response_model=list[DocumentOut])
@@ -915,7 +941,7 @@ def list_asset_documents(
         .where(Document.asset_id == asset.id, Document.doc_type != "photo")
         .order_by(Document.created_at.desc())
     ).all()
-    return [_document_out(row) for row in rows]
+    return [document_out(row) for row in rows]
 
 
 def _get_document(session: Session, document_id: int) -> Document:
@@ -960,24 +986,24 @@ def update_document(
         raise HTTPException(422, "La photo de la fiche reste un fichier local")
 
     if mode == "external_link":
-        apply_external_link(settings, row, _url_valide(body.url))
+        apply_external_link(settings, row, url_valide(body.url))
     elif mode == "reference_note":
-        apply_reference_note(settings, row, _reference_valide(body.reference_note))
+        apply_reference_note(settings, row, reference_valide(body.reference_note))
     else:
         # Sans changement de mode, on ne corrige que le contenu du mode en cours :
         # ecrire une URL sur un document reste une note ferait mentir `storage_mode`.
         if "url" in fields:
             if row.storage_mode != "external_link":
                 raise HTTPException(422, "Ce document n'est pas un lien externe")
-            row.url = _url_valide(body.url)
+            row.url = url_valide(body.url)
         if "reference_note" in fields:
             if row.storage_mode != "reference_note":
                 raise HTTPException(422, "Ce document n'est pas une reference")
-            row.reference_note = _reference_valide(body.reference_note)
+            row.reference_note = reference_valide(body.reference_note)
 
     row.updated_at = utc_now_iso()
     session.flush()
-    return _document_out(row)
+    return document_out(row)
 
 
 @router.post("/documents/{document_id}/file", response_model=DocumentOut)
@@ -997,7 +1023,7 @@ async def attach_document_file(
     stored = await store_upload(file, settings, scope=_document_scope(session, row))
     apply_local_file(settings, row, stored)
     session.flush()
-    return _document_out(row)
+    return document_out(row)
 
 
 @router.delete("/documents/{document_id}")

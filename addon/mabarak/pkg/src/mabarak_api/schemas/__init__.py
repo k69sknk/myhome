@@ -281,6 +281,28 @@ class DocumentOut(BaseModel):
     created_at: str
 
 
+# A quelle entite un document est rattache. Le CHECK du schema en impose une et
+# une seule (adr/0002).
+DocumentScope = Literal["home", "asset", "maintenance_task", "intervention", "issue"]
+
+
+class DocumentListItem(DocumentOut):
+    """Un document et ce a quoi il est rattache, pour la vue d'ensemble.
+
+    Les libelles ne sont pas construits ici : l'API donne l'equipement, le nom de
+    l'entretien et la date de l'intervention, l'interface en fait une phrase
+    (`lib/format.ts`). `asset_kind` est necessaire pour pointer la bonne fiche :
+    un equipement et un element de construction n'ont pas la meme URL.
+    """
+
+    scope: DocumentScope
+    asset_id: int | None
+    asset_kind: str | None
+    asset_name: str | None
+    task_name: str | None
+    performed_on: str | None
+
+
 class DocumentPatch(BaseModel):
     """Modification d'un document, changement de mode compris.
 

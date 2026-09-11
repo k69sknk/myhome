@@ -6,13 +6,13 @@ import AssetDetail from './pages/AssetDetail'
 import AssetNew from './pages/AssetNew'
 import Assets from './pages/Assets'
 import Dashboard from './pages/Dashboard'
+import Documents from './pages/Documents'
 import HouseElementNew from './pages/HouseElementNew'
 import HouseElements from './pages/HouseElements'
 import Locations from './pages/Locations'
 import Members from './pages/Members'
 import Onboarding from './pages/Onboarding'
 import Providers from './pages/Providers'
-import Placeholder from './pages/Placeholder'
 import Settings from './pages/Settings'
 import Tasks from './pages/Tasks'
 
@@ -34,16 +34,7 @@ export default function App() {
           <Route path="/membres" element={<Members />} />
           <Route path="/prestataires" element={<Providers />} />
           <Route path="/parametres" element={<Settings />} />
-          <Route
-            path="/documents/*"
-            element={
-              <Placeholder
-                title="Documents"
-                description="Les documents s'ajoutent aujourd'hui depuis la fiche d'un equipement, onglet Documents, et depuis un entretien realise. Cette page les rassemblera, tous equipements confondus."
-                reference="Cahier des charges, sections 13 et 14 — vue transverse hors perimetre de cette version"
-              />
-            }
-          />
+          <Route path="/documents" element={<Documents />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

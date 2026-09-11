@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from ..clock import utc_now_iso
 from ..config import Settings
 from ..models import Document
+from ..schemas import DocumentOut, StorageMode
 
 ALLOWED_EXTENSIONS = {
     ".pdf",
@@ -74,6 +75,81 @@ async def store_upload(file: UploadFile, settings: Settings, *, scope: str) -> S
         mime_type=file.content_type,
         original_name=original_name,
     )
+
+
+def document_out(row: Document) -> DocumentOut:
+    """Les trois colonnes de contenu sont exposees telles quelles : l'interface a
+    besoin de savoir si elle presente un fichier, un lien ou une note."""
+    return DocumentOut(
+        id=row.id,
+        name=row.name,
+        doc_type=row.doc_type,
+        storage_mode=row.storage_mode,
+        file_size=row.file_size,
+        mime_type=row.mime_type,
+        url=row.url,
+        reference_note=row.reference_note,
+        notes=row.notes,
+        created_at=row.created_at,
+    )
+
+
+def url_valide(url: str | None) -> str:
+    value = (url or "").strip()
+    if not value:
+        raise HTTPException(422, "Un lien externe a besoin de son URL")
+    if "://" not in value:
+        raise HTTPException(
+            422, "Un lien doit porter son protocole, par exemple https:// ou smb://"
+        )
+    return value
+
+
+def reference_valide(note: str | None) -> str:
+    value = (note or "").strip()
+    if not value:
+        raise HTTPException(422, "Une reference a besoin de son texte")
+    return value
+
+
+async def contenu_a_la_creation(
+    settings: Settings,
+    *,
+    scope: str,
+    storage_mode: StorageMode,
+    file: UploadFile | None,
+    url: str | None,
+    reference_note: str | None,
+    name: str | None,
+) -> tuple[dict[str, object], str]:
+    """Colonnes de contenu et nom du document, pour le mode demande.
+
+    Les trois modes sont traites au meme endroit et au meme niveau : c'est la
+    forme que prend, dans le code, l'exigence de l'adr/0002 de ne pas faire du
+    fichier local le choix par defaut et des deux autres des options. Tout
+    rattachement (equipement, entretien, maison) passe par ici.
+    """
+    label = (name or "").strip()
+    if storage_mode == "local_file":
+        if file is None or not file.filename:
+            raise HTTPException(422, "Le mode fichier local a besoin d'un fichier")
+        stored = await store_upload(file, settings, scope=scope)
+        return {
+            "storage_mode": "local_file",
+            "file_path": stored.file_path,
+            "file_size": stored.file_size,
+            "mime_type": stored.mime_type,
+        }, label or stored.original_name
+
+    # Les deux modes sans fichier n'ont pas de nom de fichier a emprunter.
+    if not label:
+        raise HTTPException(422, "Ce document a besoin d'un nom")
+    if storage_mode == "external_link":
+        return {"storage_mode": "external_link", "url": url_valide(url)}, label
+    return {
+        "storage_mode": "reference_note",
+        "reference_note": reference_valide(reference_note),
+    }, label
 
 
 def discard_file(settings: Settings, row: Document) -> None:

@@ -10,8 +10,9 @@ notice, et s'il est encore sous garantie.
 
 Cette version couvre les fiches d'appareils et d'éléments de construction, les lieux, les
 entretiens récurrents, l'historique des interventions, l'annuaire des membres et des
-prestataires, et les documents rattachés à une fiche ou à un entretien. Une page listant tous
-les documents de la maison, tous équipements confondus, viendra plus tard.
+prestataires, et les documents — ceux d'une fiche, ceux d'un entretien, et les papiers de la
+maison elle-même comme l'acte ou l'assurance. La page **Documents** les rassemble tous, avec
+recherche et filtres.
 
 ## Confidentialité
 

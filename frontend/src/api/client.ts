@@ -15,6 +15,7 @@ import type {
   CompleteIn,
   DocumentDraft,
   DocumentFields,
+  DocumentListItem,
   DocumentMeta,
   DocumentPatchIn,
   HaCalendarOption,
@@ -177,6 +178,15 @@ export const api = {
   deleteIntervention: (interventionId: number) =>
     request<{ ok: boolean }>(`interventions/${interventionId}`, { method: 'DELETE' }),
   documentFileUrl: (documentId: number) => apiUrl(`documents/${documentId}/file`),
+  /** Tous les documents de la maison, du plus recent au plus ancien. Le
+   *  filtrage et la recherche sont faits par la page (lib/search.ts). */
+  documents: () => request<DocumentListItem[]>('documents'),
+  homeDocuments: () => request<DocumentMeta[]>('homes/current/documents'),
+  createHomeDocument: (draft: DocumentDraft, fields: DocumentFields = {}) =>
+    request<DocumentMeta>('homes/current/documents', {
+      method: 'POST',
+      body: documentForm(draft, fields),
+    }),
   createAssetDocument: (assetId: number, draft: DocumentDraft, fields: DocumentFields = {}) =>
     request<DocumentMeta>(`assets/${assetId}/documents`, {
       method: 'POST',
