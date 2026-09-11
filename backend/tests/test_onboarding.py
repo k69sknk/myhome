@@ -213,3 +213,71 @@ def test_relancer_le_tour_propose_les_entretiens_des_fiches_deja_saisies(
         "refrigerateur_degivrage",
         "refrigerateur_grille",
     }
+
+
+def test_un_objet_present_dans_plusieurs_zones_est_distingue_par_son_lieu(
+    client: TestClient,
+) -> None:
+    """Les volets existent dans quatre zones du catalogue.
+
+    Sans le lieu, l'ecran de recapitulatif empilait quatre fois le meme libelle
+    sous une seule carte « Volets », sans rien pour les distinguer.
+    """
+    _apply_room(client, "cuisine", ["volets"])
+    _apply_room(client, "sejour", ["volets"])
+
+    proposals = client.get("/api/catalog/proposals").json()
+    volets = [p for p in proposals if p["maintenance"]["key"] == "volets_entretien"]
+
+    assert len(volets) == 2
+    assert {p["location_path"] for p in volets} == {"Cuisine", "Séjour"}
+    # Deux fiches distinctes : le regroupement cote interface se fait dessus.
+    assert len({p["asset_id"] for p in volets}) == 2
+
+
+def test_l_etat_de_la_maison_signale_zones_et_objets_deja_presents(client: TestClient) -> None:
+    _apply_room(client, "cuisine", ["refrigerateur", "hotte"])
+
+    etat = {row["room_key"]: row for row in client.get("/api/catalog/state").json()}
+
+    assert etat["cuisine"]["location_name"] == "Cuisine"
+    assert set(etat["cuisine"]["present_items"]) == {"refrigerateur", "hotte"}
+    # Une zone jamais visitee reste vide, sans lieu rattache.
+    assert etat["garage"]["location_id"] is None
+    assert etat["garage"]["present_items"] == []
+
+
+def test_l_etat_reconnait_aussi_ce_qui_a_ete_saisi_a_la_main(client: TestClient) -> None:
+    """Meme regle que la creation : cle de catalogue d'abord, nom en repli.
+
+    Sans cela, une maison remplie a la main s'afficherait entierement vide.
+    """
+    lieu = client.post("/api/locations", json={"name": "Cuisine"}).json()
+    client.post("/api/assets", json={"name": "Réfrigérateur", "location_id": lieu["id"]})
+
+    etat = {row["room_key"]: row for row in client.get("/api/catalog/state").json()}
+
+    assert etat["cuisine"]["location_id"] == lieu["id"]
+    assert etat["cuisine"]["present_items"] == ["refrigerateur"]
+
+
+def test_poser_des_objets_du_catalogue_dans_une_zone_personnalisee(client: TestClient) -> None:
+    """Le catalogue ne couvre pas l'atelier, mais ses objets doivent pouvoir y aller."""
+    atelier = client.post("/api/locations", json={"name": "Atelier"}).json()
+
+    response = client.post(
+        "/api/catalog/rooms",
+        json={"location_id": atelier["id"], "item_keys": ["tableau_electrique"]},
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["location_name"] == "Atelier"
+    # La fiche garde sa cle de catalogue, donc ses entretiens seront proposes.
+    proposals = client.get("/api/catalog/proposals").json()
+    assert any(p["maintenance"]["key"] == "tableau_electrique_differentiels" for p in proposals)
+
+
+def test_il_faut_choisir_entre_zone_du_catalogue_et_lieu(client: TestClient) -> None:
+    response = client.post("/api/catalog/rooms", json={"item_keys": []})
+
+    assert response.status_code == 422

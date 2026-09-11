@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from ..catalog import CatalogMaintenance, CatalogRecurrence, load_catalog
 from ..clock import utc_now_iso, utc_today
 from ..models import Asset, Category, Home, Location, LocationType, MaintenanceTask
+from .catalog import location_path
 from .recurrence import Recurrence, initial_next_due
 
 
@@ -30,6 +31,57 @@ class Proposal:
     maintenance: CatalogMaintenance
     asset_id: int | None
     asset_name: str | None
+    # Un meme objet existe souvent dans plusieurs zones (volets, fenetres, siphon) :
+    # sans le lieu, l'ecran de recapitulatif empile des propositions identiques.
+    location_path: str | None
+
+
+@dataclass(frozen=True)
+class RoomState:
+    """Ce qui existe deja pour une zone du catalogue, vu du didacticiel."""
+
+    room_key: str
+    location_id: int | None
+    location_name: str | None
+    present_items: list[str]
+
+
+def house_state(session: Session, home: Home) -> list[RoomState]:
+    """Pour chaque zone du catalogue, ce qui est deja enregistre.
+
+    Applique exactement la meme regle de reconnaissance que `apply_room` — cle de
+    catalogue d'abord, nom en repli — pour que ce qui s'affiche corresponde a ce
+    qui se passerait reellement si l'utilisateur cochait.
+    """
+    catalog = load_catalog()
+    locations = session.scalars(select(Location).where(Location.home_id == home.id)).all()
+    by_catalog_key = {row.catalog_key: row for row in locations if row.catalog_key}
+    by_name = {row.name: row for row in locations}
+
+    states: list[RoomState] = []
+    for room in catalog.rooms:
+        location = by_catalog_key.get(room.key) or by_name.get(room.label)
+        if location is None:
+            states.append(RoomState(room.key, None, None, []))
+            continue
+
+        present: set[str] = set()
+        for key, name in session.execute(
+            select(Asset.catalog_key, Asset.name).where(Asset.location_id == location.id)
+        ):
+            if key is not None:
+                present.add(key)
+            present.add(name)
+
+        by_key = {item.key: item for item in catalog.items}
+        found = [
+            item_key
+            for item_key in room.items
+            if item_key in present or by_key[item_key].label in present
+        ]
+        states.append(RoomState(room.key, location.id, location.name, found))
+
+    return states
 
 
 def apply_room(
@@ -79,6 +131,31 @@ def apply_room(
         session.add(location)
         session.flush()
 
+    return location, add_items(session, home, location, item_keys)
+
+
+def apply_items_to_location(
+    session: Session, home: Home, location_id: int, item_keys: list[str]
+) -> tuple[Location, list[Asset]]:
+    """Meme chose, dans un lieu quelconque : les zones que l'utilisateur a creees
+    lui-meme n'ont pas de cle de catalogue mais accueillent les memes objets."""
+    location = session.get(Location, location_id)
+    if location is None or location.home_id != home.id:
+        raise UnknownCatalogKeyError(f"lieu introuvable : {location_id}")
+
+    unknown = set(item_keys) - {item.key for item in load_catalog().items}
+    if unknown:
+        raise UnknownCatalogKeyError(f"objets inconnus : {', '.join(sorted(unknown))}")
+
+    return location, add_items(session, home, location, item_keys)
+
+
+def add_items(
+    session: Session, home: Home, location: Location, item_keys: list[str]
+) -> list[Asset]:
+    """Cree les fiches cochees dans un lieu, en sautant ou adoptant ce qui existe."""
+    catalog = load_catalog()
+    now = utc_now_iso()
     existing = session.scalars(
         select(Asset).where(Asset.home_id == home.id, Asset.location_id == location.id)
     ).all()
@@ -117,7 +194,7 @@ def apply_room(
         created.append(asset)
 
     session.flush()
-    return location, created
+    return created
 
 
 def pending_proposals(session: Session, home: Home) -> list[Proposal]:
@@ -148,11 +225,18 @@ def pending_proposals(session: Session, home: Home) -> list[Proposal]:
         for maintenance in item.maintenances:
             if (maintenance.key, asset.id) in done:
                 continue
-            proposals.append(Proposal(maintenance, asset.id, asset.name))
+            proposals.append(
+                Proposal(
+                    maintenance,
+                    asset.id,
+                    asset.name,
+                    location_path(session, asset.location_id),
+                )
+            )
 
     for maintenance in catalog.home_maintenances:
         if (maintenance.key, None) not in done:
-            proposals.append(Proposal(maintenance, None, None))
+            proposals.append(Proposal(maintenance, None, None, None))
 
     return proposals
 

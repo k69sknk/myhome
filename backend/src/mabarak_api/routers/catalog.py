@@ -9,8 +9,10 @@ from ..db import get_session
 from ..services.home import ensure_home
 from ..services.onboarding import (
     UnknownCatalogKeyError,
+    apply_items_to_location,
     apply_maintenance,
     apply_room,
+    house_state,
     pending_proposals,
 )
 
@@ -18,7 +20,9 @@ router = APIRouter(tags=["catalogue"])
 
 
 class ApplyRoomIn(BaseModel):
-    room_key: str
+    # Une zone du catalogue, ou un lieu que l'utilisateur a cree lui-meme.
+    room_key: str | None = None
+    location_id: int | None = None
     item_keys: list[str] = Field(default_factory=list)
 
 
@@ -34,10 +38,18 @@ class ApplyRoomOut(BaseModel):
     created: list[CreatedAsset]
 
 
+class RoomStateOut(BaseModel):
+    room_key: str
+    location_id: int | None
+    location_name: str | None
+    present_items: list[str]
+
+
 class ProposalOut(BaseModel):
     maintenance: CatalogMaintenance
     asset_id: int | None
     asset_name: str | None
+    location_path: str | None
 
 
 class MaintenanceSelection(BaseModel):
@@ -65,8 +77,15 @@ def catalog() -> Catalog:
 def apply_room_endpoint(body: ApplyRoomIn, session: Session = Depends(get_session)) -> ApplyRoomOut:
     """Cree une zone et les fiches cochees. Rejouable sans creer de doublon."""
     home = ensure_home(session)
+    if (body.room_key is None) == (body.location_id is None):
+        raise HTTPException(422, "renseignez soit 'room_key', soit 'location_id'")
     try:
-        location, created = apply_room(session, home, body.room_key, body.item_keys)
+        if body.room_key is not None:
+            location, created = apply_room(session, home, body.room_key, body.item_keys)
+        else:
+            location, created = apply_items_to_location(
+                session, home, body.location_id or 0, body.item_keys
+            )
     except UnknownCatalogKeyError as error:
         raise HTTPException(404, str(error)) from error
     return ApplyRoomOut(
@@ -78,6 +97,21 @@ def apply_room_endpoint(body: ApplyRoomIn, session: Session = Depends(get_sessio
     )
 
 
+@router.get("/catalog/state", response_model=list[RoomStateOut])
+def state(session: Session = Depends(get_session)) -> list[RoomStateOut]:
+    """Ce qui est deja enregistre, zone par zone, pour un second passage."""
+    home = ensure_home(session)
+    return [
+        RoomStateOut(
+            room_key=row.room_key,
+            location_id=row.location_id,
+            location_name=row.location_name,
+            present_items=row.present_items,
+        )
+        for row in house_state(session, home)
+    ]
+
+
 @router.get("/catalog/proposals", response_model=list[ProposalOut])
 def proposals(session: Session = Depends(get_session)) -> list[ProposalOut]:
     """Entretiens types restant a proposer pour ce qui a deja ete cree."""
@@ -87,6 +121,7 @@ def proposals(session: Session = Depends(get_session)) -> list[ProposalOut]:
             maintenance=proposal.maintenance,
             asset_id=proposal.asset_id,
             asset_name=proposal.asset_name,
+            location_path=proposal.location_path,
         )
         for proposal in pending_proposals(session, home)
     ]

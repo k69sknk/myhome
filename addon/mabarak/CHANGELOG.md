@@ -3,6 +3,29 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.18.0
+
+- **Fin des entretiens en double dans le récapitulatif.** Un objet présent dans
+  plusieurs pièces (volets, fenêtres, siphon) créait autant de fiches — ce qui
+  est correct — mais le récapitulatif les empilait sous un seul titre, avec
+  quatre fois la même phrase et rien pour les distinguer. Chaque fiche a
+  désormais son propre bloc, nommé avec son lieu : « Volets — Cuisine »,
+  « Volets — Séjour ».
+
+- **On voit d'un coup d'œil ce qui est déjà renseigné.** En relançant le tour,
+  les zones connues portent la mention « déjà renseignée · 3 éléments », et les
+  objets déjà présents apparaissent cochés et grisés. Le second passage sert à
+  compléter, plus à tout refaire.
+
+- **Zones personnalisées.** Un bouton « + Ajouter une zone » permet de créer un
+  atelier, une véranda, un cellier — tout ce que le catalogue ne prévoit pas.
+  Ces zones accueillent les objets du catalogue, avec un filtre pour s'y
+  retrouver.
+
+- **Le volume est annoncé.** Le récapitulatif indique ce que la sélection
+  engage (« 12 entretiens retenus — environ 2 par mois une fois en place »),
+  pour ne plus valider des dizaines d'échéances récurrentes sans le mesurer.
+
 ## 0.17.0
 
 - **Le didacticiel se relance quand on veut**, depuis Paramètres → « Faire le

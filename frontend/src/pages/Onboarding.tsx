@@ -2,21 +2,40 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { api } from '../api/client'
-import type { Catalog, CatalogProposal, CatalogRecurrence, MaintenanceSelection } from '../api/types'
+import type {
+  Catalog,
+  CatalogProposal,
+  CatalogRecurrence,
+  CatalogRoomState,
+  LocationType,
+  MaintenanceSelection,
+} from '../api/types'
+import Field from '../components/Field'
 import { useToast } from '../components/Toast'
 import { errorMessage, formatCatalogRecurrence } from '../lib/format'
 
 type Phase = 'zones' | 'objets' | 'entretiens' | 'fin'
+
+/** Zone ajoutee par l'utilisateur : le catalogue ne couvrira jamais tous les
+ *  logements (atelier, veranda, cellier...). Elle n'a pas de cle de catalogue. */
+interface CustomRoom {
+  label: string
+  locationId: number
+}
 
 export default function Onboarding() {
   const navigate = useNavigate()
   const { showToast } = useToast()
 
   const [catalog, setCatalog] = useState<Catalog | null>(null)
+  const [state, setState] = useState<CatalogRoomState[]>([])
+  const [locationTypes, setLocationTypes] = useState<LocationType[]>([])
   const [phase, setPhase] = useState<Phase>('zones')
   const [roomKeys, setRoomKeys] = useState<string[]>([])
+  const [customRooms, setCustomRooms] = useState<CustomRoom[]>([])
   const [roomIndex, setRoomIndex] = useState(0)
   const [checked, setChecked] = useState<string[]>([])
+  const [filter, setFilter] = useState('')
   const [proposals, setProposals] = useState<CatalogProposal[]>([])
   const [rejected, setRejected] = useState<string[]>([])
   const [intervals, setIntervals] = useState<Record<string, number>>({})
@@ -25,10 +44,12 @@ export default function Onboarding() {
 
   useEffect(() => {
     let cancelled = false
-    api
-      .catalog()
-      .then((next) => {
-        if (!cancelled) setCatalog(next)
+    Promise.all([api.catalog(), api.catalogState(), api.locationTypes()])
+      .then(([nextCatalog, nextState, nextTypes]) => {
+        if (cancelled) return
+        setCatalog(nextCatalog)
+        setState(nextState)
+        setLocationTypes(nextTypes)
       })
       .catch((caught: unknown) => {
         if (!cancelled) setError(errorMessage(caught))
@@ -59,20 +80,63 @@ export default function Onboarding() {
   }
 
   const rooms = catalog.rooms.filter((room) => !room.deprecated)
-  const selectedRooms = roomKeys
-    .map((key) => rooms.find((room) => room.key === key))
-    .filter((room) => room !== undefined)
-  const currentRoom = selectedRooms[roomIndex]
+  const stateByRoom = new Map(state.map((row) => [row.room_key, row]))
+  const allItemKeys = catalog.items.filter((item) => !item.deprecated).map((item) => item.key)
+
+  /** Une étape du tour : une zone du catalogue, ou une zone créée par l'utilisateur.
+   *  Une zone perso n'a pas de liste d'objets propre, on propose donc tout le
+   *  catalogue — sinon un atelier ne pourrait contenir que des objets prévus ailleurs. */
+  const stops = [
+    ...roomKeys.flatMap((key) => {
+      const room = rooms.find((candidate) => candidate.key === key)
+      return room === undefined
+        ? []
+        : [
+            {
+              label: room.label,
+              roomKey: room.key as string | null,
+              locationId: null as number | null,
+              items: room.items,
+              present: stateByRoom.get(room.key)?.present_items ?? [],
+            },
+          ]
+    }),
+    ...customRooms.map((room) => ({
+      label: room.label,
+      roomKey: null as string | null,
+      locationId: room.locationId as number | null,
+      items: allItemKeys,
+      present: [] as string[],
+    })),
+  ]
+  const currentRoom = stops[roomIndex]
 
   function toggle(list: string[], value: string): string[] {
     return list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
   }
 
   function startTour() {
-    if (roomKeys.length === 0) return
+    if (stops.length === 0) return
     setRoomIndex(0)
     setChecked([])
     setPhase('objets')
+  }
+
+  async function addCustomRoom(label: string, locationTypeId: number) {
+    setBusy(true)
+    setError(null)
+    try {
+      const created = await api.createLocation({
+        name: label.trim(),
+        location_type_id: locationTypeId,
+      })
+      setCustomRooms([...customRooms, { label: created.name, locationId: created.id }])
+      showToast('Zone ajoutée')
+    } catch (caught: unknown) {
+      setError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function goToProposals() {
@@ -95,10 +159,14 @@ export default function Onboarding() {
     setError(null)
     try {
       if (save && checked.length > 0) {
-        await api.applyCatalogRoom(currentRoom.key, checked)
+        await api.applyCatalogRoom(
+          { roomKey: currentRoom.roomKey, locationId: currentRoom.locationId },
+          checked,
+        )
       }
       setChecked([])
-      if (roomIndex + 1 < selectedRooms.length) {
+      setFilter('')
+      if (roomIndex + 1 < stops.length) {
         setRoomIndex(roomIndex + 1)
       } else {
         await goToProposals()
@@ -110,12 +178,13 @@ export default function Onboarding() {
     }
   }
 
+  const retained = proposals.filter((proposal) => !rejected.includes(proposalId(proposal)))
+
   async function createMaintenances() {
     setBusy(true)
     setError(null)
     try {
-      const selections: MaintenanceSelection[] = proposals
-        .filter((proposal) => !rejected.includes(proposalId(proposal)))
+      const selections: MaintenanceSelection[] = retained
         .map((proposal) => ({
           key: proposal.maintenance.key,
           asset_id: proposal.asset_id,
@@ -145,21 +214,46 @@ export default function Onboarding() {
           </p>
           <div className="card">
             <h2 className="card__title">Quelles zones avez-vous ?</h2>
-            {rooms.map((room) => (
-              <label key={room.key} className="complete__checkbox">
-                <input
-                  type="checkbox"
-                  checked={roomKeys.includes(room.key)}
-                  onChange={() => setRoomKeys(toggle(roomKeys, room.key))}
-                />
+            {rooms.map((room) => {
+              const known = stateByRoom.get(room.key)
+              const count = known?.present_items.length ?? 0
+              return (
+                <label key={room.key} className="complete__checkbox">
+                  <input
+                    type="checkbox"
+                    checked={roomKeys.includes(room.key)}
+                    onChange={() => setRoomKeys(toggle(roomKeys, room.key))}
+                  />
+                  {room.label}
+                  {known?.location_id != null && (
+                    <span className="muted">
+                      {count > 0
+                        ? ` · déjà renseignée, ${count} élément${count > 1 ? 's' : ''}`
+                        : ' · déjà créée'}
+                    </span>
+                  )}
+                </label>
+              )
+            })}
+            {customRooms.map((room) => (
+              <label key={room.locationId} className="complete__checkbox">
+                <input type="checkbox" checked readOnly />
                 {room.label}
+                <span className="muted"> · à vous</span>
               </label>
             ))}
+
+            <CustomRoomForm
+              locationTypes={locationTypes}
+              busy={busy}
+              onAdd={(label, typeId) => void addCustomRoom(label, typeId)}
+            />
+
             <div className="form__actions">
               <button
                 type="button"
                 className="btn btn--primary"
-                disabled={roomKeys.length === 0}
+                disabled={stops.length === 0}
                 onClick={startTour}
               >
                 Commencer le tour
@@ -172,25 +266,45 @@ export default function Onboarding() {
       {phase === 'objets' && currentRoom !== undefined && (
         <>
           <p className="page__lead">
-            Zone {roomIndex + 1} sur {selectedRooms.length} — cochez ce que vous avez. Pas de
-            date d'achat ni de facture à ce stade, on ne fait que lister.
+            Zone {roomIndex + 1} sur {stops.length} — cochez ce que vous avez. Pas de date
+            d'achat ni de facture à ce stade, on ne fait que lister.
           </p>
           <div className="card">
             <h2 className="card__title">{currentRoom.label}</h2>
-            {currentRoom.items.map((itemKey) => {
-              const item = itemsByKey.get(itemKey)
-              if (item === undefined) return null
-              return (
-                <label key={itemKey} className="complete__checkbox">
-                  <input
-                    type="checkbox"
-                    checked={checked.includes(itemKey)}
-                    onChange={() => setChecked(toggle(checked, itemKey))}
-                  />
-                  {item.label}
-                </label>
-              )
-            })}
+            {currentRoom.locationId !== null && (
+              <p className="muted">
+                Zone que vous avez ajoutée : tout le catalogue vous est proposé. Tapez pour
+                filtrer.
+              </p>
+            )}
+            {currentRoom.locationId !== null && (
+              <Field label="Filtrer">
+                <input value={filter} onChange={(event) => setFilter(event.target.value)} />
+              </Field>
+            )}
+            {currentRoom.items
+              .filter((itemKey) => {
+                if (currentRoom.locationId === null || filter.trim() === '') return true
+                const item = itemsByKey.get(itemKey)
+                return item?.label.toLowerCase().includes(filter.trim().toLowerCase()) ?? false
+              })
+              .map((itemKey) => {
+                const item = itemsByKey.get(itemKey)
+                if (item === undefined) return null
+                const already = currentRoom.present.includes(itemKey)
+                return (
+                  <label key={itemKey} className="complete__checkbox">
+                    <input
+                      type="checkbox"
+                      checked={already || checked.includes(itemKey)}
+                      disabled={already}
+                      onChange={() => setChecked(toggle(checked, itemKey))}
+                    />
+                    {item.label}
+                    {already && <span className="muted"> · déjà là</span>}
+                  </label>
+                )
+              })}
             <div className="form__actions">
               <button
                 type="button"
@@ -198,9 +312,14 @@ export default function Onboarding() {
                 disabled={busy}
                 onClick={() => void nextRoom(true)}
               >
-                {roomIndex + 1 < selectedRooms.length ? 'Suivant' : 'Terminer le tour'}
+                {roomIndex + 1 < stops.length ? 'Suivant' : 'Terminer le tour'}
               </button>
-              <button type="button" className="btn" disabled={busy} onClick={() => void nextRoom(false)}>
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => void nextRoom(false)}
+              >
                 Passer cette zone
               </button>
             </div>
@@ -214,6 +333,7 @@ export default function Onboarding() {
             Voici les entretiens qu'on vous propose. Décochez ce qui ne vous concerne pas et
             ajustez les fréquences qui comptent — tout reste modifiable ensuite.
           </p>
+          {proposals.length > 0 && <Volume proposals={retained} intervals={intervals} />}
           {proposals.length === 0 ? (
             <div className="card">
               <p className="muted">
@@ -305,18 +425,133 @@ export default function Onboarding() {
   )
 }
 
+function CustomRoomForm({
+  locationTypes,
+  busy,
+  onAdd,
+}: {
+  locationTypes: LocationType[]
+  busy: boolean
+  onAdd: (label: string, locationTypeId: number) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [label, setLabel] = useState('')
+  const [typeId, setTypeId] = useState('')
+
+  const defaultType = locationTypes.find((type) => type.slug === 'room') ?? locationTypes[0]
+  if (defaultType === undefined) return null
+
+  if (!open) {
+    return (
+      <div className="form__actions">
+        <button type="button" className="btn btn--small" onClick={() => setOpen(true)}>
+          + Ajouter une zone
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="card">
+      <p className="muted">Une pièce que le catalogue ne propose pas : atelier, véranda…</p>
+      <Field label="Nom">
+        <input value={label} onChange={(event) => setLabel(event.target.value)} autoFocus />
+      </Field>
+      <Field label="Type de lieu">
+        <select value={typeId} onChange={(event) => setTypeId(event.target.value)}>
+          <option value="">{defaultType.name}</option>
+          {locationTypes.map((type) => (
+            <option key={type.id} value={type.id}>
+              {type.name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <div className="form__actions">
+        <button
+          type="button"
+          className="btn btn--primary"
+          disabled={busy || label.trim() === ''}
+          onClick={() => {
+            onAdd(label, typeId === '' ? defaultType.id : Number(typeId))
+            setLabel('')
+            setTypeId('')
+            setOpen(false)
+          }}
+        >
+          Ajouter
+        </button>
+        <button type="button" className="btn" onClick={() => setOpen(false)}>
+          Annuler
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** Ce que la sélection engage réellement, pour que le choix soit éclairé plutôt
+ *  que validé d'un clic sur quarante entretiens pré-cochés. */
+function Volume({
+  proposals,
+  intervals,
+}: {
+  proposals: CatalogProposal[]
+  intervals: Record<string, number>
+}) {
+  const perYear = proposals.reduce((total, proposal) => {
+    const recurrence = proposal.maintenance.recurrence
+    const interval = intervals[proposalId(proposal)] ?? recurrence.interval ?? 1
+    if (recurrence.type === 'annual_fixed') return total + 1
+    if (recurrence.type === 'days') return total + 365 / interval
+    if (recurrence.type === 'years') return total + 1 / interval
+    return total + 12 / interval
+  }, 0)
+  // Sous un par mois, la cadence annuelle se lit beaucoup mieux que « 0,8 par mois ».
+  const cadence =
+    perYear >= 12
+      ? `environ ${Math.round(perYear / 12)} par mois`
+      : `environ ${Math.round(perYear)} par an`
+
+  if (proposals.length === 0) {
+    return <p className="notice">Aucun entretien retenu pour l'instant.</p>
+  }
+  return (
+    <p className="notice">
+      <strong>
+        {proposals.length} entretien{proposals.length > 1 ? 's' : ''} retenu
+        {proposals.length > 1 ? 's' : ''}
+      </strong>{' '}
+      — {cadence} une fois en place.
+    </p>
+  )
+}
+
 /** Un meme entretien peut concerner plusieurs fiches : la cle seule ne suffit pas. */
 function proposalId(proposal: CatalogProposal): string {
   return `${proposal.maintenance.key}:${proposal.asset_id ?? 'maison'}`
 }
 
+/** Groupe par FICHE et non par nom : un même objet existe souvent dans plusieurs
+ *  zones (volets, fenêtres, siphon), et grouper par nom empilait des propositions
+ *  identiques sans rien pour les distinguer. Le lieu lève l'ambiguïté. */
 function groupByAsset(proposals: CatalogProposal[]): [string, CatalogProposal[]][] {
-  const groups = new Map<string, CatalogProposal[]>()
+  const groups = new Map<number | 'maison', CatalogProposal[]>()
+  const labels = new Map<number | 'maison', string>()
   for (const proposal of proposals) {
-    const name = proposal.asset_name ?? 'Toute la maison'
-    groups.set(name, [...(groups.get(name) ?? []), proposal])
+    const key = proposal.asset_id ?? 'maison'
+    groups.set(key, [...(groups.get(key) ?? []), proposal])
+    if (proposal.asset_name === null) {
+      labels.set(key, 'Toute la maison')
+    } else {
+      labels.set(
+        key,
+        proposal.location_path
+          ? `${proposal.asset_name} — ${proposal.location_path}`
+          : proposal.asset_name,
+      )
+    }
   }
-  return [...groups.entries()]
+  return [...groups.entries()].map(([key, items]) => [labels.get(key) ?? '', items])
 }
 
 function unitLabel(recurrence: CatalogRecurrence): string {

@@ -403,6 +403,7 @@ export interface CatalogProposal {
   maintenance: CatalogMaintenance
   asset_id: number | null
   asset_name: string | null
+  location_path: string | null
 }
 
 export interface ApplyRoomResult {
@@ -415,4 +416,11 @@ export interface MaintenanceSelection {
   key: string
   asset_id?: number | null
   recurrence?: CatalogRecurrence | null
+}
+
+export interface CatalogRoomState {
+  room_key: string
+  location_id: number | null
+  location_name: string | null
+  present_items: string[]
 }
