@@ -23,7 +23,12 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parent.parent
 
 # fichier -> motif capturant la version dans son groupe 1
+#
+# Le README en fait partie, et ce n'est pas du zele : c'est le texte que HACS
+# affiche sur la page du depot. Une ligne « Etat du projet » restee en arriere
+# annonce une version peremee a qui vient installer, sans que rien ne le signale.
 FICHIERS: dict[str, str] = {
+    "README.md": r"\*\*État du projet : ([0-9]+\.[0-9]+\.[0-9]+)\.\*\*",
     "addon/mabarak/config.yaml": r'^version:\s*"([^"]+)"',
     "backend/pyproject.toml": r'^version\s*=\s*"([^"]+)"',
     "backend/src/mabarak_api/__init__.py": r'^__version__\s*=\s*"([^"]+)"',
@@ -60,10 +65,10 @@ def main() -> int:
     if erreurs:
         for erreur in erreurs:
             print(erreur if erreur.startswith("    ") else f"  - {erreur}")
-        print("\nADR-0005 impose un numero unique : mettez les cinq a jour ensemble.")
+        print("\nADR-0005 impose un numero unique : mettez-les a jour ensemble.")
         return 1
 
-    print(f"OK: les {len(versions)} artefacts annoncent tous la version {distinctes.pop()}.")
+    print(f"OK: les {len(versions)} fichiers annoncent tous la version {distinctes.pop()}.")
     return 0
 
 
