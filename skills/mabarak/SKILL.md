@@ -51,6 +51,25 @@ Si l'utilisateur dit « j'ai fait la révision annuelle de la chaudière », c'e
 dit « le lave-linge a été réparé, 210 € », c'est *consigner*. En cas de doute, regarde avec
 `MaBarakChercherEquipement` si un entretien de ce nom existe : s'il existe, valide-le.
 
+## Si tu écris par les services, lis avant et vérifie après
+
+Ce paragraphe ne concerne que les appels par services (`mabarak.…`) ; avec les outils
+`MaBarak…`, la réponse te revient et tu peux sauter cette section.
+
+Les écritures par services **agissent bien**, mais ne te renvoient rien : ni confirmation, ni
+raison en cas de refus. Home Assistant ne sait pas transmettre le message d'un service qui
+refuse par cette voie — tu recevrais une erreur 500 sans explication, alors que MaBarak avait
+rédigé une phrase utile. Deux réflexes règlent le problème :
+
+**Avant d'écrire, lis.** Les entités MaBarak portent le nom exact de chaque équipement et de
+chacun de ses entretiens. Repère-les, puis écris en nommant **les deux** — l'équipement *et*
+l'entretien. Tu supprimes ainsi l'ambiguïté au lieu d'attendre qu'elle te soit signalée, et
+c'est de loin le plus sûr.
+
+**Après avoir écrit, relis.** L'état de l'entité concernée dit si l'écriture a eu lieu :
+`dernier_entretien` et `prochaine_echeance` auront changé. C'est ta seule confirmation, et elle
+est fiable. Ne dis jamais à l'utilisateur qu'une écriture a réussi sans l'avoir vérifiée ainsi.
+
 ## On désigne par le nom, jamais par un numéro
 
 Tous les outils prennent des noms en français. Les accents et la casse n'ont aucune importance,
