@@ -3,6 +3,15 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.32.1
+
+- **Republication.** Aucun changement fonctionnel : la 0.32.0 avait ete publiee sur GitHub en
+  deux temps — enregistree en brouillon, puis publiee — et son indexation a echoue. La release
+  existait, mais n'apparaissait ni dans la liste des versions ni dans HACS, qui n'avait donc
+  aucun moyen de proposer la mise a jour.
+
+  Si vous etes deja en 0.32.0, vous n'avez rien a faire : le contenu est identique.
+
 ## 0.32.0
 
 - **Un assistant peut enfin ranger vos factures.** Transmettez-lui une facture, une notice, une

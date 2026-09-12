@@ -11,14 +11,20 @@ est encore sous garantie.
 **Local-first.** Aucune donnée ne quitte votre machine. Pas de cloud, pas de compte, pas de
 télémétrie.
 
-> **État du projet : 0.30.0.**
+> **État du projet : 0.32.1.**
 > Maison, lieux en arbre, fiches d'appareils et d'éléments de construction, entretiens
 > (Fait / préciser), historique, membres, prestataires, rappels, et les documents — dans leurs
 > trois modes de stockage, rattachés à une fiche, à un entretien ou à la maison elle-même, avec
-> une page qui les rassemble tous. L'application est pilotable depuis Home Assistant, en services
-> et en intentions, par une automatisation comme par un agent conversationnel
-> ([ADR-0013](docs/adr/0013-pilotage-par-agent-externe.md)). Les problèmes (`issue`) n'ont pas
-> encore d'interface.
+> une page qui les rassemble tous.
+>
+> L'application est **pilotable depuis Home Assistant**, en services et en intentions, par une
+> automatisation comme par un agent conversationnel : sept actions qui lisent et écrivent, y
+> compris rattacher une facture à une fiche
+> ([ADR-0013](docs/adr/0013-pilotage-par-agent-externe.md),
+> [ADR-0015](docs/adr/0015-documents-depuis-un-agent.md)). Chaque équipement publie aussi son
+> état d'entretien complet en entité Home Assistant, lisible sans appel.
+>
+> Les problèmes (`issue`) n'ont pas encore d'interface.
 
 ## Ce dépôt contient deux produits
 
