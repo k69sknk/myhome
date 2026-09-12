@@ -11,7 +11,7 @@ est encore sous garantie.
 **Local-first.** Aucune donnée ne quitte votre machine. Pas de cloud, pas de compte, pas de
 télémétrie.
 
-> **État du projet : 0.32.0.**
+> **État du projet : 0.32.1.**
 > Maison, lieux en arbre, fiches d'appareils et d'éléments de construction, entretiens
 > (Fait / préciser), historique, membres, prestataires, rappels, et les documents — dans leurs
 > trois modes de stockage, rattachés à une fiche, à un entretien ou à la maison elle-même, avec
