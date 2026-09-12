@@ -99,3 +99,39 @@ def test_migrations_ulterieures_ne_perdent_pas_les_donnees_existantes(settings) 
             assets = connection.execute(text("SELECT COUNT(*) FROM asset")).scalar_one()
             tasks = connection.execute(text("SELECT COUNT(*) FROM maintenance_task")).scalar_one()
         assert (homes, assets, tasks) == (1, 1, 1), f"donnees perdues apres la migration {revision}"
+
+
+def test_migration_0014_ajoute_la_provenance_sans_toucher_aux_donnees(settings) -> None:
+    """Une base installee avant le pilotage par agent doit se mettre a niveau.
+
+    Le scenario reel d'ADR-0005 : l'add-on se met a jour chez un utilisateur qui
+    a deja des fiches et un historique. La colonne doit arriver, et les lignes
+    anterieures rester a NULL — « avant que la question se pose ».
+    """
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    config = alembic_config(settings)
+    command.upgrade(config, "0013_metiers")
+
+    engine: Engine = create_db_engine(settings)
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO home (id, name) VALUES (1, 'Maison')"))
+        connection.execute(
+            text("INSERT INTO asset (id, home_id, kind, name) VALUES (1, 1, 'equipment', 'PAC')")
+        )
+        connection.execute(
+            text(
+                "INSERT INTO intervention (id, asset_id, performed_on) VALUES (1, 1, '2024-01-01')"
+            )
+        )
+
+    command.upgrade(config, "head")
+
+    inspector = inspect(create_db_engine(settings))
+    for table in ("asset", "maintenance_task", "intervention"):
+        colonnes = {column["name"] for column in inspector.get_columns(table)}
+        assert "created_via" in colonnes, table
+
+    with create_db_engine(settings).connect() as connection:
+        assert connection.execute(text("SELECT name FROM asset")).scalar_one() == "PAC"
+        assert connection.execute(text("SELECT created_via FROM asset")).scalar_one() is None
+        assert connection.execute(text("SELECT created_via FROM intervention")).scalar_one() is None

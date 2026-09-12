@@ -44,5 +44,185 @@
         "name": "Maintenance"
       }
     }
+  },
+  "services": {
+    "apercu": {
+      "name": "House overview",
+      "description": "Returns the home's maintenance state: overdue items, upcoming due dates, expiring warranties, rooms and equipment count."
+    },
+    "chercher_equipement": {
+      "name": "Search equipment",
+      "description": "Searches equipment and returns full records, including maintenance items, frequency and next due date.",
+      "fields": {
+        "recherche": {
+          "name": "Search",
+          "description": "Term matched against name, brand or model. Empty returns everything."
+        }
+      }
+    },
+    "valider_entretien": {
+      "name": "Mark maintenance as done",
+      "description": "Records that a recurring maintenance was performed and computes its next due date.",
+      "fields": {
+        "entretien": {
+          "name": "Maintenance",
+          "description": "Name of the maintenance performed, e.g. “chimney sweeping”."
+        },
+        "equipement": {
+          "name": "Equipment",
+          "description": "Name of the equipment. Only needed when the maintenance name is ambiguous."
+        },
+        "date": {
+          "name": "Date",
+          "description": "Date performed. Defaults to today."
+        },
+        "fait_par": {
+          "name": "Performed by",
+          "description": "Who did it. Linked to a household member or provider when the name matches."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "What was observed or done."
+        },
+        "montant_euros": {
+          "name": "Amount",
+          "description": "Cost of the maintenance, in the home's currency."
+        }
+      }
+    },
+    "creer_entretien": {
+      "name": "Schedule maintenance",
+      "description": "Adds a recurring maintenance to an existing equipment. Only one way of expressing the frequency at a time.",
+      "fields": {
+        "equipement": {
+          "name": "Equipment",
+          "description": "Equipment the maintenance belongs to."
+        },
+        "nom": {
+          "name": "Name",
+          "description": "Name of the maintenance, e.g. “change the filter”."
+        },
+        "tous_les": {
+          "name": "Every",
+          "description": "Number of units between two passes. Requires “Unit”."
+        },
+        "unite": {
+          "name": "Unit",
+          "description": "Unit of the frequency. Requires “Every”."
+        },
+        "chaque_annee_le": {
+          "name": "Every year on",
+          "description": "Fixed day and month, formatted DD-MM, e.g. 15-09."
+        },
+        "le": {
+          "name": "On",
+          "description": "Single date, for a one-off maintenance."
+        },
+        "saison_du_mois": {
+          "name": "Season starts in month",
+          "description": "Start of the seasonal window. Outside it, no due date is computed."
+        },
+        "saison_au_mois": {
+          "name": "Season ends in month",
+          "description": "End of the seasonal window."
+        },
+        "priorite": {
+          "name": "Priority",
+          "description": "Priority of the maintenance."
+        },
+        "derniere_fois": {
+          "name": "Last done",
+          "description": "Date of the last pass, if known. Used to compute the first due date."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Details about the maintenance."
+        },
+        "responsable": {
+          "name": "Assignee",
+          "description": "Household member or provider in charge. Must exist in the directory."
+        }
+      }
+    },
+    "creer_equipement": {
+      "name": "Create an equipment record",
+      "description": "Creates an equipment record. The location must already exist, unless creating it is explicitly requested.",
+      "fields": {
+        "nom": {
+          "name": "Name",
+          "description": "Name of the equipment, e.g. “washing machine”."
+        },
+        "type": {
+          "name": "Type",
+          "description": "An appliance, or a building element such as a roof or a facade."
+        },
+        "lieu": {
+          "name": "Location",
+          "description": "Room where the equipment is."
+        },
+        "creer_le_lieu": {
+          "name": "Create the location",
+          "description": "Create the room if missing. Without this, a misspelled name is refused rather than duplicated."
+        },
+        "marque": {
+          "name": "Brand",
+          "description": "Brand of the equipment."
+        },
+        "modele": {
+          "name": "Model",
+          "description": "Model of the equipment."
+        },
+        "numero_de_serie": {
+          "name": "Serial number",
+          "description": "Serial number."
+        },
+        "date_achat": {
+          "name": "Purchase date",
+          "description": "Purchase date."
+        },
+        "date_installation": {
+          "name": "Installation date",
+          "description": "Date it was put into service."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Free-form details."
+        },
+        "garantie_mois": {
+          "name": "Warranty",
+          "description": "Warranty duration in months. The end date is computed."
+        }
+      }
+    },
+    "consigner_intervention": {
+      "name": "Log an intervention",
+      "description": "Logs a one-off intervention — breakdown, repair, inspection — that matches no scheduled maintenance.",
+      "fields": {
+        "equipement": {
+          "name": "Equipment",
+          "description": "Equipment concerned."
+        },
+        "type": {
+          "name": "Type",
+          "description": "Nature of the intervention."
+        },
+        "date": {
+          "name": "Date",
+          "description": "Date of the intervention. Defaults to today."
+        },
+        "fait_par": {
+          "name": "Performed by",
+          "description": "Who performed it."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "What was done or observed."
+        },
+        "montant_euros": {
+          "name": "Amount",
+          "description": "Cost of the intervention."
+        }
+      }
+    }
   }
 }

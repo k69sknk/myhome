@@ -7,7 +7,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
@@ -16,8 +16,9 @@ from .config import APP_NAME, Settings, get_settings
 from .db import create_db_engine, session_factory_for
 from .ingress import INGRESS_HEADER, render_index, resolve_base_path
 from .migrate import upgrade_to_head
-from .routers import assets, catalog, ha, health, house, members, providers
+from .routers import agent, assets, catalog, ha, health, house, members, providers
 from .services.home import ensure_home
+from .services.resolve import AmbiguiteError, ResolutionError
 from .services.scheduler import reminder_scheduler
 from .services.trades import ensure_trades
 
@@ -86,14 +87,33 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health.router, prefix="/api")
     app.include_router(ha.router, prefix="/api")
+    app.include_router(agent.router, prefix="/api")
     app.include_router(house.router, prefix="/api")
     app.include_router(members.router, prefix="/api")
     app.include_router(providers.router, prefix="/api")
     app.include_router(assets.router, prefix="/api")
     app.include_router(catalog.router, prefix="/api")
 
+    _register_resolution_handler(app)
     _mount_frontend(app, settings)
     return app
+
+
+def _register_resolution_handler(app: FastAPI) -> None:
+    """Traduit un echec de resolution de nom en reponse HTTP (adr/0013).
+
+    Le message porte toute l'information utile — il nomme les candidats — et
+    c'est lui, et non le code de statut, que l'agent appelant relira. Le statut
+    distingue neanmoins les deux cas pour qui lit les journaux : 404 quand rien
+    ne correspond, 409 quand plusieurs choses correspondent.
+    """
+
+    async def handler(_: Request, exc: Exception) -> JSONResponse:
+        assert isinstance(exc, ResolutionError)
+        statut = 409 if isinstance(exc, AmbiguiteError) else 404
+        return JSONResponse({"detail": exc.message}, status_code=statut)
+
+    app.add_exception_handler(ResolutionError, handler)
 
 
 def _mount_frontend(app: FastAPI, settings: Settings) -> None:

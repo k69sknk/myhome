@@ -44,5 +44,185 @@
         "name": "Entretiens"
       }
     }
+  },
+  "services": {
+    "apercu": {
+      "name": "Aperçu de la maison",
+      "description": "Donne l'état d'entretien de la maison : retards, échéances à venir, garanties qui expirent, pièces et nombre d'équipements."
+    },
+    "chercher_equipement": {
+      "name": "Chercher un équipement",
+      "description": "Cherche des équipements et rend leur fiche complète, avec leurs entretiens, leur fréquence et leur prochaine échéance.",
+      "fields": {
+        "recherche": {
+          "name": "Recherche",
+          "description": "Terme cherché dans le nom, la marque ou le modèle. Vide, rend tout."
+        }
+      }
+    },
+    "valider_entretien": {
+      "name": "Marquer un entretien comme fait",
+      "description": "Enregistre qu'un entretien récurrent a été réalisé et calcule sa prochaine échéance.",
+      "fields": {
+        "entretien": {
+          "name": "Entretien",
+          "description": "Nom de l'entretien réalisé, par exemple « ramonage »."
+        },
+        "equipement": {
+          "name": "Équipement",
+          "description": "Nom de l'équipement concerné. À préciser seulement si le nom de l'entretien est ambigu."
+        },
+        "date": {
+          "name": "Date",
+          "description": "Date de réalisation. Par défaut, aujourd'hui."
+        },
+        "fait_par": {
+          "name": "Fait par",
+          "description": "Qui l'a fait. Rattaché au membre ou au prestataire de l'annuaire si le nom y correspond."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Ce qui a été constaté ou fait."
+        },
+        "montant_euros": {
+          "name": "Montant",
+          "description": "Coût de l'entretien, dans la devise de la maison."
+        }
+      }
+    },
+    "creer_entretien": {
+      "name": "Planifier un entretien",
+      "description": "Ajoute un entretien récurrent à un équipement existant. Une seule façon d'exprimer la fréquence à la fois.",
+      "fields": {
+        "equipement": {
+          "name": "Équipement",
+          "description": "Équipement auquel rattacher l'entretien."
+        },
+        "nom": {
+          "name": "Nom",
+          "description": "Nom de l'entretien, par exemple « changer le filtre »."
+        },
+        "tous_les": {
+          "name": "Tous les",
+          "description": "Nombre d'unités entre deux passages. Exige « Unité »."
+        },
+        "unite": {
+          "name": "Unité",
+          "description": "Unité de la fréquence. Exige « Tous les »."
+        },
+        "chaque_annee_le": {
+          "name": "Chaque année le",
+          "description": "Jour et mois fixes, au format JJ-MM, par exemple 15-09."
+        },
+        "le": {
+          "name": "Le",
+          "description": "Date unique, pour un entretien ponctuel."
+        },
+        "saison_du_mois": {
+          "name": "Saison, du mois",
+          "description": "Début de la fenêtre de saison. Hors saison, aucune échéance n'est calculée."
+        },
+        "saison_au_mois": {
+          "name": "Saison, au mois",
+          "description": "Fin de la fenêtre de saison."
+        },
+        "priorite": {
+          "name": "Priorité",
+          "description": "Priorité de l'entretien."
+        },
+        "derniere_fois": {
+          "name": "Dernière fois",
+          "description": "Date du dernier passage, si connue. Sert à calculer la première échéance."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Précisions sur l'entretien."
+        },
+        "responsable": {
+          "name": "Responsable",
+          "description": "Membre du foyer ou prestataire en charge. Doit exister dans l'annuaire."
+        }
+      }
+    },
+    "creer_equipement": {
+      "name": "Créer une fiche d'équipement",
+      "description": "Crée une fiche d'équipement. Le lieu doit déjà exister, sauf demande explicite de le créer.",
+      "fields": {
+        "nom": {
+          "name": "Nom",
+          "description": "Nom de l'équipement, par exemple « lave-linge »."
+        },
+        "type": {
+          "name": "Type",
+          "description": "Un appareil, ou un élément de construction comme une toiture ou une façade."
+        },
+        "lieu": {
+          "name": "Lieu",
+          "description": "Pièce où se trouve l'équipement."
+        },
+        "creer_le_lieu": {
+          "name": "Créer le lieu",
+          "description": "Créer la pièce si elle n'existe pas. Sans cela, un nom mal orthographié est refusé plutôt que dupliqué."
+        },
+        "marque": {
+          "name": "Marque",
+          "description": "Marque de l'équipement."
+        },
+        "modele": {
+          "name": "Modèle",
+          "description": "Modèle de l'équipement."
+        },
+        "numero_de_serie": {
+          "name": "Numéro de série",
+          "description": "Numéro de série."
+        },
+        "date_achat": {
+          "name": "Date d'achat",
+          "description": "Date d'achat."
+        },
+        "date_installation": {
+          "name": "Date d'installation",
+          "description": "Date de mise en service."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Précisions libres."
+        },
+        "garantie_mois": {
+          "name": "Garantie",
+          "description": "Durée de garantie en mois. La date de fin est calculée."
+        }
+      }
+    },
+    "consigner_intervention": {
+      "name": "Consigner une intervention",
+      "description": "Consigne une intervention ponctuelle — panne, réparation, contrôle — qui ne correspond à aucun entretien planifié.",
+      "fields": {
+        "equipement": {
+          "name": "Équipement",
+          "description": "Équipement concerné."
+        },
+        "type": {
+          "name": "Type",
+          "description": "Nature de l'intervention."
+        },
+        "date": {
+          "name": "Date",
+          "description": "Date de l'intervention. Par défaut, aujourd'hui."
+        },
+        "fait_par": {
+          "name": "Fait par",
+          "description": "Qui est intervenu."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Ce qui a été fait ou constaté."
+        },
+        "montant_euros": {
+          "name": "Montant",
+          "description": "Coût de l'intervention."
+        }
+      }
+    }
   }
 }

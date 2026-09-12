@@ -288,19 +288,48 @@ contrat doit être versionnée et notée dans le `CHANGELOG.md` des deux artefac
 
 ## 6. Surface d'intégration Home Assistant
 
-Entités déjà en place dans le squelette :
+### 6.1 Lecture — entités
 
 - nombre d'entretiens en retard (`counts.overdue`)
 - nombre d'entretiens à échéance proche (`counts.due_soon`)
 - date de la prochaine échéance, avec le nom de la tâche, celui de l'équipement et le nombre de
   jours restants en attributs
+- un capteur de statut **par équipement**, à valeur `ok`, `due_soon`, `overdue` ou `unscheduled`,
+  pour les automatisations ciblées. Les fiches naissant dans l'add-on, ces capteurs sont créés au
+  fil des rafraîchissements du coordinator ; une fiche supprimée laisse son entité derrière elle,
+  marquée indisponible plutôt qu'effacée
+- une entité `calendar` regroupant les entretiens à venir
 
-Entités prévues pour la V1 :
+### 6.2 Écriture — services et intentions
 
-- un capteur de statut par équipement, à valeur `ok`, `due_soon` ou `overdue`, pour les
-  automatisations ciblées
-- une entité `calendar` regroupant entretiens, interventions planifiées et fins de garantie
-- un service `mabarak.complete_task` pour valider un entretien depuis une automatisation
+L'intégration est le **seul chemin d'écriture** depuis l'extérieur : l'add-on garde son port
+fermé, et Home Assistant reste le seul point d'authentification. Le raisonnement complet est dans
+[adr/0013](adr/0013-pilotage-par-agent-externe.md).
+
+Six actions sont exposées, **deux fois chacune** :
+
+| Action | Ce qu'elle fait |
+| --- | --- |
+| `apercu` | l'état de la maison : retards, échéances, garanties, pièces |
+| `chercher_equipement` | les fiches et leurs entretiens |
+| `valider_entretien` | marque un entretien comme fait, et le replanifie |
+| `creer_entretien` | planifie un entretien récurrent sur une fiche |
+| `creer_equipement` | crée une fiche |
+| `consigner_intervention` | consigne une réparation, un contrôle |
+
+Sous forme de **services** `mabarak.*` pour les automatisations, les scripts et les agents qui
+parlent à l'API REST de Home Assistant ; et sous forme d'**intentions** `MaBarak*`, parce que le
+serveur MCP de Home Assistant n'expose que l'API « Assist » — les intentions — et jamais les
+services. Les deux surfaces sont donc nécessaires, et lisent la même table dans
+`custom_components/mabarak/actions.py`.
+
+Ces actions désignent les fiches **par leur nom**, jamais par un identifiant, et refusent d'écrire
+quand le nom est ambigu : l'erreur énumère alors les candidats. C'est la propriété qui rend la
+surface utilisable par un modèle de langue sans risquer d'écrire dans la mauvaise fiche.
+
+La liste des services est décrite dans trois fichiers que rien dans Home Assistant ne compare
+entre eux — `actions.py`, `services.yaml`, `strings.json` et `translations/`. La CI joue
+`scripts/check-integration.py`, qui échoue si les trois cessent de décrire les mêmes champs.
 
 Les identifiants d'entités ne sont pas fixés en dur : les entités utilisent
 `has_entity_name` et une `translation_key`, et Home Assistant génère l'identifiant à la
