@@ -12,8 +12,17 @@ LOGGER: Logger = getLogger(__package__)
 DOMAIN: Final = "mabarak"
 NAME: Final = "MaBarak"
 
-# Nom du service de l'add-on tel que le Supervisor le resout.
-DEFAULT_HOST: Final = "a0d7b954-mabarak"
+# Repli de saisie manuelle. Le chemin normal est la decouverte : l'add-on
+# s'annonce au Supervisor avec son vrai nom d'hote au demarrage (adr/0014), et
+# `async_step_hassio` le recoit sans que personne ait a le taper.
+#
+# Le Supervisor resout un add-on a son slug, tirets a la place des soulignes
+# (`hassio.hostname_from_addon_slug`), et ce slug porte en prefixe un hash du
+# **depot** d'origine. `b34ff0a4` est celui de github.com/k69sknk/myhome : il
+# vaut donc pour toute installation faite depuis ce depot, et changerait si le
+# depot demenageait. La valeur precedente, `a0d7b954`, etait celle du depot
+# Community Add-ons — fausse pour tout le monde, tout le temps.
+DEFAULT_HOST: Final = "b34ff0a4-mabarak"
 DEFAULT_PORT: Final = 8099
 
 CONF_HOST: Final = "host"

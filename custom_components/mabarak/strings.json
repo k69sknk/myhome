@@ -3,13 +3,13 @@
     "step": {
       "user": {
         "title": "Connect to the MaBarak add-on",
-        "description": "Enter the host and port of the MaBarak add-on. The defaults work for a standard add-on installation.",
+        "description": "Enter the host and port of the MaBarak add-on. Normally the add-on announces itself and you do not need this screen — if you are here, find the add-on's real host name: open the add-on page and read the slug in your browser's address bar (.../hassio/addon/XXXXXXXX_mabarak/info), then type it with hyphens: XXXXXXXX-mabarak.",
         "data": {
           "host": "Host",
           "port": "Port"
         },
         "data_description": {
-          "host": "Host name of the add-on, as resolved by the Supervisor.",
+          "host": "Add-on host name: its slug with hyphens instead of underscores. The prefix is a hash of the repository it came from, so the suggested value is only a template to correct.",
           "port": "Ingress port of the add-on. Default is 8099."
         }
       },

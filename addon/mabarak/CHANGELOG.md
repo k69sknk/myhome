@@ -3,6 +3,25 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.30.1
+
+- **L'integration trouve l'add-on toute seule.** Elle proposait jusqu'ici une adresse ecrite en
+  dur qui ne pouvait etre correcte pour personne : Home Assistant designe un add-on par un nom
+  qui contient un identifiant du depot d'ou il vient, impossible a deviner a l'avance. Resultat,
+  « L'add-on est injoignable. Verifiez qu'il est demarre » — un message qui designait la mauvaise
+  cause et envoyait chercher une panne la ou il n'y en avait pas.
+
+  L'add-on s'annonce desormais lui-meme au demarrage, avec son vrai nom : Home Assistant propose
+  l'integration d'elle-meme, et il n'y a plus rien a saisir. Tout etait deja en place sauf la
+  moitie qui parle. Raisonnement dans
+  [ADR-0014](../../docs/adr/0014-l-add-on-s-annonce-au-superviseur.md).
+
+- **Et si vous devez quand meme saisir l'adresse a la main**, l'ecran vous dit maintenant ou la
+  trouver, au lieu d'en proposer une fausse avec assurance.
+
+- **Rien a faire sur une installation qui fonctionne deja** : l'adresse saisie precedemment
+  continue de marcher.
+
 ## 0.30.0
 
 - **MaBarak se pilote depuis un assistant.** « Note que le ramonage a été fait », « ajoute un
