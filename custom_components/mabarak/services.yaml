@@ -175,3 +175,40 @@ consigner_intervention:
           min: 0
           step: 0.01
           mode: box
+
+joindre_document:
+  fields:
+    equipement:
+      required: true
+      selector:
+        text:
+    nom:
+      required: true
+      selector:
+        text:
+    type:
+      selector:
+        select:
+          options:
+            - "facture"
+            - "notice"
+            - "mode d'emploi"
+            - "garantie"
+            - "contrat"
+            - "certificat"
+            - "photo"
+            - "autre"
+    fichier_a_telecharger:
+      selector:
+        text:
+    lien:
+      selector:
+        text:
+    note:
+      selector:
+        text:
+          multiline: true
+    commentaire:
+      selector:
+        text:
+          multiline: true

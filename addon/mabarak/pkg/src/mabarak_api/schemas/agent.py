@@ -187,3 +187,52 @@ class ActionOut(BaseModel):
     equipement: str | None = None
     entretien: str | None = None
     prochaine_echeance: str | None = None
+
+
+TypeDocument = Literal[
+    "facture", "notice", "mode d'emploi", "garantie", "contrat", "certificat", "photo", "autre"
+]
+
+# La table stocke l'anglais (schema.sql) ; l'agent parle la langue du produit.
+TYPE_DOCUMENT_SQL: dict[str, str] = {
+    "facture": "invoice",
+    "notice": "manual",
+    "mode d'emploi": "user_guide",
+    "garantie": "warranty",
+    "contrat": "service_contract",
+    "certificat": "certificate",
+    "photo": "photo",
+    "autre": "other",
+}
+
+
+class JoindreDocumentIn(BaseModel):
+    """Un document rattache a une fiche, dans l'un des trois modes (adr/0002).
+
+    Les trois sont des citoyens de premiere classe, et le choix appartient a
+    l'utilisateur : un fichier copie dans MaBarak, un lien vers son stockage a
+    lui, ou une simple note qui dit ou chercher. Rien ici ne privilegie le
+    fichier.
+    """
+
+    equipement: str = Field(min_length=1)
+    nom: str = Field(min_length=1)
+    type: TypeDocument = "autre"
+    # Exactement un des trois.
+    fichier_a_telecharger: str | None = None
+    lien: str | None = None
+    note: str | None = None
+    commentaire: str | None = None
+
+    @model_validator(mode="after")
+    def _un_seul_mode(self) -> Self:
+        modes = [self.fichier_a_telecharger, self.lien, self.note]
+        renseignes = [mode for mode in modes if mode and mode.strip()]
+        if len(renseignes) != 1:
+            raise ValueError(
+                "Indiquez exactement une facon de garder ce document : "
+                "« fichier_a_telecharger » pour que MaBarak en fasse une copie, "
+                "« lien » pour ne garder que l'adresse, "
+                "ou « note » pour dire simplement ou il se trouve."
+            )
+        return self

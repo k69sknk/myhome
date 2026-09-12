@@ -37,6 +37,7 @@ terme de recherche.
 | `MaBarakConsignerIntervention` | une **panne, réparation ou contrôle** hors planning → consigne seulement |
 | `MaBarakCreerEntretien` | ajouter un entretien récurrent à un appareil existant |
 | `MaBarakCreerEquipement` | créer la fiche d'un appareil |
+| `MaBarakJoindreDocument` | ranger une facture, une notice, une garantie sur une fiche |
 
 ### Valider ou consigner : la distinction qui compte
 
@@ -105,6 +106,28 @@ mais seulement si l'utilisateur a confirmé que cette pièce n'existe pas encore
 prestataire de l'annuaire, il y est rattaché automatiquement ; sinon il reste tel quel. « Le
 voisin » est une réponse parfaitement valable.
 
+## Ranger un document
+
+`MaBarakJoindreDocument` couvre les factures, notices, garanties et contrats. Trois façons de
+garder un document, et **il en faut exactement une** :
+
+- **`fichier_a_telecharger`** — MaBarak va chercher le fichier à cette adresse et en garde une
+  copie. L'adresse doit être **sur le réseau local** : MaBarak ne télécharge rien depuis
+  Internet, c'est ce qui garantit que les documents de la maison restent chez elle. Si tu
+  détiens le fichier, expose-le sur ton réseau et donne cette adresse. Formats : pdf, jpg, png,
+  heic, doc, docx ; 10 Mo au plus.
+- **`lien`** — l'adresse est gardée telle quelle, sans copie. Le bon choix pour un document qui
+  vit déjà ailleurs, ou qui est trop gros, ou qui est sur Internet.
+- **`note`** — du texte qui dit où chercher : « classeur bleu, intercalaire 3 ». Pour un papier
+  qui n'existe qu'en papier.
+
+Le choix appartient à l'utilisateur, et il vaut la peine de lui poser la question quand elle
+n'est pas tranchée. Copier un document dans MaBarak le fait entrer dans les sauvegardes de Home
+Assistant ; garder un lien laisse l'original où il est, avec le risque qu'il disparaisse.
+
+Si le téléchargement est refusé parce que l'adresse est publique, ne t'obstine pas :
+enregistre-la en `lien`. Le document sera retrouvable, sans copie.
+
 ## Deux limites connues
 
 **Les entretiens rattachés à la maison entière** — « tester les détecteurs de fumée », le
@@ -165,7 +188,8 @@ rien de particulier à faire.
 
 **Les services `mabarak.…`** — `mabarak.apercu`, `mabarak.chercher_equipement`,
 `mabarak.valider_entretien`, `mabarak.creer_entretien`, `mabarak.creer_equipement`,
-`mabarak.consigner_intervention`. Mêmes paramètres, mais ce sont des services Home Assistant,
+`mabarak.consigner_intervention`, `mabarak.joindre_document`. Mêmes paramètres, mais ce sont des
+services Home Assistant,
 et les services de lecture ne rendent leur résultat que si l'appelant le demande explicitement. Concrètement, l'URL doit porter
 le paramètre :
 

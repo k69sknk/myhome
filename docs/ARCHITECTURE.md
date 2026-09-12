@@ -361,9 +361,12 @@ plutôt que de lui imposer les nôtres.
 
 Le local-first n'est pas seulement une propriété de l'hébergement, c'est une propriété du code :
 
-- aucune requête sortante n'est émise par le backend ou le frontend en fonctionnement normal.
-  Lire Home Assistant depuis l'add-on (`http://supervisor/core/…`) reste un appel **local**,
-  sur la même machine. Ce n'est pas un envoi vers un serveur tiers ;
+- le backend et le frontend n'émettent aucune requête sortante en fonctionnement normal, à une
+  exception près, explicite et bornée : **télécharger un document depuis le réseau local**, à la
+  demande de l'utilisateur ou de son assistant. L'adresse visée doit être privée, et toutes les
+  adresses résolues sont vérifiées, faute de quoi la demande est refusée
+  ([adr/0015](adr/0015-documents-depuis-un-agent.md)). Lire Home Assistant depuis l'add-on
+  (`http://supervisor/core/…`) reste, lui, un appel **local**, sur la même machine ;
 - les documents sensibles peuvent rester hors de l'application : l'utilisateur choisit entre
   fichier local, lien externe vers son propre stockage, ou simple note de référence
   (voir [adr/0002](adr/0002-document-a-trois-modes-de-stockage.md)) ;

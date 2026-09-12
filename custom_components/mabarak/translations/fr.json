@@ -224,6 +224,40 @@
           "description": "Coût de l'intervention."
         }
       }
+    },
+    "joindre_document": {
+      "name": "Rattacher un document",
+      "description": "Range une facture, une notice ou une garantie sur la fiche d'un équipement. Trois façons de le garder, et il en faut exactement une : une copie du fichier, son lien, ou une note qui dit où il se trouve.",
+      "fields": {
+        "equipement": {
+          "name": "Équipement",
+          "description": "Équipement auquel rattacher le document."
+        },
+        "nom": {
+          "name": "Nom",
+          "description": "Nom du document, par exemple « Facture révision 2026 »."
+        },
+        "type": {
+          "name": "Type",
+          "description": "Nature du document."
+        },
+        "fichier_a_telecharger": {
+          "name": "Fichier à télécharger",
+          "description": "Adresse à laquelle MaBarak ira chercher le fichier pour en garder une copie. Doit être sur le réseau local : MaBarak ne télécharge rien depuis Internet. pdf, jpg, png, heic, doc, docx ; 10 Mo au plus."
+        },
+        "lien": {
+          "name": "Lien",
+          "description": "Adresse du document, gardée telle quelle, sans copie. Le bon choix pour un document qui vit déjà ailleurs."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Où se trouve le document, en clair — « classeur bleu, intercalaire 3 ». Pour un papier qui n'existe qu'en papier."
+        },
+        "commentaire": {
+          "name": "Commentaire",
+          "description": "Précision libre sur ce document."
+        }
+      }
     }
   }
 }

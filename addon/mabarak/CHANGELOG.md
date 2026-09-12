@@ -3,6 +3,21 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.32.0
+
+- **Un assistant peut enfin ranger vos factures.** Transmettez-lui une facture, une notice, une
+  garantie : il la rattache a la bonne fiche, dans le mode de rangement que vous voulez — une
+  copie gardee par MaBarak, un lien vers l'endroit ou elle vit deja, ou une simple note qui dit
+  ou chercher le papier.
+
+- **Pour en garder une copie, MaBarak va chercher le fichier lui-meme**, a une adresse de votre
+  reseau local. Il ne telechargera jamais rien depuis Internet, et le refusera en le disant
+  clairement. C'est ce qui garantit que les papiers de la maison restent chez elle, et c'est
+  verifie par le code plutot que promis.
+
+  Raisonnement complet, et les trois autres approches ecartees, dans
+  [ADR-0015](../../docs/adr/0015-documents-depuis-un-agent.md).
+
 ## 0.31.0
 
 - **Chaque equipement raconte son histoire depuis Home Assistant.** Son capteur ne disait que

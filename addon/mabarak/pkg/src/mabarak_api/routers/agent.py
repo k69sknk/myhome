@@ -18,10 +18,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..clock import utc_now_iso, utc_today
-from ..db import get_session
+from ..config import Settings
+from ..db import get_app_settings, get_session
 from ..models import (
     Asset,
     Cost,
+    Document,
     Home,
     Intervention,
     Location,
@@ -30,6 +32,7 @@ from ..models import (
     Warranty,
 )
 from ..schemas.agent import (
+    TYPE_DOCUMENT_SQL,
     TYPE_INTERVENTION_SQL,
     ActionOut,
     Apercu,
@@ -41,6 +44,7 @@ from ..schemas.agent import (
     EntretienResume,
     EquipementResume,
     GarantieResume,
+    JoindreDocumentIn,
     ValiderEntretienIn,
 )
 from ..services.agent import (
@@ -61,6 +65,8 @@ from ..services.catalog import (
     task_status_map,
     worst_status,
 )
+from ..services.documents import apply_external_link, apply_local_file, apply_reference_note
+from ..services.fetch import TelechargementRefuseError, telecharger
 from ..services.home import ensure_home
 from ..services.recurrence import RecurrenceType
 from ..services.resolve import IntrouvableError, fold
@@ -538,5 +544,62 @@ def consigner_intervention(
     par = f" par {nom_affiche}" if nom_affiche else ""
     return ActionOut(
         message=f"Intervention du {quand} consignee sur « {asset.name} »{par}.",
+        equipement=asset.name,
+    )
+
+
+@router.post(
+    "/documents",
+    response_model=ActionOut,
+    status_code=201,
+    summary="Rattacher un document a une fiche",
+)
+def joindre_document(
+    body: JoindreDocumentIn,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_app_settings),
+) -> ActionOut:
+    """Range une facture, une notice ou une garantie sur la fiche d'un equipement.
+
+    Les trois modes de stockage d'adr/0002 sont ouverts a l'agent, et le choix
+    lui appartient comme il appartient a l'utilisateur dans l'interface : copier
+    le fichier, ne garder que son adresse, ou simplement noter ou il se trouve.
+    """
+    home = _home(session)
+    asset = resoudre_equipement(session, home.id, body.equipement)
+
+    maintenant = utc_now_iso()
+    document = Document(
+        asset_id=asset.id,
+        name=body.nom.strip(),
+        doc_type=TYPE_DOCUMENT_SQL[body.type],
+        # Ecrit plus bas par le mode retenu ; la colonne est NOT NULL.
+        storage_mode="reference_note",
+        reference_note="",
+        notes=(body.commentaire or "").strip() or None,
+        is_primary_photo=0,
+        created_at=maintenant,
+        updated_at=maintenant,
+    )
+    session.add(document)
+    session.flush()
+
+    if body.fichier_a_telecharger:
+        try:
+            stocke = telecharger(body.fichier_a_telecharger.strip(), settings, scope=str(asset.id))
+        except TelechargementRefuseError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        apply_local_file(settings, document, stocke)
+        ou = "copie dans MaBarak"
+    elif body.lien:
+        apply_external_link(settings, document, body.lien.strip())
+        ou = "garde comme lien"
+    else:
+        apply_reference_note(settings, document, (body.note or "").strip())
+        ou = "note comme reference"
+
+    session.flush()
+    return ActionOut(
+        message=f"Document « {document.name} » rattache a « {asset.name} », {ou}.",
         equipement=asset.name,
     )
