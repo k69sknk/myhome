@@ -6,7 +6,8 @@ Un service de MaBarak est decrit a trois endroits, pour trois lecteurs :
 * `actions.py` — le schema reellement valide a l'appel, et les descriptions que
   recoit un agent branche en MCP ;
 * `services.yaml` — la forme des champs, pour l'interface de Home Assistant ;
-* `strings.json` et `translations/` — les libelles affiches a l'utilisateur.
+* `strings.json` et `translations/` — les libelles affiches a l'utilisateur ;
+* `skills/mabarak/SKILL.md` — les noms qu'apprend un agent externe.
 
 Rien dans Home Assistant ne verifie que les trois parlent des memes champs :
 hassfest compare `services.yaml` aux traductions, mais ignore `actions.py`. Un
@@ -30,6 +31,7 @@ import yaml
 RACINE = Path(__file__).resolve().parent.parent
 INTEGRATION = RACINE / "custom_components" / "mabarak"
 TRADUCTIONS = ("strings.json", "translations/en.json", "translations/fr.json")
+SKILL = RACINE / "skills" / "mabarak" / "SKILL.md"
 
 
 def actions_declarees() -> dict[str, set[str]]:
@@ -114,6 +116,33 @@ def textes_complets() -> list[str]:
     return erreurs
 
 
+def type_intention(nom: str) -> str:
+    """Le nom de l'outil expose en MCP, construit comme dans `intents.py`."""
+    return "MaBarak" + "".join(morceau.capitalize() for morceau in nom.split("_"))
+
+
+def skill_a_jour(attendu: dict[str, set[str]]) -> list[str]:
+    """La skill de l'agent doit nommer chaque action, sous ses deux formes.
+
+    Elle n'est pas embarquee dans le produit, mais elle enseigne a un agent des
+    noms d'outils et de champs : une action ajoutee sans elle resterait
+    inconnue de l'agent, et une action supprimee le ferait appeler dans le vide.
+    La verification reste volontairement grossiere — la presence du nom, rien de
+    plus — parce qu'une skill est de la prose, et qu'imposer sa forme la rendrait
+    illisible.
+    """
+    if not SKILL.is_file():
+        return [f"{SKILL.relative_to(RACINE)} : fichier absent."]
+
+    texte = SKILL.read_text(encoding="utf-8")
+    erreurs: list[str] = []
+    for nom in sorted(attendu):
+        for forme in (type_intention(nom), f"mabarak.{nom}"):
+            if forme not in texte:
+                erreurs.append(f"skills/mabarak/SKILL.md : « {forme} » n'y figure pas.")
+    return erreurs
+
+
 def main() -> int:
     attendu = actions_declarees()
     if not attendu:
@@ -124,6 +153,7 @@ def main() -> int:
     for chemin in TRADUCTIONS:
         erreurs += comparer(attendu, traduction(chemin), chemin)
     erreurs += textes_complets()
+    erreurs += skill_a_jour(attendu)
 
     if erreurs:
         print("Les descriptions des services ont diverge :\n")
@@ -132,7 +162,10 @@ def main() -> int:
         return 1
 
     champs = sum(len(valeur) for valeur in attendu.values())
-    print(f"OK: {len(attendu)} services et {champs} champs, decrits partout de la meme facon.")
+    print(
+        f"OK: {len(attendu)} services et {champs} champs, decrits partout de la meme facon, "
+        "et tous nommes dans la skill de l'agent."
+    )
     return 0
 
 

@@ -66,11 +66,14 @@ qu'aucune porte supplémentaire ne s'ouvre sur les données de la maison.
 - [`backend/`](backend/) — API FastAPI, SQLite, migrations Alembic
 - [`frontend/`](frontend/) — interface React servie dans le panneau latéral
 - [`custom_components/mabarak/`](custom_components/mabarak/) — intégration Home Assistant
+- [`skills/mabarak/`](skills/mabarak/) — skill qui apprend à un agent conversationnel à se
+  servir des six actions de pilotage. Elle n'est embarquée nulle part : elle vit ici pour suivre
+  le code qui définit ces actions
 - [`scripts/stage-addon.sh`](scripts/stage-addon.sh) — prépare les artefacts pour le build de
   l'add-on
 - [`scripts/check-integration.py`](scripts/check-integration.py) — vérifie que les services de
-  l'intégration sont décrits de la même façon dans `actions.py`, `services.yaml` et les
-  traductions
+  l'intégration sont décrits de la même façon dans `actions.py`, `services.yaml`, les
+  traductions et la skill
 - [`scripts/check-versions.py`](scripts/check-versions.py) — vérifie que les cinq artefacts
   annoncent la même version, comme l'impose [ADR-0005](docs/adr/0005-monodepot-addon-et-hacs.md)
 

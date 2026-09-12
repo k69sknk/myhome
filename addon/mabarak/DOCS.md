@@ -135,6 +135,13 @@ ne crée pas une pièce en double. Vous pouvez passer outre en le demandant expl
 **Ce qu'un assistant écrit est marqué comme tel** dans la base. Si une ligne d'historique vous
 paraît fausse un jour, vous pourrez savoir si elle vient de vous ou d'un agent.
 
+**Si votre assistant gère les « skills »**, le dépôt en contient une dans
+[`skills/mabarak/`](https://github.com/k69sknk/myhome/tree/main/skills/mabarak). Elle lui
+apprend à commencer par l'aperçu pour connaître le vocabulaire de votre maison, à ne pas
+trancher une ambiguïté à votre place, et à distinguer un entretien planifié qu'on valide d'une
+réparation qu'on consigne. Ce n'est pas obligatoire — les actions fonctionnent sans — mais les
+échanges y gagnent.
+
 **Une limite connue** : les entretiens rattachés à la maison entière plutôt qu'à un équipement
 — « tester les détecteurs de fumée » — ne peuvent pas encore être marqués comme faits. C'est
 aussi vrai dans l'interface. L'assistant vous le dira clairement plutôt que de chercher ailleurs.

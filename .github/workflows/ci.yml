@@ -86,7 +86,8 @@ jobs:
 
       # hassfest compare services.yaml aux traductions, mais ignore actions.py,
       # qui porte le schema reellement valide et les descriptions vues par un
-      # agent. Ce script comble ce trou.
+      # agent — et ignore la skill, qui enseigne ces memes noms a un agent
+      # externe. Ce script comble ces deux trous.
       - name: Verifier la coherence des services
         run: python scripts/check-integration.py
 
