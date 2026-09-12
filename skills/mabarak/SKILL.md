@@ -127,9 +127,34 @@ Reprends-la. Elle contient ce que l'utilisateur veut vérifier — l'appareil vi
 échéance —, ce qui lui permet de repérer immédiatement une erreur de fiche. Les données
 structurées qui l'accompagnent servent à toi, pas à lui.
 
-## Si tu appelles par l'API REST plutôt qu'en MCP
+## Deux portes, et une seule est confortable
 
-Les mêmes actions existent en services Home Assistant : `mabarak.apercu`,
-`mabarak.chercher_equipement`, `mabarak.valider_entretien`, `mabarak.creer_entretien`,
-`mabarak.creer_equipement`, `mabarak.consigner_intervention`. Mêmes paramètres. Pour les deux
-actions de lecture, ajoute `?return_response=true` afin de récupérer le résultat.
+Les six actions existent sous deux formes, et **il faut préférer la première** :
+
+**Les outils `MaBarak…`** — `MaBarakApercu`, `MaBarakChercherEquipement`, etc. Si ta liste
+d'outils les contient, sers-toi d'eux exclusivement. Ils rendent la réponse directement, sans
+rien de particulier à faire.
+
+**Les services `mabarak.…`** — `mabarak.apercu`, `mabarak.chercher_equipement`,
+`mabarak.valider_entretien`, `mabarak.creer_entretien`, `mabarak.creer_equipement`,
+`mabarak.consigner_intervention`. Mêmes paramètres, mais ce sont des services Home Assistant,
+et les services de lecture ne rendent leur résultat que si l'appelant le demande explicitement. Concrètement, l'URL doit porter
+le paramètre :
+
+```
+POST /api/services/mabarak/apercu?return_response
+```
+
+Sans lui, Home Assistant refuse l'appel avec un **400** et ce message :
+
+> Service call requires responses but caller did not ask for responses.
+> Add ?return_response to query parameters.
+
+Si tu rencontres ce 400 et que ton connecteur ne sait pas ajouter ce paramètre à l'URL, ne
+t'acharne pas : **regarde si tu as les outils `MaBarak…`**, qui n'ont pas cette contrainte. Ils
+sont exposés dès que l'intégration est chargée. Si tu n'as ni l'un ni l'autre de façon
+utilisable, dis-le franchement à l'utilisateur en nommant ce que tu as essayé — c'est un
+problème de configuration de ton connecteur, pas de MaBarak, et lui seul peut le régler.
+
+Les actions d'écriture, elles, fonctionnent par les deux portes sans précaution : elles n'ont pas
+besoin de rendre de résultat pour agir.
