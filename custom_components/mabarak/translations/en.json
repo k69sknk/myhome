@@ -20,7 +20,8 @@
     },
     "error": {
       "cannot_connect": "The add-on is unreachable. Check that it is started, then try again.",
-      "unsupported_version": "The add-on version is not compatible with this integration. Update both together."
+      "unsupported_version": "The add-on version is not compatible with this integration. Update both together.",
+      "refused": "The add-on answered but refused the connection. Update the add-on: versions before 0.30.1 did not allow Home Assistant to reach it."
     },
     "abort": {
       "already_configured": "MaBarak is already configured.",

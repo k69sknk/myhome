@@ -45,7 +45,7 @@ flowchart TB
         panel["Panneau lateral HA (ingress)"]
 
         subgraph addon ["Add-on mabarak (conteneur Docker)"]
-            nginx["nginx<br/>ecoute 8099<br/>allow 172.30.32.2 / deny all"]
+            nginx["nginx<br/>ecoute 8099<br/>allow 172.30.32.0/23 / deny all"]
             static["Build React (fichiers statiques)"]
             api["FastAPI + uvicorn<br/>127.0.0.1:8000"]
             data["Volume /data<br/>SQLite + documents"]
@@ -181,14 +181,27 @@ ingress qui renvoient des 404.
 **Port et déclaration.** `ingress: true` dans `config.yaml`. Le port d'ingress par défaut
 est 8099 (convention Home Assistant) ; le linter refuse de restater cette valeur.
 
-**Restriction d'adresse IP.** Seules les connexions provenant de `172.30.32.2`, l'adresse du
-proxy Home Assistant, doivent être acceptées. Tout le reste est refusé au niveau de nginx :
+**Restriction d'adresse IP.** L'add-on n'a aucune authentification : ce filtrage *est* son
+mécanisme de sécurité. Seul le réseau interne du Supervisor est accepté, tout le reste est
+refusé au niveau de nginx :
 
 ```nginx
 listen 8099 default_server;
-allow 172.30.32.2;
+allow 172.30.32.0/23;
 deny all;
 ```
+
+Ce `/23` est le réseau que Home Assistant crée et gère lui-même. Il porte **deux** appelants
+légitimes, et c'est le point à ne pas rater : le proxy d'ingress (`172.30.32.2`), par lequel
+arrivent les requêtes de l'interface — déjà authentifiées — et **Home Assistant Core**, par
+lequel l'intégration interroge l'add-on.
+
+Jusqu'en 0.30.1, seul `172.30.32.2` était autorisé. L'ingress fonctionnait donc parfaitement,
+ce qui masquait le défaut : l'intégration, elle, était refusée en 403 et n'a jamais pu joindre
+l'add-on. Voir [adr/0014](adr/0014-l-add-on-s-annonce-au-superviseur.md).
+
+Le port reste fermé sur l'hôte (`ports: 8099/tcp: null`) : ce réseau n'est pas joignable depuis
+le LAN.
 
 **Chemin de base dynamique.** Le chemin d'ingress est de la forme
 `/api/hassio_ingress/<token>/` où le token change à chaque instance et à chaque redémarrage.

@@ -5,6 +5,12 @@ L'add-on et l'intégration MaBarak partagent le même numéro de version
 
 ## 0.30.1
 
+- **L'integration n'avait jamais pu joindre l'add-on.** Deux defauts se masquaient l'un l'autre,
+  et masquaient surtout celui-ci : le filtrage d'adresse de l'add-on n'autorisait que le proxy
+  d'affichage, et refusait Home Assistant lui-meme. L'interface fonctionnant parfaitement, rien
+  ne le signalait — mais les capteurs et le calendrier annonces depuis plusieurs versions
+  n'avaient en realite jamais existe chez personne. C'est corrige.
+
 - **L'integration trouve l'add-on toute seule.** Elle proposait jusqu'ici une adresse ecrite en
   dur qui ne pouvait etre correcte pour personne : Home Assistant designe un add-on par un nom
   qui contient un identifiant du depot d'ou il vient, impossible a deviner a l'avance. Resultat,

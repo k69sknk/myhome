@@ -70,6 +70,27 @@ L'échec de l'annonce est **silencieux et sans conséquence** : hors d'un add-on
 développement, dans les tests — il n'y a pas de Supervisor, et l'add-on doit démarrer quand
 même. L'interface fonctionne sans intégration.
 
+## Le second défaut, découvert en corrigeant le premier
+
+Une fois le bon nom d'hôte saisi, l'erreur a changé : l'add-on **répondait**, et refusait. nginx
+n'autorisait que `172.30.32.2` — le proxy d'ingress — et renvoyait 403 à tout le reste, y compris
+à Home Assistant Core. L'intégration ne pouvait donc pas joindre l'add-on, quelle que soit
+l'adresse utilisée.
+
+Les deux défauts se masquaient l'un l'autre, et masquaient surtout le fait que **l'intégration
+n'a jamais fonctionné** : ses capteurs et son calendrier, présents dans le dépôt depuis des
+versions, n'ont jamais existé chez un utilisateur. L'ingress fonctionnant parfaitement, rien ne
+le signalait.
+
+Le filtrage est donc élargi au `/23` du réseau interne du Supervisor, qui porte le proxy
+d'ingress **et** Home Assistant Core. Ce réseau est créé et géré par Home Assistant, et le port
+reste fermé sur l'hôte (`ports: 8099/tcp: null`) : rien n'est exposé au LAN. Le filtrage garde
+son rôle — l'add-on n'est joignable que de l'intérieur — mais cesse d'exclure l'appelant pour
+lequel il existe.
+
+L'échec remontait par ailleurs en « Unknown error occurred », parce que le flux de configuration
+ne connaissait pas ce cas. Une clé d'erreur `refused` le nomme désormais et dit quoi faire.
+
 ## Options envisagées
 
 **Corriger le hash en dur.** Écartée : faux dès que le dépôt change d'URL, et laisse une saisie

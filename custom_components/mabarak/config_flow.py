@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.service_info.hassio import HassioServiceInfo
 
-from .api import MaBarakClient, MaBarakConnectionError
+from .api import MaBarakClient, MaBarakConnectionError, MaBarakRefusError
 from .const import (
     CONF_HOST,
     CONF_PORT,
@@ -51,6 +51,13 @@ class MaBarakConfigFlow(ConfigFlow, domain=DOMAIN):
         except MaBarakConnectionError as err:
             LOGGER.debug("Add-on injoignable sur %s:%s : %s", host, port, err)
             return "cannot_connect"
+        except MaBarakRefusError as err:
+            # L'add-on repond mais refuse : c'est le 403 de son filtrage d'adresse
+            # IP, qui n'autorisait Home Assistant Core qu'a partir de la 0.30.1
+            # (adr/0014). Sans ce cas, l'echec remontait en « Unknown error
+            # occurred », qui n'oriente vers rien.
+            LOGGER.debug("Add-on joignable mais refusant sur %s:%s : %s", host, port, err)
+            return "refused"
 
         if health.get("api_schema_version") != SUPPORTED_API_SCHEMA_VERSION:
             return "unsupported_version"
