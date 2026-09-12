@@ -71,6 +71,8 @@ qu'aucune porte supplémentaire ne s'ouvre sur les données de la maison.
 - [`scripts/check-integration.py`](scripts/check-integration.py) — vérifie que les services de
   l'intégration sont décrits de la même façon dans `actions.py`, `services.yaml` et les
   traductions
+- [`scripts/check-versions.py`](scripts/check-versions.py) — vérifie que les cinq artefacts
+  annoncent la même version, comme l'impose [ADR-0005](docs/adr/0005-monodepot-addon-et-hacs.md)
 
 ## Installation
 
@@ -122,6 +124,7 @@ docker build -t mabarak:dev \
 
 ```bash
 sqlite3 /tmp/check.db < docs/schema.sql    # le schema doit s'executer
+python3 scripts/check-versions.py          # les cinq artefacts annoncent la meme version
 python3 scripts/check-integration.py       # services, schemas et traductions concordent
 cd backend  && pytest && ruff check . && mypy
 cd frontend && npm run build

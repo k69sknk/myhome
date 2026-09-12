@@ -59,6 +59,18 @@ jobs:
           echo "Fin de garantie calculee : ${END_DATE}"
           test "${END_DATE}" = "2029-05-12"
 
+  versions:
+    name: Versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ADR-0005 impose un numero unique a l'add-on et a l'integration, reparti
+      # sur cinq fichiers que rien ne comparait : l'un d'eux est reste bloque a
+      # 0.11.0 pendant dix-huit versions.
+      - name: Verifier que les artefacts annoncent la meme version
+        run: python3 scripts/check-versions.py
+
   integration:
     name: Integration Home Assistant
     runs-on: ubuntu-latest
