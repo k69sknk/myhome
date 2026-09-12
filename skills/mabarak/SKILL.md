@@ -127,6 +127,34 @@ Reprends-la. Elle contient ce que l'utilisateur veut vérifier — l'appareil vi
 échéance —, ce qui lui permet de repérer immédiatement une erreur de fiche. Les données
 structurées qui l'accompagnent servent à toi, pas à lui.
 
+## Lire sans rien appeler
+
+Chaque équipement publie aussi une **entité Home Assistant** dont l'état vaut `ok`, `due_soon`,
+`overdue` ou `unscheduled`, et dont les attributs portent tout le reste :
+
+```yaml
+nom: VMC            lieu: Combles          marque: Aldes        modele: EasyHOME
+dernier_entretien: '2026-03-01'            prochaine_echeance: '2026-09-01'
+garantie_jusqu_au: null
+entretiens:
+  - nom: Nettoyer les bouches
+    statut: overdue
+    echeance: '2026-09-01'
+    derniere_fois: '2026-03-01'
+    frequence: tous les 6 mois
+```
+
+C'est le chemin de lecture le plus simple, et le seul qui marche quel que soit ton connecteur :
+un état se lit toujours. Si tu sais lire un état Home Assistant, tu peux répondre « quand la VMC
+a-t-elle été entretenue ? » sans appeler quoi que ce soit.
+
+Trois entités d'ensemble complètent le tableau : le nombre d'entretiens en retard, le nombre à
+échéance proche, et la date du prochain — cette dernière portant en attributs le nom de
+l'entretien et celui de l'équipement.
+
+`MaBarakApercu` et `MaBarakChercherEquipement` restent plus riches et mieux tournés pour une
+réponse en français. Mais si les appels échouent, les entités sont là.
+
 ## Deux portes, et une seule est confortable
 
 Les six actions existent sous deux formes, et **il faut préférer la première** :

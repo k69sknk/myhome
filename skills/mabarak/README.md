@@ -11,8 +11,13 @@ action cesse d'y figurer.
 
 ## L'installer
 
-Déposez le dossier `mabarak/` dans le répertoire de skills de votre agent. Pour Claude Code,
-c'est `~/.claude/skills/` (personnel) ou `.claude/skills/` (dans un projet).
+Déposez le dossier `mabarak/` dans le répertoire de skills de votre agent :
+
+- **Claude Code** — `~/.claude/skills/` (personnel) ou `.claude/skills/` (dans un projet) ;
+- **Hermes** — `~/.hermes/skills/`.
+
+Le format est le même de part et d'autre : un `SKILL.md` avec un frontmatter YAML portant `name`
+et `description`, suivant le standard [agentskills.io](https://agentskills.io).
 
 ## Ce qu'elle apporte
 
