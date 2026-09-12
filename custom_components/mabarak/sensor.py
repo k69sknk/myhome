@@ -170,5 +170,34 @@ class MaBarakStatutEquipement(MaBarakEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> Mapping[str, Any] | None:
+        """Tout ce qu'on veut savoir devant l'appareil, lisible sans appel.
+
+        Un client qui ne sait que lire un etat — un tableau de bord, un
+        template, un agent dont le connecteur Home Assistant n'appelle que
+        `get_state` — doit pouvoir repondre « quand la VMC a-t-elle ete
+        entretenue ? » sans passer par un service : tous ne savent pas demander
+        la reponse d'un service de lecture (adr/0013).
+        """
         fiche = self._fiche
-        return None if fiche is None else {"asset_id": self.asset_id, "nom": fiche.get("name")}
+        if fiche is None:
+            return None
+        return {
+            "asset_id": self.asset_id,
+            "nom": fiche.get("name"),
+            "lieu": fiche.get("location"),
+            "marque": fiche.get("brand"),
+            "modele": fiche.get("model"),
+            "dernier_entretien": fiche.get("last_maintenance_on"),
+            "prochaine_echeance": fiche.get("next_due_on"),
+            "garantie_jusqu_au": fiche.get("warranty_end"),
+            "entretiens": [
+                {
+                    "nom": tache.get("name"),
+                    "statut": tache.get("status"),
+                    "echeance": tache.get("due_date"),
+                    "derniere_fois": tache.get("last_done"),
+                    "frequence": tache.get("frequency"),
+                }
+                for tache in fiche.get("tasks", [])
+            ],
+        }

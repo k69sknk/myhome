@@ -18,8 +18,9 @@ from ..ha_client import (
 )
 from ..models import Asset, TaskStatusRow, Warranty
 from ..schemas import CalendarSyncResult, HaCalendarOut, HaPersonOut, ReminderRunResult
+from ..services.agent import frequence_en_francais
 from ..services.calendar_sync import CalendarSyncConfigurationError, run_calendar_sync
-from ..services.catalog import worst_status
+from ..services.catalog import location_path, worst_status
 from ..services.home import ensure_home
 from ..services.reminders import ReminderConfigurationError, run_reminders
 
@@ -50,10 +51,34 @@ class NextTask(BaseModel):
     days_until: int
 
 
+class AssetTask(BaseModel):
+    name: str
+    status: str
+    due_date: str | None = None
+    last_done: str | None = None
+    frequency: str
+
+
 class AssetStatus(BaseModel):
+    """Un equipement, avec de quoi repondre sans appeler d'autre route.
+
+    Ces champs alimentent les attributs du capteur de statut. Un client qui sait
+    lire un etat Home Assistant — un tableau de bord, un template, un agent qui
+    n'a que `ha_get_state` — peut alors savoir quand la VMC a ete entretenue
+    sans passer par un service, ce que tous les connecteurs ne savent pas faire
+    (adr/0013, section sur les deux surfaces).
+    """
+
     id: int
     name: str
     status: str
+    location: str | None = None
+    brand: str | None = None
+    model: str | None = None
+    last_maintenance_on: str | None = None
+    next_due_on: str | None = None
+    warranty_end: str | None = None
+    tasks: list[AssetTask] = Field(default_factory=list)
 
 
 class ExpiringWarranty(BaseModel):
@@ -79,6 +104,40 @@ class HaSummary(BaseModel):
     assets: list[AssetStatus] = Field(default_factory=list)
     warranties_expiring: list[ExpiringWarranty] = Field(default_factory=list)
     upcoming_tasks: list[TaskCalendarEntry] = Field(default_factory=list)
+
+
+def _asset_status(
+    session: Session, asset: Asset, row_by_task: dict[int, TaskStatusRow]
+) -> AssetStatus:
+    actifs = [task for task in asset.tasks if task.is_active]
+    lignes = [row_by_task[task.id] for task in actifs if task.id in row_by_task]
+
+    faits = [task.last_completed_on for task in actifs if task.last_completed_on]
+    echeances = [ligne.next_due_on for ligne in lignes if ligne.next_due_on]
+
+    return AssetStatus(
+        id=asset.id,
+        name=asset.name,
+        status=worst_status([ligne.status for ligne in lignes]),
+        location=location_path(session, asset.location_id),
+        brand=asset.brand,
+        model=asset.model,
+        # Le dernier entretien tous types confondus, et la premiere echeance a
+        # venir : ce sont les deux dates qu'on cherche devant un appareil.
+        last_maintenance_on=max(faits) if faits else None,
+        next_due_on=min(echeances) if echeances else None,
+        warranty_end=asset.warranty.end_date if asset.warranty is not None else None,
+        tasks=[
+            AssetTask(
+                name=task.name,
+                status=row_by_task[task.id].status if task.id in row_by_task else "unscheduled",
+                due_date=row_by_task[task.id].next_due_on if task.id in row_by_task else None,
+                last_done=task.last_completed_on,
+                frequency=frequence_en_francais(task),
+            )
+            for task in actifs
+        ],
+    )
 
 
 @router.get("/summary", response_model=HaSummary, summary="Synthese pour Home Assistant")
@@ -117,20 +176,11 @@ def summary(session: Session = Depends(get_session)) -> HaSummary:
     assets = session.scalars(
         select(Asset)
         .where(Asset.kind == "equipment", Asset.status != "removed")
-        .options(selectinload(Asset.tasks))
+        .options(selectinload(Asset.tasks), selectinload(Asset.warranty))
         .order_by(Asset.name)
     ).all()
-    status_by_task = {row.task_id: row.status for row in rows}
-    asset_statuses = [
-        AssetStatus(
-            id=asset.id,
-            name=asset.name,
-            status=worst_status(
-                [status_by_task[task.id] for task in asset.tasks if task.id in status_by_task]
-            ),
-        )
-        for asset in assets
-    ]
+    row_by_task = {row.task_id: row for row in rows}
+    asset_statuses = [_asset_status(session, asset, row_by_task) for asset in assets]
 
     today = utc_today()
     asset_name_by_id = {asset.id: asset.name for asset in assets}
