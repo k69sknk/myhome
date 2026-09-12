@@ -3,6 +3,21 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.31.0
+
+- **Chaque equipement raconte son histoire depuis Home Assistant.** Son capteur ne disait que
+  « a jour » ou « en retard » ; il porte maintenant le lieu, la marque, le modele, la date du
+  dernier entretien, la prochaine echeance, la fin de garantie, et le detail de chaque entretien
+  avec sa frequence en clair.
+
+  « Quand la VMC a-t-elle ete entretenue, et quand revient-elle ? » se lit desormais dans l'etat
+  de l'entite, sans appeler quoi que ce soit. C'est utile pour un tableau de bord, pour un
+  template, pour une automatisation — et c'est indispensable pour un assistant dont le
+  connecteur Home Assistant sait lire un etat mais ne sait pas reclamer la reponse d'un service.
+
+- **A savoir :** Home Assistant enregistre ces attributs a chaque changement d'etat. C'est un peu
+  plus de donnees conservees, en echange d'un historique qui se consulte sans rien appeler.
+
 ## 0.30.1
 
 - **L'integration n'avait jamais pu joindre l'add-on.** Deux defauts se masquaient l'un l'autre,

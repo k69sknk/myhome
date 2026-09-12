@@ -307,8 +307,12 @@ contrat doit être versionnée et notée dans le `CHANGELOG.md` des deux artefac
 - nombre d'entretiens à échéance proche (`counts.due_soon`)
 - date de la prochaine échéance, avec le nom de la tâche, celui de l'équipement et le nombre de
   jours restants en attributs
-- un capteur de statut **par équipement**, à valeur `ok`, `due_soon`, `overdue` ou `unscheduled`,
-  pour les automatisations ciblées. Les fiches naissant dans l'add-on, ces capteurs sont créés au
+- un capteur de statut **par équipement**, à valeur `ok`, `due_soon`, `overdue` ou `unscheduled`.
+  Ses attributs portent le lieu, la marque, le modèle, le dernier entretien, la prochaine
+  échéance, la fin de garantie et le détail de chaque entretien avec sa fréquence en clair —
+  de quoi répondre « quand la VMC a-t-elle été entretenue ? » **sans appeler de service**. Tous
+  les clients ne savent pas réclamer la réponse d'un service de lecture ; un état, en revanche,
+  se lit toujours. Les fiches naissant dans l'add-on, ces capteurs sont créés au
   fil des rafraîchissements du coordinator ; une fiche supprimée laisse son entité derrière elle,
   marquée indisponible plutôt qu'effacée
 - une entité `calendar` regroupant les entretiens à venir
