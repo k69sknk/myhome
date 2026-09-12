@@ -59,6 +59,25 @@ jobs:
           echo "Fin de garantie calculee : ${END_DATE}"
           test "${END_DATE}" = "2029-05-12"
 
+  integration:
+    name: Integration Home Assistant
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Installer
+        run: pip install pyyaml
+
+      # hassfest compare services.yaml aux traductions, mais ignore actions.py,
+      # qui porte le schema reellement valide et les descriptions vues par un
+      # agent. Ce script comble ce trou.
+      - name: Verifier la coherence des services
+        run: python scripts/check-integration.py
+
   backend:
     name: Backend
     runs-on: ubuntu-latest

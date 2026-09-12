@@ -115,6 +115,7 @@ class Asset(Base):
     parts_url: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
     catalog_key: Mapped[str | None] = mapped_column(Text)
+    created_via: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(Text)
 
@@ -177,6 +178,7 @@ class MaintenanceTask(Base):
     last_reminded_on: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[int] = mapped_column(Integer, default=1)
     catalog_key: Mapped[str | None] = mapped_column(Text)
+    created_via: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(Text)
 
@@ -276,6 +278,8 @@ class Intervention(Base):
         ForeignKey("provider.id", ondelete="SET NULL")
     )
     notes: Mapped[str | None] = mapped_column(Text)
+    # NULL = l'interface. 'agent' = ecrit par un agent externe (adr/0013).
+    created_via: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[str] = mapped_column(Text)
 

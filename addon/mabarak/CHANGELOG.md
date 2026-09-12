@@ -3,6 +3,43 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.30.0
+
+- **MaBarak se pilote depuis un assistant.** « Note que le ramonage a été fait », « ajoute un
+  changement de filtre tous les six mois sur la PAC », « qu'est-ce qui est en retard ? » :
+  l'intégration expose six actions qui lisent et écrivent dans MaBarak, et l'entretien est
+  replanifié sans ouvrir l'interface. Elles fonctionnent depuis une automatisation, un script,
+  l'API REST de Home Assistant, ou un agent conversationnel.
+
+- **Les agents branchés en MCP les voient aussi.** Le serveur MCP de Home Assistant n'expose que
+  les intentions, jamais les services : les six actions sont donc publiées sous les deux formes,
+  `mabarak.valider_entretien` d'un côté et `MaBarakValiderEntretien` de l'autre. Sans cela, la
+  moitié des assistants n'auraient rien vu.
+
+- **On parle à MaBarak par des noms, pas par des numéros.** Les accents et la casse n'ont pas
+  d'importance, et l'on peut être plus bavard que la fiche : « la chaudière gaz de la cave »
+  trouve « Chaudière gaz ».
+
+- **Et en cas de doute, rien n'est écrit.** Si deux appareils ont un entretien du même nom, la
+  demande est refusée avec la liste des candidats plutôt que tranchée au hasard — une écriture
+  dans la mauvaise fiche ne se remarque pas avant des mois. Un lieu inconnu est refusé de la même
+  façon, sauf demande explicite de le créer, pour qu'un nom mal compris ne crée pas une pièce en
+  double. Raisonnement complet dans
+  [ADR-0013](../../docs/adr/0013-pilotage-par-agent-externe.md).
+
+- **L'historique retient qui a écrit.** Ce qu'un assistant enregistre est marqué comme tel dans
+  la base. Devant une ligne douteuse dans six mois, la question « est-ce moi ou l'agent ? » aura
+  une réponse.
+
+- **Un capteur d'état par équipement.** « Préviens-moi quand la chaudière passe en retard »
+  devient possible : chaque fiche a désormais son capteur `ok` / `bientôt` / `en retard`, là où
+  seuls les compteurs globaux existaient.
+
+- **À savoir :** l'add-on et l'intégration doivent être mis à jour **ensemble**. Et les
+  entretiens rattachés à la maison entière — « tester les détecteurs de fumée » — ne peuvent
+  toujours pas être marqués comme faits, pas plus qu'ils ne le pouvaient dans l'interface ;
+  l'assistant le dit désormais franchement.
+
 ## 0.29.0
 
 - **Un métier qui n'est pas dans la liste peut enfin être précisé.** La liste proposée sur une

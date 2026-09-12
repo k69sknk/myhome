@@ -248,6 +248,12 @@ CREATE TABLE asset (
     -- est issue. Voir la note sur `location.catalog_key` et adr/0008.
     catalog_key     TEXT,
 
+    -- QUI A ECRIT CETTE LIGNE. NULL = l'interface, ou une ligne anterieure a la
+    -- question. 'agent' = un agent externe passe par les services Home Assistant
+    -- (adr/0013). Distinguer les deux est ce qui permet, six mois plus tard, de
+    -- retrouver l'origine d'une ligne fausse.
+    created_via     TEXT    CHECK (created_via IS NULL OR created_via IN ('ui', 'agent')),
+
     created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
@@ -590,6 +596,12 @@ CREATE TABLE maintenance_task (
     -- reste celle que l'utilisateur a validee, meme si le catalogue change d'avis.
     catalog_key         TEXT,
 
+    -- QUI A ECRIT CETTE LIGNE. NULL = l'interface, ou une ligne anterieure a la
+    -- question. 'agent' = un agent externe passe par les services Home Assistant
+    -- (adr/0013). Distinguer les deux est ce qui permet, six mois plus tard, de
+    -- retrouver l'origine d'une ligne fausse.
+    created_via         TEXT    CHECK (created_via IS NULL OR created_via IN ('ui', 'agent')),
+
     created_at          TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at          TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
 
@@ -709,6 +721,12 @@ CREATE TABLE intervention (
     performed_by_member_id   INTEGER   REFERENCES member(id)   ON DELETE SET NULL,
     performed_by_provider_id INTEGER   REFERENCES provider(id) ON DELETE SET NULL,
     notes             TEXT,
+
+    -- QUI A ECRIT CETTE LIGNE. NULL = l'interface, ou une ligne anterieure a la
+    -- question. 'agent' = un agent externe passe par les services Home Assistant
+    -- (adr/0013). Distinguer les deux est ce qui permet, six mois plus tard, de
+    -- retrouver l'origine d'une ligne fausse.
+    created_via       TEXT    CHECK (created_via IS NULL OR created_via IN ('ui', 'agent')),
 
     created_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     updated_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),

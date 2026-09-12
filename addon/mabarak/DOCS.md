@@ -83,6 +83,62 @@ Le port direct `8099` est volontairement fermé. L'ouvrir exposerait l'interface
 authentification** à toute personne ayant accès à votre réseau local. Ne le faites qu'en
 développement.
 
+## Piloter MaBarak depuis un assistant
+
+Depuis la 0.30.0, MaBarak est pilotable par la voix, par une automatisation, ou par un agent
+conversationnel branché sur Home Assistant. « Note que le ramonage a été fait », « ajoute la
+nouvelle chaudière dans la cave » : l'entretien est enregistré et sa prochaine échéance
+recalculée, sans ouvrir l'interface.
+
+**Cela exige l'intégration MaBarak**, pas seulement l'add-on. L'add-on seul n'expose aucun
+service. Si votre assistant vous répond qu'il ne trouve aucun service `mabarak.*`, c'est presque
+toujours que l'intégration n'est pas installée : ajoutez-la via HACS depuis le même dépôt, puis
+**Paramètres → Appareils et services → Ajouter une intégration → MaBarak**.
+
+### Ce que vous pouvez demander
+
+| Action | Exemple |
+| --- | --- |
+| `mabarak.apercu` | « Qu'est-ce qui est en retard dans la maison ? » |
+| `mabarak.chercher_equipement` | « Quand la VMC a-t-elle été entretenue ? » |
+| `mabarak.valider_entretien` | « Note que le ramonage a été fait hier par Dupont. » |
+| `mabarak.creer_entretien` | « Ajoute un changement de filtre tous les six mois sur la PAC. » |
+| `mabarak.creer_equipement` | « Ajoute un lave-linge Bosch dans la buanderie. » |
+| `mabarak.consigner_intervention` | « J'ai fait réparer le lave-linge, 210 euros. » |
+
+### Selon la façon dont votre assistant est branché
+
+**Par le serveur MCP de Home Assistant** (le cas le plus courant pour un agent externe) : les six
+actions apparaissent comme des outils nommés `MaBarakApercu`, `MaBarakValiderEntretien`, etc.
+Rien à configurer de plus — elles sont exposées avec l'API « Assist », que le serveur MCP publie
+par défaut.
+
+**Par l'API REST avec un jeton de longue durée** : appelez les services `mabarak.*` directement.
+Pour les deux actions de lecture, ajoutez `?return_response=true` afin de récupérer le résultat.
+
+**Par une automatisation ou un script** : les services figurent dans l'éditeur d'actions, avec
+leurs champs.
+
+### Ce qu'il faut en savoir
+
+**Les fiches se désignent par leur nom**, jamais par un numéro. Les accents et la casse n'ont pas
+d'importance, et vous pouvez être plus bavard que la fiche : « la chaudière gaz de la cave »
+trouve « Chaudière gaz ».
+
+**En cas de doute, rien n'est écrit.** Si deux équipements ont un entretien du même nom, la
+demande est refusée avec la liste des candidats, et l'assistant vous demande lequel. C'est
+volontaire : une écriture dans la mauvaise fiche ne se remarque pas avant des mois.
+
+**Un lieu inconnu est refusé**, avec la liste des pièces existantes, pour qu'un nom mal compris
+ne crée pas une pièce en double. Vous pouvez passer outre en le demandant explicitement.
+
+**Ce qu'un assistant écrit est marqué comme tel** dans la base. Si une ligne d'historique vous
+paraît fausse un jour, vous pourrez savoir si elle vient de vous ou d'un agent.
+
+**Une limite connue** : les entretiens rattachés à la maison entière plutôt qu'à un équipement
+— « tester les détecteurs de fumée » — ne peuvent pas encore être marqués comme faits. C'est
+aussi vrai dans l'interface. L'assistant vous le dira clairement plutôt que de chercher ailleurs.
+
 ## Sauvegarde
 
 Tout est dans `/data` : la base de données et les documents importés. Une sauvegarde Home
@@ -105,6 +161,15 @@ sera recréé. Sinon, restaurez une sauvegarde et signalez le problème avec le 
 **L'intégration ne se propose pas automatiquement.** Vérifiez que l'add-on est bien démarré,
 puis ajoutez l'intégration manuellement depuis **Paramètres → Appareils et services → Ajouter une
 intégration → MaBarak**.
+
+**Mon assistant ne voit aucun service `mabarak.*`.** L'add-on seul n'en expose aucun : c'est
+l'intégration qui les fournit. Si vous ne voyez que des entités `update.*` au nom de MaBarak,
+elles viennent du Supervisor et signalent justement que l'intégration n'est pas installée. Voir
+« Piloter MaBarak depuis un assistant » plus haut.
+
+**Mon assistant trouve les services mais pas mes équipements.** Faites-lui appeler `mabarak.apercu`
+en premier : cette action lui donne la liste des pièces et le nombre d'équipements, c'est-à-dire
+le vocabulaire de votre maison. Sans elle, il invente des noms de pièces.
 
 ## Support
 

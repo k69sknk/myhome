@@ -1,0 +1,177 @@
+# Services de pilotage de MaBarak (docs/adr/0013-pilotage-par-agent-externe.md).
+#
+# Les libelles et descriptions ne figurent PAS ici : Home Assistant les lit
+# dans strings.json et translations/. Ce fichier ne decrit que la forme des
+# champs, pour que l'interface propose le bon selecteur.
+#
+# Genere et verifie par scripts/check-integration.py, qui echoue si ce fichier
+# et actions.py cessent de decrire les memes services.
+
+# `apercu` ne prend aucun champ.
+apercu:
+
+chercher_equipement:
+  fields:
+    recherche:
+      selector:
+        text:
+
+valider_entretien:
+  fields:
+    entretien:
+      required: true
+      selector:
+        text:
+    equipement:
+      selector:
+        text:
+    date:
+      selector:
+        date:
+    fait_par:
+      selector:
+        text:
+    notes:
+      selector:
+        text:
+          multiline: true
+    montant_euros:
+      selector:
+        number:
+          min: 0
+          step: 0.01
+          mode: box
+
+creer_entretien:
+  fields:
+    equipement:
+      required: true
+      selector:
+        text:
+    nom:
+      required: true
+      selector:
+        text:
+    tous_les:
+      selector:
+        number:
+          min: 1
+          mode: box
+    unite:
+      selector:
+        select:
+          options:
+            - "jours"
+            - "mois"
+            - "ans"
+    chaque_annee_le:
+      selector:
+        text:
+    le:
+      selector:
+        date:
+    saison_du_mois:
+      selector:
+        number:
+          min: 1
+          max: 12
+          mode: box
+    saison_au_mois:
+      selector:
+        number:
+          min: 1
+          max: 12
+          mode: box
+    priorite:
+      selector:
+        select:
+          options:
+            - "low"
+            - "normal"
+            - "high"
+            - "critical"
+    derniere_fois:
+      selector:
+        date:
+    notes:
+      selector:
+        text:
+          multiline: true
+    responsable:
+      selector:
+        text:
+
+creer_equipement:
+  fields:
+    nom:
+      required: true
+      selector:
+        text:
+    type:
+      selector:
+        select:
+          options:
+            - "equipement"
+            - "element de construction"
+    lieu:
+      selector:
+        text:
+    creer_le_lieu:
+      selector:
+        boolean:
+    marque:
+      selector:
+        text:
+    modele:
+      selector:
+        text:
+    numero_de_serie:
+      selector:
+        text:
+    date_achat:
+      selector:
+        date:
+    date_installation:
+      selector:
+        date:
+    notes:
+      selector:
+        text:
+          multiline: true
+    garantie_mois:
+      selector:
+        number:
+          min: 1
+          mode: box
+
+consigner_intervention:
+  fields:
+    equipement:
+      required: true
+      selector:
+        text:
+    type:
+      selector:
+        select:
+          options:
+            - "entretien"
+            - "reparation"
+            - "installation"
+            - "controle"
+            - "remplacement"
+    date:
+      selector:
+        date:
+    fait_par:
+      selector:
+        text:
+    notes:
+      selector:
+        text:
+          multiline: true
+    montant_euros:
+      selector:
+        number:
+          min: 0
+          step: 0.01
+          mode: box

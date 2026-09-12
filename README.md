@@ -11,11 +11,14 @@ est encore sous garantie.
 **Local-first.** Aucune donnée ne quitte votre machine. Pas de cloud, pas de compte, pas de
 télémétrie.
 
-> **État du projet : 0.29.0.**
+> **État du projet : 0.30.0.**
 > Maison, lieux en arbre, fiches d'appareils et d'éléments de construction, entretiens
 > (Fait / préciser), historique, membres, prestataires, rappels, et les documents — dans leurs
 > trois modes de stockage, rattachés à une fiche, à un entretien ou à la maison elle-même, avec
-> une page qui les rassemble tous. Les problèmes (`issue`) n'ont pas encore d'interface.
+> une page qui les rassemble tous. L'application est pilotable depuis Home Assistant, en services
+> et en intentions, par une automatisation comme par un agent conversationnel
+> ([ADR-0013](docs/adr/0013-pilotage-par-agent-externe.md)). Les problèmes (`issue`) n'ont pas
+> encore d'interface.
 
 ## Ce dépôt contient deux produits
 
@@ -46,8 +49,10 @@ flowchart LR
 ```
 
 L'add-on porte toute l'application : base de données, documents, API, interface. L'intégration
-ne stocke rien ; elle projette l'état de la maison en entités Home Assistant, pour les rendre
-utilisables dans les automatisations et les notifications.
+ne stocke rien ; elle projette l'état de la maison en entités Home Assistant, et ouvre le seul
+chemin d'écriture depuis l'extérieur. L'add-on garde son port fermé : Home Assistant reste le
+seul point d'authentification, ce qui permet à un agent conversationnel de piloter MaBarak sans
+qu'aucune porte supplémentaire ne s'ouvre sur les données de la maison.
 
 ## Structure
 
@@ -63,6 +68,9 @@ utilisables dans les automatisations et les notifications.
 - [`custom_components/mabarak/`](custom_components/mabarak/) — intégration Home Assistant
 - [`scripts/stage-addon.sh`](scripts/stage-addon.sh) — prépare les artefacts pour le build de
   l'add-on
+- [`scripts/check-integration.py`](scripts/check-integration.py) — vérifie que les services de
+  l'intégration sont décrits de la même façon dans `actions.py`, `services.yaml` et les
+  traductions
 
 ## Installation
 
@@ -114,6 +122,7 @@ docker build -t mabarak:dev \
 
 ```bash
 sqlite3 /tmp/check.db < docs/schema.sql    # le schema doit s'executer
+python3 scripts/check-integration.py       # services, schemas et traductions concordent
 cd backend  && pytest && ruff check . && mypy
 cd frontend && npm run build
 ```
