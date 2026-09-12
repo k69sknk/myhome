@@ -128,11 +128,21 @@ async def _detail(response: aiohttp.ClientResponse) -> str:
     if isinstance(detail, list):
         # Pydantic prefixe ses messages de « Value error, » : un agent n'a que
         # faire de savoir quelle couche a parle, seule la phrase l'interesse.
+        # En revanche le nom du champ, lui, vit dans `loc` : sans lui, « Field
+        # required » ne dit pas lequel, et l'agent ne peut pas se corriger.
         raisons = [
-            str(item["msg"]).removeprefix("Value error, ")
-            for item in detail
-            if isinstance(item, dict) and item.get("msg")
+            _raison(item) for item in detail if isinstance(item, dict) and item.get("msg")
         ]
         if raisons:
             return " ".join(raisons)
     return f"L'add-on MaBarak a refuse la demande (code {response.status})."
+
+
+def _raison(item: dict[str, Any]) -> str:
+    """Un message de validation Pydantic, rendu au champ qu'il concerne."""
+    message = str(item["msg"]).removeprefix("Value error, ")
+    # `loc` vaut ("body", "champ") ; « body » ne veut rien dire pour un agent.
+    champ = ".".join(
+        str(morceau) for morceau in item.get("loc") or () if morceau not in ("body", "query")
+    )
+    return f"Champ « {champ} » : {message}" if champ else message

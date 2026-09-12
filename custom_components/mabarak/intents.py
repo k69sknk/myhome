@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import intent
 
@@ -58,7 +59,7 @@ class MaBarakIntentHandler(intent.IntentHandler):
         reponse = intent_obj.create_response()
         coordinator = _coordinator(intent_obj.hass)
 
-        donnees = {cle: valeur["value"] for cle, valeur in intent_obj.slots.items()}
+        donnees = _valider(self, intent_obj)
         try:
             resultat = await executer(coordinator.client, self._action, donnees)
         except MaBarakRefusError as err:
@@ -78,6 +79,33 @@ class MaBarakIntentHandler(intent.IntentHandler):
         # date ou un nom exact sans avoir a analyser du francais.
         reponse.async_set_speech_slots({"mabarak": resultat})
         return reponse
+
+
+def _valider(handler: intent.IntentHandler, intent_obj: intent.Intent) -> dict[str, Any]:
+    """Valide les champs recus et rend ceux qui sont renseignes.
+
+    Sans cette validation explicite, `IntentHandler` ne verifie rien : la base
+    laisse chaque gestionnaire appeler `async_validate_slots` lui-meme.
+
+    Surtout, elle traduit l'echec. Une `vol.Invalid` qui remonte telle quelle
+    est reemballee par Home Assistant en « Received invalid slot info for
+    MaBarakValiderEntretien » — le detail ne va qu'au journal, et l'agent ne
+    saura jamais quel champ il a manque. Une `IntentHandleError`, elle, remonte
+    intacte (`async_handle` laisse passer les `IntentError`).
+    """
+    try:
+        handler.async_validate_slots(intent_obj.slots)
+    except vol.Invalid as err:
+        champ = ".".join(str(morceau) for morceau in err.path if morceau != "value")
+        if "required key not provided" in str(err.msg):
+            raise intent.IntentHandleError(
+                f"Le champ « {champ} » est obligatoire et n'a pas ete fourni."
+            ) from err
+        raise intent.IntentHandleError(
+            f"Le champ « {champ} » est invalide : {err.msg}" if champ else str(err.msg)
+        ) from err
+
+    return {cle: valeur["value"] for cle, valeur in intent_obj.slots.items()}
 
 
 @callback

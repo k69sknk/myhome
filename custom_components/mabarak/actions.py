@@ -98,6 +98,32 @@ def _phrase_equipements(donnees: Any) -> str:
     return f"{len(donnees)} equipements : {noms}" + (f", et {reste} autres." if reste > 0 else ".")
 
 
+# Le serveur MCP de Home Assistant construit `inputSchema` avec `type` et
+# `properties`, et **jette la liste `required`** (voir `mcp_server/server.py`,
+# `_format_tool`). Un agent branche en MCP ne peut donc pas savoir qu'un champ
+# est obligatoire — sauf si la description le dit. Elle, elle est transmise.
+MENTION_OBLIGATOIRE = "Obligatoire. "
+
+
+def _obligations_dans_les_descriptions(schema: dict[Any, Any]) -> dict[Any, Any]:
+    """Prefixe la description de chaque champ requis par « Obligatoire. ».
+
+    Applique a la definition et non a la main : un champ passe plus tard de
+    `Optional` a `Required` verrait sinon sa mention rester fausse.
+    """
+    documente: dict[Any, Any] = {}
+    for marqueur, validateur in schema.items():
+        if isinstance(marqueur, vol.Required) and not (marqueur.description or "").startswith(
+            MENTION_OBLIGATOIRE
+        ):
+            marqueur = vol.Required(
+                marqueur.schema,
+                description=f"{MENTION_OBLIGATOIRE}{marqueur.description or ''}".strip(),
+            )
+        documente[marqueur] = validateur
+    return documente
+
+
 @dataclass(frozen=True)
 class Action:
     """Une action de pilotage, avec tout ce que les deux surfaces demandent.
@@ -119,6 +145,9 @@ class Action:
     # Ce que l'agent entendra. La reponse structuree suit, mais c'est cette
     # phrase qui sera relue a l'utilisateur.
     phrase: Callable[[Any], str] = field(default=lambda donnees: str(donnees.get("message", "")))
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "schema", _obligations_dans_les_descriptions(self.schema))
 
 
 _DATE = vol.Match(
