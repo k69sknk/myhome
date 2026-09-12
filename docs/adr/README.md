@@ -25,6 +25,7 @@ l'ancien passe en statut `Remplacé par ADR-XXXX`.
 | [0011](0011-prestataires-table-a-part.md) | Les prestataires sont une table à part, pas un type de membre | Accepté |
 | [0012](0012-metiers-liste-semee-et-extensible.md) | Les métiers sont une liste semée, que l'utilisateur peut étendre | Accepté |
 | [0013](0013-pilotage-par-agent-externe.md) | Un agent externe pilote MaBarak par Home Assistant, jamais en direct | Accepté |
+| [0014](0014-l-add-on-s-annonce-au-superviseur.md) | L'add-on s'annonce au Supervisor, plutôt que l'intégration ne devine son adresse | Accepté |
 
 Le choix de l'architecture hybride add-on plus intégration est documenté directement dans
 [../ARCHITECTURE.md](../ARCHITECTURE.md), section 2, avec les options écartées.

@@ -12,11 +12,12 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from . import __version__
-from .config import APP_NAME, Settings, get_settings
+from .config import APP_NAME, INGRESS_PORT, Settings, get_settings
 from .db import create_db_engine, session_factory_for
 from .ingress import INGRESS_HEADER, render_index, resolve_base_path
 from .migrate import upgrade_to_head
 from .routers import agent, assets, catalog, ha, health, house, members, providers
+from .services.discovery import annoncer_au_superviseur
 from .services.home import ensure_home
 from .services.resolve import AmbiguiteError, ResolutionError
 from .services.scheduler import reminder_scheduler
@@ -59,6 +60,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     finally:
         session.close()
     _LOGGER.info("%s %s demarre (donnees: %s)", APP_NAME, __version__, settings.data_dir)
+
+    # S'annoncer au Supervisor, pour que l'integration se propose d'elle-meme
+    # avec le bon nom d'hote (adr/0014). Sans effet hors d'un add-on.
+    annoncer_au_superviseur(INGRESS_PORT)
 
     # Le planificateur des rappels d'echeance vit ici, et non dans un service s6
     # a part : voir adr/0009. Il meurt avec l'API, que s6 relance, et rattrape au

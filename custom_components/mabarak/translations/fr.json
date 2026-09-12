@@ -3,13 +3,13 @@
     "step": {
       "user": {
         "title": "Connexion à l'add-on MaBarak",
-        "description": "Indiquez l'hôte et le port de l'add-on MaBarak. Les valeurs par défaut conviennent à une installation standard.",
+        "description": "Indiquez l'hôte et le port de l'add-on MaBarak. Normalement l'add-on s'annonce tout seul et cet écran est inutile — si vous y êtes, retrouvez son vrai nom d'hôte : ouvrez la page de l'add-on et lisez le slug dans la barre d'adresse (.../hassio/addon/XXXXXXXX_mabarak/info), puis saisissez-le avec des tirets : XXXXXXXX-mabarak.",
         "data": {
           "host": "Hôte",
           "port": "Port"
         },
         "data_description": {
-          "host": "Nom d'hôte de l'add-on, tel que le Supervisor le résout.",
+          "host": "Nom d'hôte de l'add-on : son slug, avec des tirets à la place des soulignés. Le préfixe est un hash du dépôt d'origine, la valeur proposée n'est donc qu'un gabarit à corriger.",
           "port": "Port d'ingress de l'add-on. 8099 par défaut."
         }
       },
@@ -20,7 +20,8 @@
     },
     "error": {
       "cannot_connect": "L'add-on est injoignable. Vérifiez qu'il est démarré, puis réessayez.",
-      "unsupported_version": "La version de l'add-on n'est pas compatible avec cette intégration. Mettez les deux à jour ensemble."
+      "unsupported_version": "La version de l'add-on n'est pas compatible avec cette intégration. Mettez les deux à jour ensemble.",
+      "refused": "L'add-on répond mais refuse la connexion. Mettez l'add-on à jour : les versions antérieures à la 0.30.1 n'autorisaient pas Home Assistant à le joindre."
     },
     "abort": {
       "already_configured": "MaBarak est déjà configuré.",

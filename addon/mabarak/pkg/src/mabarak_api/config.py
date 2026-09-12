@@ -20,6 +20,12 @@ APP_NAME = "MaBarak"
 # de champ.
 API_SCHEMA_VERSION = 1
 
+# Port d'ingress, servi par nginx et non par uvicorn : c'est lui que
+# l'integration doit joindre, et donc lui que l'annonce au Supervisor publie.
+# Doit rester aligne sur le `listen` de addon/mabarak/rootfs/etc/nginx/nginx.conf
+# et sur `ingress_port` de addon/mabarak/config.yaml.
+INGRESS_PORT = 8099
+
 LogLevel = Literal["trace", "debug", "info", "notice", "warning", "error", "fatal"]
 
 
