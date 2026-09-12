@@ -70,6 +70,28 @@ c'est de loin le plus sûr.
 `dernier_entretien` et `prochaine_echeance` auront changé. C'est ta seule confirmation, et elle
 est fiable. Ne dis jamais à l'utilisateur qu'une écriture a réussi sans l'avoir vérifiée ainsi.
 
+### Le code d'erreur te dit où chercher
+
+C'est la seule information que le refus te laisse, et elle vaut d'être lue :
+
+- **400** — tes **arguments** sont mal formés, et MaBarak n'a rien vu de ta demande. Un nom de
+  champ inexistant (`note` au lieu de `notes`), une date qui n'est pas au format `AAAA-MM-JJ`,
+  une valeur hors de la liste attendue. Ne soupçonne pas les données de la maison : relis les
+  champs de l'action.
+- **500** — tes arguments étaient bons, et c'est **MaBarak** qui refuse : un nom ambigu, un lieu
+  inconnu, un doublon. Là, le problème est bien dans ce que tu as désigné. Lis les entités pour
+  retrouver le nom exact, puis réessaie.
+
+Se tromper de diagnostic entre les deux fait perdre beaucoup de temps : un 400 attribué à un nom
+de pièce envoie chercher une panne là où il n'y a qu'une faute de frappe dans un nom de champ.
+
+### Les dates, quand tu ne sais pas tout
+
+Une date se donne complète ou pas du tout. Si l'utilisateur dit « installée en 2023 », **n'invente
+pas de mois ni de jour** : laisse le champ de côté et écris « installée en 2023 » dans `notes`.
+Une date fabriquée devient une vérité dans les archives de la maison, et personne ne saura
+qu'elle a été devinée.
+
 ## On désigne par le nom, jamais par un numéro
 
 Tous les outils prennent des noms en français. Les accents et la casse n'ont aucune importance,
