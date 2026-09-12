@@ -109,6 +109,10 @@ class MaBarakClient:
         data: dict[str, Any] = await self._request("POST", "agent/interventions", json=body)
         return data
 
+    async def joindre_document(self, body: dict[str, Any]) -> dict[str, Any]:
+        data: dict[str, Any] = await self._request("POST", "agent/documents", json=body)
+        return data
+
 
 async def _detail(response: aiohttp.ClientResponse) -> str:
     """Le message du backend, ou a defaut quelque chose d'exploitable.

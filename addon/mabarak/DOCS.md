@@ -105,6 +105,7 @@ toujours que l'intégration n'est pas installée : ajoutez-la via HACS depuis le
 | `mabarak.creer_entretien` | « Ajoute un changement de filtre tous les six mois sur la PAC. » |
 | `mabarak.creer_equipement` | « Ajoute un lave-linge Bosch dans la buanderie. » |
 | `mabarak.consigner_intervention` | « J'ai fait réparer le lave-linge, 210 euros. » |
+| `mabarak.joindre_document` | « Range cette facture sur la fiche de la chaudière. » |
 
 ### Selon la façon dont votre assistant est branché
 
