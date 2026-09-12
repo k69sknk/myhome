@@ -340,6 +340,60 @@ ACTIONS: tuple[Action, ...] = (
         },
         appel=lambda client, corps: client.consigner_intervention(corps),
     ),
+    Action(
+        nom="joindre_document",
+        description=(
+            "Rattache un document a la fiche d'un equipement dans MaBarak : facture, notice, "
+            "garantie, contrat. Trois facons de le garder, et il en faut exactement une : "
+            "« fichier_a_telecharger » pour que MaBarak en fasse une copie (l'adresse doit etre "
+            "sur le reseau local), « lien » pour ne garder que l'adresse d'un document qui vit "
+            "ailleurs, « note » pour dire simplement ou se trouve le papier."
+        ),
+        schema={
+            vol.Required("equipement", description="Nom de l'equipement concerne."): vol.All(
+                str, vol.Length(min=1)
+            ),
+            vol.Required(
+                "nom", description="Nom du document, par exemple « Facture revision 2026 »."
+            ): vol.All(str, vol.Length(min=1)),
+            vol.Optional("type", description="Nature du document."): vol.In(
+                [
+                    "facture",
+                    "notice",
+                    "mode d'emploi",
+                    "garantie",
+                    "contrat",
+                    "certificat",
+                    "photo",
+                    "autre",
+                ]
+            ),
+            vol.Optional(
+                "fichier_a_telecharger",
+                description=(
+                    "Adresse a laquelle MaBarak ira chercher le fichier pour en garder une "
+                    "copie. Doit etre sur le reseau local : MaBarak ne telecharge rien depuis "
+                    "Internet. Formats acceptes : pdf, jpg, png, heic, doc, docx ; 10 Mo au plus."
+                ),
+            ): str,
+            vol.Optional(
+                "lien",
+                description=(
+                    "Adresse du document, gardee telle quelle, sans copie. C'est le bon choix "
+                    "pour un document qui vit deja ailleurs."
+                ),
+            ): str,
+            vol.Optional(
+                "note",
+                description=(
+                    "Ou se trouve le document, en clair — « classeur bleu, intercalaire 3 ». "
+                    "Pour un papier qui n'existe qu'en papier."
+                ),
+            ): str,
+            vol.Optional("commentaire", description="Precision libre sur ce document."): str,
+        },
+        appel=lambda client, corps: client.joindre_document(corps),
+    ),
 )
 
 

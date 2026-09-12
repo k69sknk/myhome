@@ -8,6 +8,6 @@ en developpement une version peremee. `scripts/check-versions.py` verifie en
 CI que les cinq fichiers qui le portent restent d'accord.
 """
 
-__version__ = "0.31.0"
+__version__ = "0.32.0"
 
 __all__ = ["__version__"]

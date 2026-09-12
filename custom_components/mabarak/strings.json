@@ -224,6 +224,40 @@
           "description": "Cost of the intervention."
         }
       }
+    },
+    "joindre_document": {
+      "name": "Attach a document",
+      "description": "Files an invoice, a manual or a warranty on an equipment record. Three ways to keep it, and exactly one is required: a copy of the file, its link, or a note saying where it is.",
+      "fields": {
+        "equipement": {
+          "name": "Equipment",
+          "description": "Equipment the document belongs to."
+        },
+        "nom": {
+          "name": "Name",
+          "description": "Name of the document, e.g. “2026 service invoice”."
+        },
+        "type": {
+          "name": "Type",
+          "description": "Nature of the document."
+        },
+        "fichier_a_telecharger": {
+          "name": "File to download",
+          "description": "Address MaBarak will fetch the file from, to keep a copy. Must be on the local network: MaBarak downloads nothing from the internet. pdf, jpg, png, heic, doc, docx; 10 MB at most."
+        },
+        "lien": {
+          "name": "Link",
+          "description": "Address of the document, kept as is, with no copy. The right choice for a document that already lives elsewhere."
+        },
+        "note": {
+          "name": "Note",
+          "description": "Where the document is, in plain words — “blue binder, tab 3”. For paper that only exists on paper."
+        },
+        "commentaire": {
+          "name": "Comment",
+          "description": "Free-form detail about this document."
+        }
+      }
     }
   }
 }
