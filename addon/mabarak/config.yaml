@@ -61,7 +61,18 @@ schema:
 # Pas de `map` : l'add-on n'a besoin d'aucun repertoire partage. Toutes ses
 # donnees vivent dans /data, qui est fourni et sauvegarde automatiquement.
 #
-# `image` est volontairement absent : Home Assistant construit donc l'add-on
-# localement a l'installation. A decommenter le jour ou la CI publie des images
-# pre-construites, ce qui evitera aux utilisateurs un build de plusieurs minutes :
+# `image` est encore absent : Home Assistant construit donc l'add-on localement a
+# l'installation — plusieurs minutes sur un x86, beaucoup plus sur un Raspberry
+# Pi. `.github/workflows/addon-publish.yml` publie desormais les deux images a
+# chaque release ; il reste a basculer dessus, et l'ordre compte, parce qu'un
+# `image` qui designe une image absente ou privee casse l'installation pour tout
+# le monde :
+#
+#   1. publier une release, et laisser le workflow construire les deux images ;
+#   2. rendre les paquets `mabarak-amd64` et `mabarak-aarch64` PUBLICS — ils
+#      naissent prives sur GHCR (github.com/k69sknk?tab=packages) ;
+#   3. verifier que le job « Verifier que les images sont tirables » passe ;
+#   4. seulement alors, decommenter la ligne ci-dessous et publier la version
+#      suivante.
+#
 # image: ghcr.io/k69sknk/mabarak-{arch}
