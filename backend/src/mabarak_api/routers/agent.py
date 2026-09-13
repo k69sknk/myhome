@@ -45,6 +45,7 @@ from ..schemas.agent import (
     EquipementResume,
     GarantieResume,
     JoindreDocumentIn,
+    RetirerEquipementIn,
     ValiderEntretienIn,
 )
 from ..services.agent import (
@@ -483,6 +484,46 @@ def creer_equipement(body: CreerEquipementIn, session: Session = Depends(get_ses
         ),
         equipement=asset.name,
     )
+
+
+@router.post(
+    "/equipements/retirer", response_model=ActionOut, summary="Retirer un equipement de la maison"
+)
+def retirer_equipement(
+    body: RetirerEquipementIn, session: Session = Depends(get_session)
+) -> ActionOut:
+    """Marque une fiche comme retiree, ou la remet en service.
+
+    La suppression definitive n'est volontairement pas exposee ici : elle emporte
+    l'historique, les couts et les documents sans retour possible, et une phrase
+    mal comprise ne doit pas pouvoir la declencher. Elle reste dans l'interface,
+    derriere une confirmation qui annonce ce qui va disparaitre.
+    """
+    home = _home(session)
+    asset = resoudre_equipement(session, home.id, body.equipement, inclure_retires=True)
+
+    vise = "active" if body.remettre_en_service else "removed"
+    if asset.status == vise:
+        etat = "deja en service" if body.remettre_en_service else "deja retire"
+        raise HTTPException(409, f"« {asset.name} » est {etat}.")
+
+    asset.status = vise
+    asset.updated_at = utc_now_iso()
+    session.flush()
+
+    restants = sum(1 for task in asset.tasks if task.is_active)
+    if body.remettre_en_service:
+        message = f"« {asset.name} » est remis en service."
+        if restants:
+            message += f" Ses {restants} entretien(s) reviennent dans les echeances."
+    else:
+        message = (
+            f"« {asset.name} » est retire de la maison. Sa fiche, son historique et ses "
+            "couts restent consultables."
+        )
+        if restants:
+            message += f" Ses {restants} entretien(s) quittent les echeances."
+    return ActionOut(message=message, equipement=asset.name)
 
 
 @router.post(

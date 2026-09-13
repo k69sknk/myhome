@@ -258,6 +258,20 @@
           "description": "Free-form detail about this document."
         }
       }
+    },
+    "retirer_equipement": {
+      "name": "Retirer un equipement",
+      "description": "Marque un equipement comme retire de la maison : ses entretiens quittent les echeances, sa fiche et son historique restent. Ne supprime rien.",
+      "fields": {
+        "equipement": {
+          "name": "Equipement",
+          "description": "Nom de l'equipement a retirer."
+        },
+        "remettre_en_service": {
+          "name": "Remettre en service",
+          "description": "Faire l'inverse : remettre dans la maison un equipement retire."
+        }
+      }
     }
   }
 }

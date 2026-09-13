@@ -393,3 +393,72 @@ def test_la_frequence_se_relit_sans_faute(client: TestClient, frequence, attendu
     creer_equipement(client, "Appareil")
     resultat = creer_entretien(client, "Appareil", "Verification", **frequence)
     assert attendu in resultat["message"]
+
+
+# --- Retirer un equipement ---------------------------------------------------
+
+
+def _fiche(client: TestClient, nom: str = "Lave-vaisselle") -> int:
+    return int(client.post("/api/assets", json={"name": nom}).json()["id"])
+
+
+def test_retirer_sort_l_equipement_des_echeances_sans_rien_effacer(client: TestClient) -> None:
+    asset_id = _fiche(client)
+    client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Detartrage", "recurrence_type": "months", "recurrence_interval": 6},
+    )
+
+    response = client.post("/api/agent/equipements/retirer", json={"equipement": "Lave-vaisselle"})
+    assert response.status_code == 200
+    assert "retire de la maison" in response.json()["message"]
+
+    assert client.get("/api/tasks").json() == []
+    assert client.get(f"/api/assets/{asset_id}").json()["status"] == "removed"
+
+
+def test_remettre_en_service_retrouve_une_fiche_retiree(client: TestClient) -> None:
+    """Une fiche retiree reste visible de cette action seule : c'est ce qui permet
+    de dire « deja retire » plutot que « introuvable », et de revenir en arriere."""
+    asset_id = _fiche(client)
+    client.post("/api/agent/equipements/retirer", json={"equipement": "Lave-vaisselle"})
+
+    rejoue = client.post("/api/agent/equipements/retirer", json={"equipement": "Lave-vaisselle"})
+    assert rejoue.status_code == 409
+    assert "deja retire" in rejoue.json()["detail"]
+
+    # Les autres actions, elles, ne la voient plus.
+    planifier = client.post(
+        "/api/agent/entretiens",
+        json={"equipement": "Lave-vaisselle", "nom": "Detartrage", "frequence": {}},
+    )
+    assert planifier.status_code == 404
+
+    remis = client.post(
+        "/api/agent/equipements/retirer",
+        json={"equipement": "Lave-vaisselle", "remettre_en_service": True},
+    )
+    assert remis.status_code == 200
+    assert client.get(f"/api/assets/{asset_id}").json()["status"] == "active"
+
+
+def test_remettre_en_service_un_equipement_deja_actif_est_refuse(client: TestClient) -> None:
+    _fiche(client)
+    response = client.post(
+        "/api/agent/equipements/retirer",
+        json={"equipement": "Lave-vaisselle", "remettre_en_service": True},
+    )
+    assert response.status_code == 409
+    assert "deja en service" in response.json()["detail"]
+
+
+def test_l_agent_n_a_aucune_route_pour_supprimer_une_fiche(client: TestClient) -> None:
+    """Garde-fou deliberé : effacer emporte l'historique sans retour possible, et
+    une phrase mal comprise ne doit pas pouvoir le declencher (voir la skill)."""
+    routes = {
+        route.path  # type: ignore[attr-defined]
+        for route in client.app.routes  # type: ignore[attr-defined]
+        if getattr(route, "path", "").startswith("/api/agent")
+        and "DELETE" in getattr(route, "methods", set())
+    }
+    assert routes == set()

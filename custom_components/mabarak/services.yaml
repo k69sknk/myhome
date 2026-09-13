@@ -212,3 +212,14 @@ joindre_document:
       selector:
         text:
           multiline: true
+
+retirer_equipement:
+  fields:
+    equipement:
+      required: true
+      example: lave-vaisselle
+      selector:
+        text:
+    remettre_en_service:
+      selector:
+        boolean:

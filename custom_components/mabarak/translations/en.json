@@ -258,6 +258,20 @@
           "description": "Free-form detail about this document."
         }
       }
+    },
+    "retirer_equipement": {
+      "name": "Remove equipment",
+      "description": "Marks equipment as removed from the home: its maintenance leaves the schedule, while its record and history remain. Deletes nothing.",
+      "fields": {
+        "equipement": {
+          "name": "Equipment",
+          "description": "Name of the equipment to remove."
+        },
+        "remettre_en_service": {
+          "name": "Put back in service",
+          "description": "Do the opposite: bring a removed piece of equipment back."
+        }
+      }
     }
   }
 }

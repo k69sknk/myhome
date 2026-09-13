@@ -110,20 +110,29 @@ def frequence_en_francais(task: MaintenanceTask) -> str:
 # --- Resolution contre la base -----------------------------------------------
 
 
-def _equipements(session: Session, home_id: int) -> list[Asset]:
+def _equipements(session: Session, home_id: int, *, inclure_retires: bool = False) -> list[Asset]:
+    requete = select(Asset).where(Asset.home_id == home_id)
+    if not inclure_retires:
+        requete = requete.where(Asset.status != "removed")
     return list(
         session.scalars(
-            select(Asset)
-            .where(Asset.home_id == home_id, Asset.status != "removed")
-            .options(selectinload(Asset.tasks), selectinload(Asset.warranty))
-            .order_by(Asset.name)
+            requete.options(selectinload(Asset.tasks), selectinload(Asset.warranty)).order_by(
+                Asset.name
+            )
         ).all()
     )
 
 
-def resoudre_equipement(session: Session, home_id: int, nom: str) -> Asset:
-    """L'equipement que designe `nom`, ou une `ResolutionError` explicite."""
-    assets = _equipements(session, home_id)
+def resoudre_equipement(
+    session: Session, home_id: int, nom: str, *, inclure_retires: bool = False
+) -> Asset:
+    """L'equipement que designe `nom`, ou une `ResolutionError` explicite.
+
+    Les fiches retirees sont ecartees par defaut : personne ne veut planifier un
+    entretien sur un appareil qui n'est plus la. Seule la remise en service a
+    besoin de les voir, d'ou le drapeau.
+    """
+    assets = _equipements(session, home_id, inclure_retires=inclure_retires)
     candidats = [
         Candidat(id=asset.id, nom=asset.name, precision=location_path(session, asset.location_id))
         for asset in assets

@@ -105,6 +105,9 @@ class MaBarakClient:
         data: dict[str, Any] = await self._request("POST", "agent/equipements", json=body)
         return data
 
+    async def retirer_equipement(self, body: dict[str, Any]) -> dict[str, Any]:
+        return await self._request("POST", "/api/agent/equipements/retirer", json=body)  # type: ignore[no-any-return]
+
     async def consigner_intervention(self, body: dict[str, Any]) -> dict[str, Any]:
         data: dict[str, Any] = await self._request("POST", "agent/interventions", json=body)
         return data
