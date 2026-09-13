@@ -3,6 +3,62 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.34.0
+
+- **Les entretiens de la maison se marquent enfin comme faits.** « Purger les radiateurs »,
+  « tester les detecteurs de fumee », le ramonage : ces entretiens ne visent aucun appareil. Ils
+  figuraient au planning depuis toujours sans pouvoir etre valides, parce qu'une intervention
+  devait designer un equipement. Ce n'est plus le cas — dans l'interface comme depuis un
+  assistant. Le cout saisi a cette occasion se rattache a la maison.
+
+- **Chaque fiche dit ce que l'appareil a coute.** Le prix d'achat, la pose, les pieces, un
+  abonnement : ces depenses se saisissent, s'ajoutent a celles des entretiens, et la fiche en
+  affiche le total. C'etait promis depuis la premiere version et la base le prevoyait ; rien ne
+  savait l'ecrire.
+
+- **Les problemes ont leur place.** Un bruit, une fuite, une panne se notent sur la fiche avec
+  leur gravite et leur date, se suivent (ouvert, en cours, resolu) et gardent ce qui a ete fait.
+  Un devis ou une photo peuvent y etre joints. Contrairement a un entretien realise, un probleme
+  dure : c'est la date ou il a commence qui compte autant que celle ou il s'est termine.
+
+- **Un nouvel onglet « Chronologie »** raconte l'histoire de l'appareil d'un seul tenant :
+  installation, entretiens, problemes ouverts et resolus, depenses, fin de garantie.
+
+- **Un assistant peut retirer un equipement de la maison** — vendu, remplace, depose — et le
+  remettre en service. Il ne peut rien supprimer definitivement, volontairement : cela emporte
+  l'historique sans retour possible, et une phrase comprise de travers ne doit pas pouvoir le
+  declencher. La suppression reste dans l'interface, derriere une confirmation.
+
+- **L'installation sera bientot immediate.** La CI publie desormais les images de l'add-on au
+  lieu de les reconstruire chez chaque utilisateur. Le basculement demande une manipulation
+  unique, decrite dans `config.yaml`.
+
+## 0.33.0
+
+- **Les entretiens de la maison ne sont plus des lignes mortes.** « Purger les radiateurs »,
+  « tester les detecteurs de fumee » : ces entretiens ne sont rattaches a aucun appareil, et le
+  planning les affichait depuis toujours — mais Modifier et Supprimer repondaient « Entretien
+  introuvable » sur une ligne pourtant visible a l'ecran. Ils se modifient et se suppriment
+  maintenant comme les autres.
+
+  Les marquer comme faits reste impossible, pour une raison de fond qui n'est pas encore levee :
+  une intervention doit designer un equipement. Le bouton le dit desormais au lieu de laisser
+  cliquer vers une erreur trompeuse.
+
+- **Une fiche peut enfin sortir de la maison**, de deux facons que l'onglet « Details » distingue
+  clairement :
+
+  - **Retirer** un appareil vendu, remplace ou depose : ses entretiens quittent le planning, sa
+    fiche, son historique et ses couts restent consultables. C'est la sortie normale — l'histoire
+    de la maison ne s'efface pas parce qu'un appareil est parti.
+  - **Supprimer definitivement** un doublon ou une fiche creee par erreur : la fiche, ses
+    entretiens, son historique, ses couts et ses fichiers partent pour de bon. La confirmation
+    annonce ce qui va disparaitre avant de le faire, et le message qui suit dit ce qui est
+    reellement parti.
+
+  Les documents deposes dans l'application sont effaces **du disque** et pas seulement de la base :
+  sans cela, la facture d'un appareil supprime serait restee dans chaque sauvegarde Home Assistant.
+
 ## 0.32.1
 
 - **Republication.** Aucun changement fonctionnel : la 0.32.0 avait ete publiee sur GitHub en

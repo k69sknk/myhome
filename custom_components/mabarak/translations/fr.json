@@ -258,6 +258,20 @@
           "description": "Précision libre sur ce document."
         }
       }
+    },
+    "retirer_equipement": {
+      "name": "Retirer un équipement",
+      "description": "Marque un équipement comme retiré de la maison : ses entretiens quittent les échéances, sa fiche et son historique restent. Ne supprime rien.",
+      "fields": {
+        "equipement": {
+          "name": "Équipement",
+          "description": "Nom de l'équipement à retirer."
+        },
+        "remettre_en_service": {
+          "name": "Remettre en service",
+          "description": "Faire l'inverse : remettre dans la maison un équipement retiré."
+        }
+      }
     }
   }
 }

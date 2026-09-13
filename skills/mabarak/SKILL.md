@@ -169,12 +169,24 @@ Assistant ; garder un lien laisse l'original où il est, avec le risque qu'il di
 Si le téléchargement est refusé parce que l'adresse est publique, ne t'obstine pas :
 enregistre-la en `lien`. Le document sera retrouvable, sans copie.
 
-## Deux limites connues
+## Un appareil qui quitte la maison
 
-**Les entretiens rattachés à la maison entière** — « tester les détecteurs de fumée », le
-ramonage quand il n'est lié à aucun appareil — **ne peuvent pas encore être marqués comme
-faits**. L'outil te le dira franchement. Ce n'est pas un problème de nom : transmets l'explication
-à l'utilisateur plutôt que de chercher ailleurs.
+Vendu, remplacé, déposé : `MaBarakRetirerEquipement` le marque comme retiré. Ses entretiens
+quittent les échéances ; sa fiche, son historique et ses coûts restent consultables. C'est
+réversible — `remettre_en_service: true` fait le chemin inverse.
+
+**Tu ne peux rien supprimer définitivement, et c'est voulu.** Effacer une fiche emporte son
+historique, ses coûts et ses documents, sans retour possible. Si l'utilisateur demande une
+suppression, propose le retrait ; s'il veut vraiment effacer — un doublon, une fiche créée par
+erreur — dis-lui que cela se fait depuis la fiche dans MaBarak, onglet « Détails », section
+« Sortie de la fiche ». N'essaie pas de contourner par un autre appel.
+
+## Les entretiens qui ne visent aucun appareil
+
+« Tester les détecteurs de fumée », le ramonage quand il n'est lié à aucun appareil : ces
+entretiens sont rattachés à la maison. Tu les valides comme les autres, en ne donnant que leur
+nom — `equipement` n'a rien à désigner. La réponse dit « pour la maison » plutôt que de nommer un
+appareil ; c'est normal, ne cherche pas l'équipement manquant.
 
 **Si aucun outil `MaBarak*` n'apparaît**, l'intégration MaBarak n'est pas chargée dans Home
 Assistant. L'add-on seul n'expose rien. Dis-le : c'est à l'utilisateur d'ajouter l'intégration,
@@ -221,7 +233,7 @@ réponse en français. Mais si les appels échouent, les entités sont là.
 
 ## Deux portes, et une seule est confortable
 
-Les six actions existent sous deux formes, et **il faut préférer la première** :
+Les huit actions existent sous deux formes, et **il faut préférer la première** :
 
 **Les outils `MaBarak…`** — `MaBarakApercu`, `MaBarakChercherEquipement`, etc. Si ta liste
 d'outils les contient, sers-toi d'eux exclusivement. Ils rendent la réponse directement, sans
@@ -229,7 +241,7 @@ rien de particulier à faire.
 
 **Les services `mabarak.…`** — `mabarak.apercu`, `mabarak.chercher_equipement`,
 `mabarak.valider_entretien`, `mabarak.creer_entretien`, `mabarak.creer_equipement`,
-`mabarak.consigner_intervention`, `mabarak.joindre_document`. Mêmes paramètres, mais ce sont des
+`mabarak.consigner_intervention`, `mabarak.joindre_document`, `mabarak.retirer_equipement`. Mêmes paramètres, mais ce sont des
 services Home Assistant,
 et les services de lecture ne rendent leur résultat que si l'appelant le demande explicitement. Concrètement, l'URL doit porter
 le paramètre :

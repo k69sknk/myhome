@@ -1,17 +1,25 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { useLocation, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { api, ApiError } from '../api/client'
 import type {
   Asset,
+  AssetDeleteResult,
+  AssetLifecycleStatus,
   Category,
+  CostType,
+  Costs,
   DocType,
   DocumentDraft,
   DocumentMeta,
   HaDevice,
+  Issue,
+  IssuePatch,
+  IssueSeverity,
   Location,
   Member,
   Provider,
+  TimelineEntry,
   Trade,
 } from '../api/types'
 import { draftIsEmpty, emptyDraft } from '../api/types'
@@ -29,16 +37,24 @@ import TaskPrepInfo from '../components/TaskPrepInfo'
 import { useToast } from '../components/Toast'
 import { categoryIcon } from '../lib/categoryIcon'
 import {
+  COST_TYPE_OPTIONS,
+  ISSUE_SEVERITY_OPTIONS,
+  costTypeLabel,
   docTypeLabel,
   documentWhere,
   emptyToNull,
   equipmentCategories,
   errorMessage,
+  formatAmount,
   formatDate,
   formatRecurrence,
+  issueSeverityBadge,
+  issueSeverityLabel,
+  issueStatusLabel,
   optionalId,
   storageModeLabel,
   structureCategories,
+  timelineEventLabel,
   warrantyAlert,
   warrantyAlertLabel,
 } from '../lib/format'
@@ -54,6 +70,7 @@ function WarrantyBadge({ endDate }: { endDate: string | null | undefined }) {
 export default function AssetDetail() {
   const { id } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
   const isElement = location.pathname.startsWith('/elements')
   const basePath = isElement ? '/elements' : '/equipements'
   const baseLabel = isElement ? 'Éléments de la maison' : 'Équipements'
@@ -69,7 +86,7 @@ export default function AssetDetail() {
   const [haUnavailable, setHaUnavailable] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
-  const [activeTab, setActiveTab] = useState<'entretiens' | 'details' | 'documents'>('entretiens')
+  const [activeTab, setActiveTab] = useState<'entretiens' | 'chronologie' | 'details' | 'documents'>('entretiens')
 
   async function reload() {
     const next = await api.asset(assetId)
@@ -171,6 +188,9 @@ export default function AssetDetail() {
           <div>
             <h1 className="page__title">
               {asset.name} {isEquipment && <WarrantyBadge endDate={asset.warranty?.end_date} />}
+              {/* Une fiche retiree se lit comme les autres : sans ce badge, rien
+                  ne dirait pourquoi ses entretiens ont disparu du planning. */}
+              {asset.status === 'removed' && <span className="badge badge--unscheduled">Retiré</span>}
             </h1>
             <p className="page__lead">
               {[asset.category_name, asset.location_path, formatDate(asset.install_date)]
@@ -215,6 +235,15 @@ export default function AssetDetail() {
           onClick={() => setActiveTab('entretiens')}
         >
           Entretiens
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'chronologie'}
+          className={`tabs__tab${activeTab === 'chronologie' ? ' tabs__tab--active' : ''}`}
+          onClick={() => setActiveTab('chronologie')}
+        >
+          Chronologie
         </button>
         <button
           type="button"
@@ -335,8 +364,26 @@ export default function AssetDetail() {
               onError={setError}
             />
           )}
+
+          <AssetIssuesCard assetId={asset.id} onError={setError} />
+
+          <AssetCostsCard
+            assetId={asset.id}
+            purchaseDate={asset.purchase_date}
+            onError={setError}
+          />
+
+          <AssetRemovalCard
+            asset={asset}
+            documentCount={documents.length}
+            onChanged={(next) => setAsset(next)}
+            onDeleted={() => navigate(basePath, { replace: true })}
+            onError={setError}
+          />
         </>
       )}
+
+      {activeTab === 'chronologie' && <AssetTimeline assetId={asset.id} onError={setError} />}
 
       {activeTab === 'documents' && (
         <AssetDocuments
@@ -797,6 +844,627 @@ function HaLinkCard({
           </button>
         </form>
       )}
+    </div>
+  )
+}
+
+/** Les deux sorties d'une fiche, et la difference entre les deux.
+ *
+ *  `schema.sql` tranche : un equipement retire reste en base, parce que son
+ *  historique et ses couts font partie de l'histoire de la maison. C'est donc
+ *  « Retirer » qui est propose en premier, et la suppression definitive qui doit
+ *  se justifier — le doublon, la fiche creee par erreur pendant le didacticiel.
+ *  La confirmation annonce ce qui va partir avant de partir : une fiche vide ne
+ *  merite pas le meme avertissement qu'une fiche portant dix ans d'entretiens. */
+function AssetRemovalCard({
+  asset,
+  documentCount,
+  onChanged,
+  onDeleted,
+  onError,
+}: {
+  asset: Asset
+  documentCount: number
+  onChanged: (asset: Asset) => void
+  onDeleted: () => void
+  onError: (message: string | null) => void
+}) {
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const { showToast } = useToast()
+  const isRemoved = asset.status === 'removed'
+  const noun = asset.kind === 'building_element' ? 'Cet élément' : 'Cet appareil'
+
+  async function setStatus(status: AssetLifecycleStatus, message: string) {
+    setBusy(true)
+    onError(null)
+    try {
+      onChanged(await api.patchAsset(asset.id, { status }))
+      showToast(message)
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove() {
+    setBusy(true)
+    onError(null)
+    try {
+      const result = await api.deleteAsset(asset.id)
+      showToast(`${asset.name} supprimé · ${summarise(result)}`)
+      onDeleted()
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+      setBusy(false)
+      setConfirming(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <h2 className="card__title">Sortie de la fiche</h2>
+
+      {isRemoved ? (
+        <>
+          <p className="muted">
+            {noun} est marqué comme retiré : il ne compte plus dans le planning, mais sa fiche, son
+            historique et ses coûts restent consultables.
+          </p>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => void setStatus('active', 'Remis en service')}
+          >
+            Remettre en service
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="muted">
+            Vendu, remplacé, déposé ? Retirez-le plutôt que de le supprimer : ses entretiens
+            quittent le planning, et son historique reste dans celui de la maison.
+          </p>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => void setStatus('removed', 'Retiré de la maison')}
+          >
+            Retirer de la maison
+          </button>
+        </>
+      )}
+
+      <hr className="card__rule" />
+
+      {confirming ? (
+        <>
+          <p className="status status--error">
+            Supprimer définitivement « {asset.name} » ? Cette action efface aussi{' '}
+            {countList(asset.tasks.length, documentCount)}, et ne peut pas être annulée.
+          </p>
+          <div className="complete__actions">
+            <button type="button" className="btn btn--delete" disabled={busy} onClick={() => void remove()}>
+              <TrashIcon /> Oui, tout supprimer
+            </button>
+            <button type="button" className="btn" disabled={busy} onClick={() => setConfirming(false)}>
+              Annuler
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="muted">
+            Fiche créée par erreur, doublon, mauvaise saisie : la suppression définitive emporte la
+            fiche, ses entretiens, son historique, ses coûts et ses fichiers.
+          </p>
+          <button
+            type="button"
+            className="btn btn--small btn--delete"
+            disabled={busy}
+            onClick={() => setConfirming(true)}
+          >
+            <TrashIcon /> Supprimer définitivement
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** « 3 entretiens et 2 documents », sans les zeros qui n'apprennent rien. */
+function countList(tasks: number, documents: number): string {
+  const parts: string[] = []
+  if (tasks > 0) parts.push(`${tasks} entretien${tasks > 1 ? 's' : ''} et leur historique`)
+  if (documents > 0) parts.push(`${documents} document${documents > 1 ? 's' : ''}`)
+  if (parts.length === 0) return 'tout ce qui y est rattaché'
+  return parts.join(' et ')
+}
+
+function summarise(result: AssetDeleteResult): string {
+  const parts: string[] = []
+  if (result.deleted_tasks > 0) parts.push(`${result.deleted_tasks} entretien(s)`)
+  if (result.deleted_interventions > 0) parts.push(`${result.deleted_interventions} intervention(s)`)
+  if (result.deleted_files > 0) parts.push(`${result.deleted_files} fichier(s)`)
+  return parts.length > 0 ? parts.join(', ') : 'rien d’autre n’y était rattaché'
+}
+
+/** Ce que l'appareil a coute, depuis son achat.
+ *
+ *  `schema.sql` annonce « la section 18 affiche explicitement un total par
+ *  equipement », et le README promet de savoir « combien il a coute ». En
+ *  pratique, seule la validation d'un entretien ecrivait une ligne, toujours en
+ *  `maintenance` : le prix d'achat et la pose n'existaient nulle part, et rien
+ *  n'additionnait. Le total compte tout, entretiens compris — c'est la question
+ *  posee. */
+function AssetCostsCard({
+  assetId,
+  purchaseDate,
+  onError,
+}: {
+  assetId: number
+  purchaseDate: string | null
+  onError: (message: string | null) => void
+}) {
+  const [costs, setCosts] = useState<Costs | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [type, setType] = useState<CostType>('purchase')
+  const [amount, setAmount] = useState('')
+  const [label, setLabel] = useState('')
+  const [on, setOn] = useState('')
+  const { showToast } = useToast()
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .assetCosts(assetId)
+      .then((next) => {
+        if (!cancelled) setCosts(next)
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) onError(errorMessage(caught))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [assetId, onError])
+
+  async function reload() {
+    setCosts(await api.assetCosts(assetId))
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    // Saisi en euros, stocke en centimes : additionner des flottants pour
+    // afficher un total produit des erreurs d'arrondi visibles (schema.sql).
+    const cents = Math.round(Number(amount.replace(',', '.')) * 100)
+    if (!Number.isFinite(cents) || cents <= 0) {
+      onError('Le montant doit être un nombre supérieur à zéro.')
+      return
+    }
+    setBusy(true)
+    onError(null)
+    try {
+      await api.createAssetCost(assetId, {
+        cost_type: type,
+        amount_cents: cents,
+        label: label.trim() || null,
+        incurred_on: on || null,
+      })
+      setAmount('')
+      setLabel('')
+      setOn('')
+      setAdding(false)
+      await reload()
+      showToast('Dépense ajoutée')
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(costId: number) {
+    setBusy(true)
+    onError(null)
+    try {
+      await api.deleteCost(costId)
+      await reload()
+      showToast('Dépense supprimée')
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (costs === null) return null
+
+  return (
+    <div className="card">
+      <h2 className="card__title">
+        Coûts
+        {costs.total_cents > 0 && (
+          <span className="card__total">{formatAmount(costs.total_cents, costs.currency)}</span>
+        )}
+      </h2>
+
+      {costs.items.length === 0 ? (
+        <p className="muted">
+          Aucune dépense enregistrée. Ajoutez le prix d'achat pour savoir, plus tard, ce que cet
+          appareil vous aura coûté.
+        </p>
+      ) : (
+        <ul className="cost-list">
+          {costs.items.map((item) => (
+            <li key={item.id} className="cost">
+              <span className="cost__amount">{formatAmount(item.amount_cents, item.currency)}</span>
+              <span className="cost__detail">
+                {costTypeLabel(item.cost_type)}
+                {item.task_name ? ` · ${item.task_name}` : ''}
+                {item.label ? ` · ${item.label}` : ''}
+                {` · ${formatDate(item.incurred_on)}`}
+              </span>
+              {item.intervention_id === null ? (
+                <button
+                  type="button"
+                  className="btn btn--small btn--delete"
+                  disabled={busy}
+                  onClick={() => void remove(item.id)}
+                  aria-label={`Supprimer la dépense de ${formatAmount(item.amount_cents, item.currency)}`}
+                >
+                  <TrashIcon />
+                </button>
+              ) : (
+                // Saisie en validant un entretien : elle se corrige la-bas, sinon
+                // l'historique annoncerait un montant introuvable.
+                <span className="muted cost__origine">depuis l'historique</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {adding ? (
+        <form className="form form--inline" onSubmit={submit}>
+          <select value={type} onChange={(event) => setType(event.target.value as CostType)}>
+            {COST_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            placeholder="0,00"
+            aria-label="Montant en euros"
+            required
+          />
+          <input
+            type="date"
+            value={on}
+            onChange={(event) => setOn(event.target.value)}
+            aria-label="Date de la dépense"
+            placeholder={purchaseDate ?? ''}
+          />
+          <input
+            type="text"
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+            placeholder="Intitulé (facultatif)"
+            aria-label="Intitulé"
+          />
+          <button type="submit" className="btn btn--primary" disabled={busy}>
+            Ajouter
+          </button>
+          <button type="button" className="btn" disabled={busy} onClick={() => setAdding(false)}>
+            Annuler
+          </button>
+        </form>
+      ) : (
+        <button type="button" className="btn btn--small" onClick={() => setAdding(true)}>
+          Ajouter une dépense
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Les problemes constates sur l'appareil.
+ *
+ *  La table `issue` existe dans schema.sql depuis l'origine, avec sa place dans
+ *  `v_asset_timeline` — et rien ne l'ecrivait. Un probleme n'est pas une
+ *  intervention : l'intervention est une action datee, le probleme dure. « La
+ *  VMC fait du bruit » commence un jour, appelle peut-etre trois passages, et se
+ *  resout un autre jour. C'est cette duree que la fiche ne savait pas porter. */
+function AssetIssuesCard({
+  assetId,
+  onError,
+}: {
+  assetId: number
+  onError: (message: string | null) => void
+}) {
+  const [issues, setIssues] = useState<Issue[] | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [severity, setSeverity] = useState<IssueSeverity>('normal')
+  const { showToast } = useToast()
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .assetIssues(assetId)
+      .then((rows) => {
+        if (!cancelled) setIssues(rows)
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) onError(errorMessage(caught))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [assetId, onError])
+
+  async function reload() {
+    setIssues(await api.assetIssues(assetId))
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    if (!title.trim()) return
+    setBusy(true)
+    onError(null)
+    try {
+      await api.createIssue(assetId, {
+        title: title.trim(),
+        description: description.trim() || null,
+        severity,
+      })
+      setTitle('')
+      setDescription('')
+      setSeverity('normal')
+      setAdding(false)
+      await reload()
+      showToast('Problème signalé')
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function change(issue: Issue, body: IssuePatch, message: string) {
+    setBusy(true)
+    onError(null)
+    try {
+      await api.patchIssue(issue.id, body)
+      await reload()
+      showToast(message)
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(issue: Issue) {
+    setBusy(true)
+    onError(null)
+    try {
+      await api.deleteIssue(issue.id)
+      await reload()
+      showToast('Problème supprimé')
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (issues === null) return null
+  const ouverts = issues.filter((issue) => issue.status !== 'resolved').length
+
+  return (
+    <div className="card">
+      <h2 className="card__title">
+        Problèmes
+        {ouverts > 0 && (
+          <span className="badge badge--overdue">
+            {ouverts} en cours
+          </span>
+        )}
+      </h2>
+
+      {issues.length === 0 ? (
+        <p className="muted">
+          Rien à signaler. Un bruit, une fuite, une panne : notez-le ici pour en garder la date,
+          même si vous ne vous en occupez pas tout de suite.
+        </p>
+      ) : (
+        <ul className="issue-list">
+          {issues.map((issue) => (
+            <li
+              key={issue.id}
+              className={`issue${issue.status === 'resolved' ? ' issue--resolved' : ''}`}
+            >
+              <div className="issue__head">
+                <strong>{issue.title}</strong>
+                <span className={`badge badge--${issueSeverityBadge(issue.severity)}`}>
+                  {issueSeverityLabel(issue.severity)}
+                </span>
+                <span className="muted">
+                  {issueStatusLabel(issue.status)} · ouvert le {formatDate(issue.opened_on)}
+                  {issue.resolved_on ? ` · résolu le ${formatDate(issue.resolved_on)}` : ''}
+                </span>
+              </div>
+              {issue.description && <p className="muted">{issue.description}</p>}
+              {issue.result && <p className="muted">Résultat : {issue.result}</p>}
+              <div className="complete__actions">
+                {issue.status === 'open' && (
+                  <button
+                    type="button"
+                    className="btn btn--small"
+                    disabled={busy}
+                    onClick={() => void change(issue, { status: 'in_progress' }, 'Pris en charge')}
+                  >
+                    Je m'en occupe
+                  </button>
+                )}
+                {issue.status !== 'resolved' ? (
+                  <button
+                    type="button"
+                    className="btn btn--small btn--primary"
+                    disabled={busy}
+                    onClick={() => void change(issue, { status: 'resolved' }, 'Problème résolu')}
+                  >
+                    Marquer résolu
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn--small"
+                    disabled={busy}
+                    onClick={() => void change(issue, { status: 'open' }, 'Problème rouvert')}
+                  >
+                    Rouvrir
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn--small btn--delete"
+                  disabled={busy}
+                  onClick={() => void remove(issue)}
+                  aria-label={`Supprimer « ${issue.title} »`}
+                >
+                  <TrashIcon />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {adding ? (
+        <form className="form" onSubmit={submit}>
+          <Field label="Ce qui ne va pas">
+            <input
+              type="text"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="La VMC fait beaucoup de bruit"
+              required
+            />
+          </Field>
+          <Field label="Détails" hint="Facultatif : depuis quand, dans quelles conditions.">
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={2}
+            />
+          </Field>
+          <Field label="Gravité">
+            <select
+              value={severity}
+              onChange={(event) => setSeverity(event.target.value as IssueSeverity)}
+            >
+              {ISSUE_SEVERITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="complete__actions">
+            <button type="submit" className="btn btn--primary" disabled={busy}>
+              Signaler
+            </button>
+            <button type="button" className="btn" disabled={busy} onClick={() => setAdding(false)}>
+              Annuler
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button type="button" className="btn btn--small" onClick={() => setAdding(true)}>
+          Signaler un problème
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** L'histoire de l'appareil, telle que la base la raconte.
+ *
+ *  `v_asset_timeline` existait depuis l'origine et n'etait interrogee nulle
+ *  part. Elle reunit la pose, les interventions, les problemes ouverts et
+ *  resolus, les depenses autonomes et la fin de garantie — six tables qui, sans
+ *  elle, ne se lisaient que separement. L'ordre vient du SQL et non d'ici : deux
+ *  appelants ne peuvent donc pas raconter deux histoires differentes (ADR-0003). */
+function AssetTimeline({
+  assetId,
+  onError,
+}: {
+  assetId: number
+  onError: (message: string | null) => void
+}) {
+  const [entries, setEntries] = useState<TimelineEntry[] | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .assetTimeline(assetId)
+      .then((rows) => {
+        if (!cancelled) setEntries(rows)
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) onError(errorMessage(caught))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [assetId, onError])
+
+  if (entries === null) return <p className="muted">Chargement...</p>
+
+  if (entries.length === 0) {
+    return (
+      <div className="card">
+        <p className="muted">
+          Rien à raconter pour l'instant. La date d'installation, les entretiens réalisés, les
+          problèmes et les dépenses viendront s'inscrire ici au fur et à mesure.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="card">
+      <ol className="timeline">
+        {entries.map((entry) => (
+          <li
+            key={`${entry.source_table}-${entry.source_id}-${entry.event_type}`}
+            className={`timeline__item timeline__item--${entry.event_type}`}
+          >
+            <span className="timeline__date">{formatDate(entry.occurred_on)}</span>
+            <span className="timeline__body">
+              <strong>{timelineEventLabel(entry.event_type)}</strong>
+              {entry.title && entry.title !== timelineEventLabel(entry.event_type) && (
+                <> · {entry.title}</>
+              )}
+              {entry.amount_cents !== null && <> · {formatAmount(entry.amount_cents, 'EUR')}</>}
+              {entry.detail && <span className="muted"> — {entry.detail}</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }

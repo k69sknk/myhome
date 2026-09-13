@@ -394,6 +394,31 @@ ACTIONS: tuple[Action, ...] = (
         },
         appel=lambda client, corps: client.joindre_document(corps),
     ),
+    Action(
+        nom="retirer_equipement",
+        description=(
+            "Marque un equipement de MaBarak comme retire de la maison — vendu, remplace, "
+            "depose. Ses entretiens quittent les echeances, mais sa fiche, son historique et "
+            "ses couts restent consultables. Sert aussi a remettre en service un equipement "
+            "retire par erreur. Ne supprime jamais rien : la suppression definitive d'une "
+            "fiche n'existe que dans l'interface de MaBarak, et il faut y renvoyer "
+            "l'utilisateur qui la demande."
+        ),
+        schema={
+            vol.Required(
+                "equipement",
+                description="Nom de l'equipement a retirer, par exemple « lave-vaisselle ».",
+            ): vol.All(str, vol.Length(min=1)),
+            vol.Optional(
+                "remettre_en_service",
+                description=(
+                    "Mettre a vrai pour faire l'inverse : remettre dans la maison un "
+                    "equipement precedemment retire."
+                ),
+            ): bool,
+        },
+        appel=lambda client, corps: client.retirer_equipement(corps),
+    ),
 )
 
 

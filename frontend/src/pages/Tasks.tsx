@@ -126,7 +126,10 @@ export default function Tasks() {
                           {task.asset_id ? (
                             <Link to={`/equipements/${task.asset_id}`}>{task.asset_name}</Link>
                           ) : (
-                            task.asset_name
+                            // Un entretien de la maison n'a pas de fiche a nommer.
+                            // Le laisser vide donnait une ligne qui commencait par
+                            // un separateur orphelin.
+                            'Maison'
                           )}
                           {task.location_path ? ` · ${task.location_path}` : ''}
                           {' · '}

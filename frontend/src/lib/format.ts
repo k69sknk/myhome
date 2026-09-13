@@ -244,3 +244,79 @@ export function warrantyAlert(endDate: string | null | undefined): WarrantyAlert
 export function warrantyAlertLabel(level: WarrantyAlertLevel): string {
   return level === 'expired' ? 'Garantie expiree' : 'Garantie bientot expiree'
 }
+
+/** Les sept natures de depense de `cost.cost_type`, en francais.
+ *  Le libelle brut ('purchase') apparaitrait tel quel dans la liste sinon. */
+const COST_TYPES: Record<string, string> = {
+  purchase: 'Achat',
+  installation: 'Installation',
+  maintenance: 'Entretien',
+  repair: 'Réparation',
+  parts: 'Pièces',
+  subscription: 'Abonnement',
+  other: 'Autre',
+}
+
+export function costTypeLabel(type: string): string {
+  return COST_TYPES[type] ?? 'Autre'
+}
+
+export const COST_TYPE_OPTIONS = Object.entries(COST_TYPES).map(([value, label]) => ({
+  value,
+  label,
+}))
+
+const ISSUE_STATUSES: Record<string, string> = {
+  open: 'Ouvert',
+  in_progress: 'En cours',
+  resolved: 'Résolu',
+}
+
+const ISSUE_SEVERITIES: Record<string, string> = {
+  low: 'Mineur',
+  normal: 'Normal',
+  high: 'Important',
+  critical: 'Critique',
+}
+
+export function issueStatusLabel(status: string): string {
+  return ISSUE_STATUSES[status] ?? status
+}
+
+export function issueSeverityLabel(severity: string): string {
+  return ISSUE_SEVERITIES[severity] ?? severity
+}
+
+export const ISSUE_STATUS_OPTIONS = Object.entries(ISSUE_STATUSES).map(([value, label]) => ({
+  value,
+  label,
+}))
+
+export const ISSUE_SEVERITY_OPTIONS = Object.entries(ISSUE_SEVERITIES).map(([value, label]) => ({
+  value,
+  label,
+}))
+
+/** La gravite emprunte les couleurs des statuts d'entretien : l'utilisateur a
+ *  deja appris que rouge presse et que gris attend. */
+export function issueSeverityBadge(severity: string): string {
+  if (severity === 'critical') return 'overdue'
+  if (severity === 'high') return 'due_soon'
+  if (severity === 'low') return 'unscheduled'
+  return 'ok'
+}
+
+/** Ce que chaque type d'evenement de `v_asset_timeline` raconte. Le libelle brut
+ *  ('warranty_end') apparaitrait tel quel dans la chronologie sinon. */
+const TIMELINE_EVENTS: Record<string, string> = {
+  installation: 'Installation',
+  intervention: 'Intervention',
+  issue_opened: 'Problème signalé',
+  issue_resolved: 'Problème résolu',
+  cost: 'Dépense',
+  warranty_end: 'Fin de garantie',
+}
+
+export function timelineEventLabel(event: string): string {
+  return TIMELINE_EVENTS[event] ?? event
+}

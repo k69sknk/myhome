@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -32,6 +33,16 @@ RACINE = Path(__file__).resolve().parent.parent
 INTEGRATION = RACINE / "custom_components" / "mabarak"
 TRADUCTIONS = ("strings.json", "translations/en.json", "translations/fr.json")
 SKILL = RACINE / "skills" / "mabarak" / "SKILL.md"
+
+# La prose annonce le nombre d'actions ; le code en declare un autre le jour ou
+# l'on en ajoute une. Ce n'est pas theorique : la septieme action est arrivee en
+# 0.32.0 et trois fichiers ont continue d'en annoncer six pendant deux versions.
+# Le CHANGELOG est exclu : ses entrees decrivent un etat passe, qui etait vrai.
+PROSE = ("README.md", "skills/mabarak/SKILL.md", "skills/mabarak/README.md")
+NOMBRES = {
+    "une": 1, "deux": 2, "trois": 3, "quatre": 4, "cinq": 5, "six": 6,
+    "sept": 7, "huit": 8, "neuf": 9, "dix": 10, "onze": 11, "douze": 12,
+}
 
 
 def actions_declarees() -> dict[str, set[str]]:
@@ -143,6 +154,29 @@ def skill_a_jour(attendu: dict[str, set[str]]) -> list[str]:
     return erreurs
 
 
+def decompte_en_prose(total: int) -> list[str]:
+    """« sept actions » dans la prose doit valoir ce que `actions.py` declare.
+
+    Un chiffre faux dans un README se lit comme une promesse, pas comme une
+    coquille : l'agent qui suit la skill cherchera l'action manquante.
+    """
+    motif = re.compile(r"\b(" + "|".join(NOMBRES) + r")\s+actions\b", re.IGNORECASE)
+    erreurs: list[str] = []
+    for relatif in PROSE:
+        chemin = RACINE / relatif
+        if not chemin.is_file():
+            erreurs.append(f"{relatif} : fichier absent.")
+            continue
+        for ligne, texte in enumerate(chemin.read_text(encoding="utf-8").splitlines(), 1):
+            for mot in motif.findall(texte):
+                if NOMBRES[mot.lower()] != total:
+                    erreurs.append(
+                        f"{relatif}:{ligne} : annonce « {mot} actions », "
+                        f"mais actions.py en declare {total}."
+                    )
+    return erreurs
+
+
 def main() -> int:
     attendu = actions_declarees()
     if not attendu:
@@ -154,6 +188,7 @@ def main() -> int:
         erreurs += comparer(attendu, traduction(chemin), chemin)
     erreurs += textes_complets()
     erreurs += skill_a_jour(attendu)
+    erreurs += decompte_en_prose(len(attendu))
 
     if erreurs:
         print("Les descriptions des services ont diverge :\n")

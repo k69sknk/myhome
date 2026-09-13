@@ -143,9 +143,9 @@ trancher une ambiguïté à votre place, et à distinguer un entretien planifié
 réparation qu'on consigne. Ce n'est pas obligatoire — les actions fonctionnent sans — mais les
 échanges y gagnent.
 
-**Une limite connue** : les entretiens rattachés à la maison entière plutôt qu'à un équipement
-— « tester les détecteurs de fumée » — ne peuvent pas encore être marqués comme faits. C'est
-aussi vrai dans l'interface. L'assistant vous le dira clairement plutôt que de chercher ailleurs.
+Les entretiens rattachés à la maison entière plutôt qu'à un équipement — « tester les
+détecteurs de fumée », « purger les radiateurs », le ramonage — se créent, se modifient, se
+valident et s'historisent exactement comme les autres.
 
 ## Sauvegarde
 

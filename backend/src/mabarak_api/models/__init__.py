@@ -122,9 +122,21 @@ class Asset(Base):
     home: Mapped[Home] = relationship(back_populates="assets")
     location: Mapped[Location | None] = relationship(back_populates="assets")
     category: Mapped[Category | None] = relationship()
-    warranty: Mapped[Warranty | None] = relationship(back_populates="asset")
-    tasks: Mapped[list[MaintenanceTask]] = relationship(back_populates="asset")
-    ha_links: Mapped[list[HaLink]] = relationship(back_populates="asset")
+    # `passive_deletes` laisse le ON DELETE CASCADE de SQLite faire le travail.
+    # Sans lui, supprimer une fiche fait d'abord tenter a SQLAlchemy de mettre
+    # `asset_id` a NULL sur les enfants — ce que le CHECK de `maintenance_task`
+    # (exactement un rattachement, fiche ou maison) refuse net. La contrainte est
+    # dans schema.sql depuis l'origine ; c'est bien la couche ORM qu'il faut
+    # aligner dessus, pas l'inverse.
+    warranty: Mapped[Warranty | None] = relationship(
+        back_populates="asset", cascade="all, delete", passive_deletes=True
+    )
+    tasks: Mapped[list[MaintenanceTask]] = relationship(
+        back_populates="asset", cascade="all, delete", passive_deletes=True
+    )
+    ha_links: Mapped[list[HaLink]] = relationship(
+        back_populates="asset", cascade="all, delete", passive_deletes=True
+    )
 
 
 class Warranty(Base):
@@ -259,13 +271,46 @@ class HaLink(Base):
     asset: Mapped[Asset] = relationship(back_populates="ha_links")
 
 
+class Issue(Base):
+    """Un probleme constate sur un equipement : bruit, fuite, panne.
+
+    La table existe dans schema.sql depuis l'origine — index, CHECK et tout —
+    mais aucun modele ne la portait : elle n'etait citee que comme litteral dans
+    `DocumentScope`, si bien qu'un document pouvait se declarer rattache a un
+    probleme qui ne pouvait pas exister.
+
+    Distinct d'une `intervention`, qui est une action datee : un probleme dure,
+    et peut appeler plusieurs interventions avant d'etre resolu.
+    """
+
+    __tablename__ = "issue"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    asset_id: Mapped[int] = mapped_column(ForeignKey("asset.id"))
+    title: Mapped[str] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
+    action_taken: Mapped[str | None] = mapped_column(Text)
+    result: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, default="open")
+    severity: Mapped[str] = mapped_column(Text, default="normal")
+    opened_on: Mapped[str] = mapped_column(Text)
+    # Renseignee si et seulement si le probleme est resolu : c'est un CHECK de
+    # la base, pas une convention du code.
+    resolved_on: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+
 class Intervention(Base):
     __tablename__ = "intervention"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    asset_id: Mapped[int] = mapped_column(ForeignKey("asset.id"))
+    # L'equipement concerne, ou la maison quand l'entretien n'en vise aucun.
+    # Exactement un des deux (CHECK dans schema.sql), comme `maintenance_task`.
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey("asset.id"))
+    home_id: Mapped[int | None] = mapped_column(ForeignKey("home.id"))
     task_id: Mapped[int | None] = mapped_column(ForeignKey("maintenance_task.id"))
-    issue_id: Mapped[int | None] = mapped_column(Integer)
+    issue_id: Mapped[int | None] = mapped_column(ForeignKey("issue.id"))
     intervention_type: Mapped[str] = mapped_column(Text, default="maintenance")
     performed_on: Mapped[str] = mapped_column(Text)
     # Le nom affiche, fige a la saisie ; le membre, quand il y en a un, permet de
@@ -291,7 +336,9 @@ class Cost(Base):
     __tablename__ = "cost"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    asset_id: Mapped[int] = mapped_column(ForeignKey("asset.id"))
+    # Meme rattachement exclusif que l'intervention qui le porte.
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey("asset.id"))
+    home_id: Mapped[int | None] = mapped_column(ForeignKey("home.id"))
     intervention_id: Mapped[int | None] = mapped_column(ForeignKey("intervention.id"))
     cost_type: Mapped[str] = mapped_column(Text)
     label: Mapped[str | None] = mapped_column(Text)
@@ -313,7 +360,7 @@ class Document(Base):
     asset_id: Mapped[int | None] = mapped_column(ForeignKey("asset.id"))
     maintenance_task_id: Mapped[int | None] = mapped_column(ForeignKey("maintenance_task.id"))
     intervention_id: Mapped[int | None] = mapped_column(ForeignKey("intervention.id"))
-    issue_id: Mapped[int | None] = mapped_column(Integer)
+    issue_id: Mapped[int | None] = mapped_column(ForeignKey("issue.id"))
     name: Mapped[str] = mapped_column(Text)
     doc_type: Mapped[str] = mapped_column(Text, default="other")
     storage_mode: Mapped[str] = mapped_column(Text)

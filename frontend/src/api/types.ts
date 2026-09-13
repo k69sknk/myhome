@@ -449,6 +449,106 @@ export interface Asset {
   tasks: Task[]
 }
 
+/** Ce qu'une suppression de fiche a reellement emporte : l'interface le redit
+ *  apres coup, pour qu'une erreur de cible se voie tout de suite. */
+export interface AssetDeleteResult {
+  ok: boolean
+  deleted_tasks: number
+  deleted_interventions: number
+  deleted_files: number
+}
+
+export type TimelineEvent =
+  | 'installation'
+  | 'intervention'
+  | 'issue_opened'
+  | 'issue_resolved'
+  | 'cost'
+  | 'warranty_end'
+
+/** Une ligne de la vue SQL `v_asset_timeline` : six tables reunies en une
+ *  histoire, ordonnee par la base et non par l'interface (ADR-0003). */
+export interface TimelineEntry {
+  event_type: TimelineEvent
+  occurred_on: string
+  title: string
+  detail: string | null
+  amount_cents: number | null
+  source_table: string
+  source_id: number
+}
+
+export type IssueStatus = 'open' | 'in_progress' | 'resolved'
+export type IssueSeverity = 'low' | 'normal' | 'high' | 'critical'
+
+/** Un probleme constate : bruit, fuite, panne. Distinct d'une intervention,
+ *  qui est une action datee — un probleme dure et peut en appeler plusieurs. */
+export interface Issue {
+  id: number
+  asset_id: number
+  title: string
+  description: string | null
+  action_taken: string | null
+  result: string | null
+  status: IssueStatus
+  severity: IssueSeverity
+  opened_on: string
+  resolved_on: string | null
+}
+
+export interface IssueIn {
+  title: string
+  description?: string | null
+  severity?: IssueSeverity
+  opened_on?: string | null
+}
+
+export interface IssuePatch {
+  title?: string
+  description?: string | null
+  action_taken?: string | null
+  result?: string | null
+  severity?: IssueSeverity
+  status?: IssueStatus
+}
+
+export type CostType =
+  | 'purchase'
+  | 'installation'
+  | 'maintenance'
+  | 'repair'
+  | 'parts'
+  | 'subscription'
+  | 'other'
+
+export interface CostItem {
+  id: number
+  cost_type: CostType
+  label: string | null
+  amount_cents: number
+  currency: string
+  incurred_on: string
+  notes: string | null
+  /** Renseigne quand la depense vient d'une validation d'entretien : elle
+   *  appartient alors a son intervention et ne se supprime pas d'ici. */
+  intervention_id: number | null
+  task_name: string | null
+}
+
+export interface Costs {
+  total_cents: number
+  currency: string
+  items: CostItem[]
+}
+
+export interface CostIn {
+  cost_type: CostType
+  label?: string | null
+  amount_cents: number
+  incurred_on?: string | null
+  notes?: string | null
+}
+
 export interface AssetIn {
   name: string
   kind?: 'equipment' | 'building_element'
@@ -464,10 +564,17 @@ export interface AssetIn {
   warranty?: WarrantyIn | null
 }
 
+/** Cycle de vie d'une fiche. `AssetStatus` est deja pris par la ligne de
+ *  synthese Home Assistant, d'ou le nom plus long. */
+export type AssetLifecycleStatus = 'planned' | 'active' | 'inactive' | 'removed'
+
 export interface AssetPatch {
   name?: string
   category_id?: number | null
   location_id?: number | null
+  /** 'active' | 'planned' | 'inactive' | 'removed'. `removed` est la sortie
+   *  normale d'un equipement : la fiche et son historique restent en base. */
+  status?: AssetLifecycleStatus
   brand?: string | null
   model?: string | null
   serial_number?: string | null

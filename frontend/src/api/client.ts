@@ -2,6 +2,7 @@ import { apiUrl } from '../base-path'
 import type {
   ApplyRoomResult,
   Asset,
+  AssetDeleteResult,
   AssetIn,
   AssetKind,
   AssetListItem,
@@ -13,6 +14,9 @@ import type {
   Category,
   CategoryIn,
   CompleteIn,
+  CostIn,
+  CostItem,
+  Costs,
   DocumentDraft,
   DocumentFields,
   DocumentListItem,
@@ -26,6 +30,9 @@ import type {
   HealthResponse,
   HistoryEntry,
   Home,
+  Issue,
+  IssueIn,
+  IssuePatch,
   Intervention,
   Location,
   LocationIn,
@@ -40,6 +47,7 @@ import type {
   Task,
   TaskIn,
   TaskPatch,
+  TimelineEntry,
   Trade,
 } from './types'
 
@@ -151,8 +159,25 @@ export const api = {
     request<AssetListItem[]>(`assets${kind ? `?kind=${kind}` : ''}`),
   asset: (id: number) => request<Asset>(`assets/${id}`),
   createAsset: (body: AssetIn) => request<Asset>('assets', { method: 'POST', ...jsonBody(body) }),
+  deleteAsset: (id: number) =>
+    request<AssetDeleteResult>(`assets/${id}`, { method: 'DELETE' }),
   patchAsset: (id: number, body: AssetPatch) =>
     request<Asset>(`assets/${id}`, { method: 'PATCH', ...jsonBody(body) }),
+
+  assetTimeline: (assetId: number) => request<TimelineEntry[]>(`assets/${assetId}/timeline`),
+
+  assetIssues: (assetId: number) => request<Issue[]>(`assets/${assetId}/issues`),
+  createIssue: (assetId: number, body: IssueIn) =>
+    request<Issue>(`assets/${assetId}/issues`, { method: 'POST', ...jsonBody(body) }),
+  patchIssue: (issueId: number, body: IssuePatch) =>
+    request<Issue>(`issues/${issueId}`, { method: 'PATCH', ...jsonBody(body) }),
+  deleteIssue: (issueId: number) =>
+    request<{ ok: boolean }>(`issues/${issueId}`, { method: 'DELETE' }),
+
+  assetCosts: (assetId: number) => request<Costs>(`assets/${assetId}/costs`),
+  createAssetCost: (assetId: number, body: CostIn) =>
+    request<CostItem>(`assets/${assetId}/costs`, { method: 'POST', ...jsonBody(body) }),
+  deleteCost: (costId: number) => request<{ ok: boolean }>(`costs/${costId}`, { method: 'DELETE' }),
 
   createTask: (assetId: number, body: TaskIn) =>
     request<Task>(`assets/${assetId}/tasks`, { method: 'POST', ...jsonBody(body) }),

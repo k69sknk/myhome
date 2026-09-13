@@ -4,7 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from ..clock import utc_now_iso, utc_today
@@ -28,12 +28,16 @@ from ..models import (
     Warranty,
 )
 from ..schemas import (
+    AssetDeleteResult,
     AssetIn,
     AssetListItem,
     AssetOut,
     AssetPatch,
     CompleteIn,
+    CostIn,
+    CostItemOut,
     CostOut,
+    CostsOut,
     DocType,
     DocumentListItem,
     DocumentOut,
@@ -51,6 +55,7 @@ from ..schemas import (
     TaskOut,
     TaskPatch,
     TaskStatus,
+    TimelineEntryOut,
     WarrantyIn,
     WarrantyOut,
 )
@@ -69,6 +74,7 @@ from ..services.documents import (
     apply_reference_note,
     contenu_a_la_creation,
     delete_document,
+    discard_files_of_asset,
     document_out,
     reference_valide,
     store_upload,
@@ -102,6 +108,27 @@ def _get_asset(session: Session, asset_id: int) -> Asset:
     if asset is None or asset.home_id != home.id:
         raise HTTPException(404, "Equipement introuvable")
     return asset
+
+
+def _get_task(session: Session, task_id: int) -> tuple[MaintenanceTask, Asset | None]:
+    """L'entretien et sa fiche, quand il en a une.
+
+    Un entretien peut etre rattache a la maison plutot qu'a un equipement
+    (« purger les radiateurs », « tester les detecteurs de fumee ») : le modele
+    le prevoit depuis l'origine et le planning les affiche. Les routes par
+    entretien, elles, exigeaient un `asset_id` et repondaient 404 « Entretien
+    introuvable » — un message faux, sur une ligne visible a l'ecran, qui rendait
+    Modifier et Supprimer inoperants sur ces entretiens-la.
+    """
+    home = _home(session)
+    task = session.get(MaintenanceTask, task_id)
+    if task is None:
+        raise HTTPException(404, "Entretien introuvable")
+    if task.asset_id is not None:
+        return task, _get_asset(session, task.asset_id)
+    if task.home_id != home.id:
+        raise HTTPException(404, "Entretien introuvable")
+    return task, None
 
 
 def _warranty_out(row: Warranty | None) -> WarrantyOut | None:
@@ -342,6 +369,172 @@ def patch_asset(
     return _asset_out(session, _get_asset(session, asset.id))
 
 
+@router.delete("/assets/{asset_id}", response_model=AssetDeleteResult)
+def delete_asset(
+    asset_id: int,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_app_settings),
+) -> AssetDeleteResult:
+    """Efface une fiche et tout ce qui pend apres elle.
+
+    Ce n'est pas la sortie normale d'un equipement : `schema.sql` le dit, un
+    appareil retire passe en `status = 'removed'` et garde son historique, qui
+    fait partie de l'histoire de la maison. Cette route est la pour l'autre cas,
+    celui qu'aucune colonne ne repare : la fiche creee par erreur, le doublon, le
+    mauvais lieu saisi pendant le didacticiel. Elle emporte donc reellement les
+    entretiens, les interventions, les couts et les documents — et, avant de
+    rendre la main a SQLite, les fichiers correspondants sur le disque.
+    """
+    asset = _get_asset(session, asset_id)
+    fichiers = discard_files_of_asset(session, settings, asset.id)
+    interventions = session.scalar(
+        select(func.count()).select_from(Intervention).where(Intervention.asset_id == asset.id)
+    )
+    entretiens = len(asset.tasks)
+    session.delete(asset)
+    session.flush()
+    return AssetDeleteResult(
+        ok=True,
+        deleted_tasks=entretiens,
+        deleted_interventions=interventions or 0,
+        deleted_files=fichiers,
+    )
+
+
+@router.get("/assets/{asset_id}/costs", response_model=CostsOut)
+def list_asset_costs(asset_id: int, session: Session = Depends(get_session)) -> CostsOut:
+    """Toutes les depenses de cet equipement, et leur total.
+
+    Le total additionne aussi les couts nes d'une validation d'entretien : la
+    question posee est « combien m'a coute cet appareil », pas « combien en
+    dehors de ses entretiens ».
+    """
+    asset = _get_asset(session, asset_id)
+    home = _home(session)
+    rows = session.scalars(
+        select(Cost)
+        .where(Cost.asset_id == asset.id)
+        .order_by(Cost.incurred_on.desc(), Cost.id.desc())
+    ).all()
+
+    # Le nom de l'entretien d'origine, quand il y en a un : sans lui, une ligne
+    # « maintenance, 180 € » ne dit pas de quel entretien elle vient.
+    intervention_ids = {row.intervention_id for row in rows if row.intervention_id is not None}
+    noms: dict[int, str] = {}
+    if intervention_ids:
+        for intervention_id, nom in session.execute(
+            select(Intervention.id, MaintenanceTask.name)
+            .join(MaintenanceTask, Intervention.task_id == MaintenanceTask.id)
+            .where(Intervention.id.in_(intervention_ids))
+        ).all():
+            noms[intervention_id] = nom
+
+    return CostsOut(
+        total_cents=sum(row.amount_cents for row in rows),
+        currency=home.currency,
+        items=[
+            CostItemOut(
+                id=row.id,
+                cost_type=row.cost_type,  # type: ignore[arg-type]
+                label=row.label,
+                amount_cents=row.amount_cents,
+                currency=row.currency,
+                incurred_on=row.incurred_on,
+                notes=row.notes,
+                intervention_id=row.intervention_id,
+                task_name=noms.get(row.intervention_id) if row.intervention_id else None,
+            )
+            for row in rows
+        ],
+    )
+
+
+@router.post("/assets/{asset_id}/costs", response_model=CostItemOut, status_code=201)
+def create_asset_cost(
+    asset_id: int, body: CostIn, session: Session = Depends(get_session)
+) -> CostItemOut:
+    asset = _get_asset(session, asset_id)
+    home = _home(session)
+    maintenant = utc_now_iso()
+    # Le prix d'achat n'a de sens qu'a la date d'achat : la proposer par defaut
+    # evite de dater de ce matin une facture de 2019.
+    defaut = asset.purchase_date if body.cost_type == "purchase" else None
+    row = Cost(
+        asset_id=asset.id,
+        cost_type=body.cost_type,
+        label=(body.label or "").strip() or None,
+        amount_cents=body.amount_cents,
+        currency=home.currency,
+        incurred_on=body.incurred_on or defaut or utc_today().isoformat(),
+        notes=(body.notes or "").strip() or None,
+        created_at=maintenant,
+        updated_at=maintenant,
+    )
+    session.add(row)
+    session.flush()
+    return CostItemOut(
+        id=row.id,
+        cost_type=row.cost_type,  # type: ignore[arg-type]
+        label=row.label,
+        amount_cents=row.amount_cents,
+        currency=row.currency,
+        incurred_on=row.incurred_on,
+        notes=row.notes,
+        intervention_id=None,
+        task_name=None,
+    )
+
+
+@router.delete("/costs/{cost_id}")
+def delete_cost(cost_id: int, session: Session = Depends(get_session)) -> dict[str, bool]:
+    row = session.get(Cost, cost_id)
+    if row is None:
+        raise HTTPException(404, "Depense introuvable")
+    if row.asset_id is not None:
+        _get_asset(session, row.asset_id)
+    elif row.home_id != _home(session).id:
+        raise HTTPException(404, "Depense introuvable")
+    if row.intervention_id is not None:
+        # Une depense nee d'un entretien appartient a son intervention : la
+        # retirer d'ici laisserait une ligne d'historique qui annonce un montant
+        # introuvable. C'est l'intervention qu'il faut corriger.
+        raise HTTPException(
+            409,
+            "Cette depense a ete saisie en validant un entretien. Corrigez-la depuis "
+            "l'historique de cet entretien.",
+        )
+    session.delete(row)
+    session.flush()
+    return {"ok": True}
+
+
+@router.get("/assets/{asset_id}/timeline", response_model=list[TimelineEntryOut])
+def asset_timeline(
+    asset_id: int, session: Session = Depends(get_session)
+) -> list[TimelineEntryOut]:
+    """L'histoire de l'appareil, du plus recent au plus ancien.
+
+    Lit `v_asset_timeline`, qui reunit la pose, les interventions, les problemes
+    ouverts et resolus, les depenses autonomes et la fin de garantie. C'est la
+    vue qui porte la reponse a « que s'est-il passe sur cet appareil », et le
+    faire en SQL plutot qu'en Python garantit que l'ordre et le contenu ne
+    divergent pas d'un appelant a l'autre (adr/0003).
+
+    Les depenses nees d'une intervention en sont exclues par la vue elle-meme :
+    elles feraient un doublon avec la ligne d'intervention qui les porte.
+    """
+    _get_asset(session, asset_id)
+    lignes = session.execute(
+        text(
+            "SELECT event_type, occurred_on, title, detail, amount_cents, source_table, source_id "
+            "FROM v_asset_timeline WHERE asset_id = :asset_id AND occurred_on IS NOT NULL "
+            "ORDER BY occurred_on DESC, source_table, source_id DESC"
+        ),
+        {"asset_id": asset_id},
+    ).mappings()
+    return [TimelineEntryOut(**ligne) for ligne in lignes]
+
+
 def _get_member(session: Session, member_id: int) -> Member:
     member = session.get(Member, member_id)
     if member is None:
@@ -430,10 +623,7 @@ def create_task(asset_id: int, body: TaskIn, session: Session = Depends(get_sess
 
 @router.patch("/tasks/{task_id}", response_model=TaskOut)
 def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_session)) -> TaskOut:
-    task = session.get(MaintenanceTask, task_id)
-    if task is None or task.asset_id is None:
-        raise HTTPException(404, "Entretien introuvable")
-    asset = _get_asset(session, task.asset_id)
+    task, asset = _get_task(session, task_id)
     data = body.model_dump(exclude_unset=True)
     replace_parts = "replacement_parts" in data
     data.pop("replacement_parts", None)
@@ -522,8 +712,8 @@ def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_ses
     return _task_out(
         task,
         statuses.get(task.id),
-        asset_name=asset.name,
-        loc_path=location_path(session, asset.location_id),
+        asset_name=asset.name if asset is not None else None,
+        loc_path=location_path(session, asset.location_id) if asset is not None else None,
     )
 
 
@@ -531,10 +721,7 @@ def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_ses
 def mark_task_done(
     task_id: int, body: CompleteIn, session: Session = Depends(get_session)
 ) -> TaskOut:
-    task = session.get(MaintenanceTask, task_id)
-    if task is None or task.asset_id is None:
-        raise HTTPException(404, "Entretien introuvable")
-    asset = _get_asset(session, task.asset_id)
+    task, asset = _get_task(session, task_id)
     performed_on = body.performed_on or utc_today().isoformat()
     # Le nom affiche vient de la fiche du membre quand il y en a une : c'est ce
     # qui evite qu'une meme entreprise s'ecrive de trois facons dans l'historique.
@@ -563,7 +750,10 @@ def mark_task_done(
         now = utc_now_iso()
         session.add(
             Cost(
-                asset_id=asset.id,
+                # Le cout suit le meme rattachement que l'intervention : l'un ou
+                # l'autre, jamais les deux (CHECK de schema.sql).
+                asset_id=asset.id if asset is not None else None,
+                home_id=home.id if asset is None else None,
                 intervention_id=intervention.id,
                 cost_type="maintenance",
                 amount_cents=body.amount_cents,
@@ -578,8 +768,8 @@ def mark_task_done(
     return _task_out(
         task,
         statuses.get(task.id),
-        asset_name=asset.name,
-        loc_path=location_path(session, asset.location_id),
+        asset_name=asset.name if asset is not None else None,
+        loc_path=location_path(session, asset.location_id) if asset is not None else None,
         last_intervention_id=intervention.id,
     )
 
@@ -588,10 +778,7 @@ def mark_task_done(
 def list_task_interventions(
     task_id: int, session: Session = Depends(get_session)
 ) -> list[InterventionOut]:
-    task = session.get(MaintenanceTask, task_id)
-    if task is None or task.asset_id is None:
-        raise HTTPException(404, "Entretien introuvable")
-    _get_asset(session, task.asset_id)
+    _get_task(session, task_id)
     interventions = session.scalars(
         select(Intervention)
         .where(Intervention.task_id == task_id)
@@ -628,10 +815,18 @@ def list_interventions(
     (pages /membres et /prestataires).
     """
     home = _home(session)
+    # Jointure externe, pour la meme raison que `list_tasks` : une intervention
+    # peut concerner la maison plutot qu'un equipement. Une jointure interne
+    # faisait disparaitre de l'historique un ramonage tout juste enregistre.
     query = (
         select(Intervention)
-        .join(Asset, Intervention.asset_id == Asset.id)
-        .where(Asset.home_id == home.id)
+        .join(Asset, Intervention.asset_id == Asset.id, isouter=True)
+        .where(
+            or_(
+                and_(Intervention.asset_id.is_not(None), Asset.home_id == home.id),
+                Intervention.home_id == home.id,
+            )
+        )
     )
     if member_id is not None:
         query = query.where(Intervention.performed_by_member_id == member_id)
@@ -644,7 +839,7 @@ def list_interventions(
         .offset(offset)
     ).all()
 
-    asset_ids = {row.asset_id for row in rows}
+    asset_ids = {row.asset_id for row in rows if row.asset_id is not None}
     assets = (
         {a.id: a for a in session.scalars(select(Asset).where(Asset.id.in_(asset_ids))).all()}
         if asset_ids
@@ -666,7 +861,13 @@ def list_interventions(
         HistoryEntryOut(
             id=row.id,
             asset_id=row.asset_id,
-            asset_name=assets[row.asset_id].name if row.asset_id in assets else "?",
+            asset_name=(
+                assets[row.asset_id].name
+                if row.asset_id in assets
+                else home.name
+                if row.asset_id is None
+                else "?"
+            ),
             task_id=row.task_id,
             task_name=tasks[row.task_id].name if row.task_id in tasks else None,
             performed_on=row.performed_on,
@@ -683,10 +884,7 @@ def list_interventions(
 
 @router.delete("/tasks/{task_id}")
 def delete_task(task_id: int, session: Session = Depends(get_session)) -> dict[str, bool]:
-    task = session.get(MaintenanceTask, task_id)
-    if task is None or task.asset_id is None:
-        raise HTTPException(404, "Entretien introuvable")
-    _get_asset(session, task.asset_id)
+    task, _asset = _get_task(session, task_id)
     session.delete(task)
     session.flush()
     return {"ok": True}
@@ -703,12 +901,24 @@ def delete_intervention(
     )
     if intervention is None:
         raise HTTPException(404, "Intervention introuvable")
-    _get_asset(session, intervention.asset_id)
+    _verifier_intervention(session, intervention)
     for document in list(intervention.documents):
         delete_document(session, settings, document)
     session.delete(intervention)
     session.flush()
     return {"ok": True}
+
+
+def _verifier_intervention(session: Session, intervention: Intervention) -> None:
+    """Que l'intervention appartienne bien a cette maison, avec ou sans fiche.
+
+    Une intervention rattachee a la maison (entretien sans equipement) n'a pas
+    de fiche a controler : c'est `home_id` qui fait foi.
+    """
+    if intervention.asset_id is not None:
+        _get_asset(session, intervention.asset_id)
+    elif intervention.home_id != _home(session).id:
+        raise HTTPException(404, "Intervention introuvable")
 
 
 def _cost_out(intervention: Intervention) -> CostOut | None:
@@ -734,7 +944,7 @@ def _document_scope(session: Session, row: Document) -> str:
         return str(row.asset_id)
     if row.intervention_id is not None:
         intervention = session.get(Intervention, row.intervention_id)
-        if intervention is not None:
+        if intervention is not None and intervention.asset_id is not None:
             return str(intervention.asset_id)
     return UNSCOPED_DIR
 
@@ -757,11 +967,11 @@ async def create_intervention_document(
     intervention = session.get(Intervention, intervention_id)
     if intervention is None:
         raise HTTPException(404, "Intervention introuvable")
-    _get_asset(session, intervention.asset_id)
+    _verifier_intervention(session, intervention)
 
     contenu, label = await contenu_a_la_creation(
         settings,
-        scope=str(intervention.asset_id),
+        scope=str(intervention.asset_id) if intervention.asset_id is not None else UNSCOPED_DIR,
         storage_mode=storage_mode,
         file=file,
         url=url,
@@ -884,7 +1094,7 @@ def list_documents(session: Session = Depends(get_session)) -> list[DocumentList
         else {}
     )
     asset_ids = {row.asset_id for row in rows if row.asset_id is not None}
-    asset_ids |= {row.asset_id for row in interventions.values()}
+    asset_ids |= {row.asset_id for row in interventions.values() if row.asset_id is not None}
     asset_ids |= {row.asset_id for row in tasks.values() if row.asset_id is not None}
     assets = (
         {row.id: row for row in session.scalars(select(Asset).where(Asset.id.in_(asset_ids)))}

@@ -159,6 +159,97 @@ code {
   font-weight: 600;
 }
 
+.card__title .badge {
+  margin-left: 0.5rem;
+}
+
+.issue-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.issue {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.issue:last-child {
+  border-bottom: 0;
+}
+
+/* Un probleme resolu reste lisible mais recule : il appartient a l'histoire de
+   l'appareil, pas a ce qui reclame une action. */
+.issue--resolved {
+  opacity: 0.6;
+}
+
+.issue__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+
+.issue p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+/* Le total se lit dans le titre de la carte, a droite : c'est la reponse a
+   « combien m'a coute cet appareil », elle ne doit pas etre a chercher. */
+.card__total {
+  float: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cost-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.cost {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.cost:last-child {
+  border-bottom: 0;
+}
+
+/* Largeur fixe et chiffres tabulaires : les montants s'alignent, ce qui rend
+   la colonne lisible d'un coup d'oeil au lieu de zigzaguer. */
+.cost__amount {
+  min-width: 6.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cost__detail {
+  flex: 1 1 12rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.cost__origine {
+  font-size: 0.8rem;
+}
+
+/* Separe les deux sorties d'une fiche : retirer, qui garde tout, et supprimer,
+   qui n'en garde rien. Les mettre a la suite sans rupture visuelle rendrait la
+   seconde trop facile a cliquer pour la premiere. */
+.card__rule {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.25rem 0;
+}
+
 .facts {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -1206,4 +1297,48 @@ textarea {
 
 .page__title + .page__lead {
   margin-top: 0;
+}
+
+/* Chronologie : une colonne de dates a gauche, le recit a droite. Le filet
+   vertical relie les evenements, qui viennent de six tables differentes mais se
+   lisent comme une seule histoire. */
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.timeline__item {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 0 0.5rem 0.75rem;
+  border-left: 2px solid var(--border);
+  font-size: 0.92rem;
+}
+
+.timeline__date {
+  flex: 0 0 6.5rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline__body {
+  flex: 1 1 auto;
+}
+
+/* Deux evenements meritent d'attirer l'oeil dans une liste longue : ce qui a
+   mal tourne, et ce qui a coute. */
+.timeline__item--issue_opened {
+  border-left-color: var(--error);
+}
+
+.timeline__item--warranty_end {
+  border-left-color: var(--warn);
+}
+
+@media (max-width: 32rem) {
+  .timeline__item {
+    flex-direction: column;
+    gap: 0.15rem;
+  }
 }

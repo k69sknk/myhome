@@ -16,7 +16,7 @@ from .config import APP_NAME, INGRESS_PORT, Settings, get_settings
 from .db import create_db_engine, session_factory_for
 from .ingress import INGRESS_HEADER, render_index, resolve_base_path
 from .migrate import upgrade_to_head
-from .routers import agent, assets, catalog, ha, health, house, members, providers
+from .routers import agent, assets, catalog, ha, health, house, issues, members, providers
 from .services.discovery import annoncer_au_superviseur
 from .services.home import ensure_home
 from .services.resolve import AmbiguiteError, ResolutionError
@@ -97,6 +97,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(members.router, prefix="/api")
     app.include_router(providers.router, prefix="/api")
     app.include_router(assets.router, prefix="/api")
+    app.include_router(issues.router, prefix="/api")
     app.include_router(catalog.router, prefix="/api")
 
     _register_resolution_handler(app)

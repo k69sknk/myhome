@@ -134,11 +134,14 @@ def complete_task(
     performed_by_provider_id: int | None = None,
     notes: str | None,
 ) -> Intervention:
-    if task.asset_id is None:
-        raise ValueError("tache sans equipement")
     now = utc_now_iso()
     intervention = Intervention(
+        # L'entretien porte deja le rattachement exclusif — un equipement ou la
+        # maison — et l'intervention le reprend tel quel. C'est ce qui permet de
+        # marquer fait « tester les detecteurs de fumee », qui ne vise aucun
+        # appareil (migration 0015).
         asset_id=task.asset_id,
+        home_id=task.home_id if task.asset_id is None else None,
         task_id=task.id,
         intervention_type="maintenance",
         performed_on=performed_on,

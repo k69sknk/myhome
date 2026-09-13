@@ -11,20 +11,22 @@ est encore sous garantie.
 **Local-first.** Aucune donnée ne quitte votre machine. Pas de cloud, pas de compte, pas de
 télémétrie.
 
-> **État du projet : 0.32.1.**
+> **État du projet : 0.34.0.**
 > Maison, lieux en arbre, fiches d'appareils et d'éléments de construction, entretiens
 > (Fait / préciser), historique, membres, prestataires, rappels, et les documents — dans leurs
 > trois modes de stockage, rattachés à une fiche, à un entretien ou à la maison elle-même, avec
 > une page qui les rassemble tous.
 >
 > L'application est **pilotable depuis Home Assistant**, en services et en intentions, par une
-> automatisation comme par un agent conversationnel : sept actions qui lisent et écrivent, y
+> automatisation comme par un agent conversationnel : huit actions qui lisent et écrivent, y
 > compris rattacher une facture à une fiche
 > ([ADR-0013](docs/adr/0013-pilotage-par-agent-externe.md),
 > [ADR-0015](docs/adr/0015-documents-depuis-un-agent.md)). Chaque équipement publie aussi son
 > état d'entretien complet en entité Home Assistant, lisible sans appel.
 >
-> Les problèmes (`issue`) n'ont pas encore d'interface.
+> Chaque fiche porte aussi ses **problèmes** (un bruit, une fuite, une panne : ouvert, en cours,
+> résolu), ses **coûts** avec leur total, et une **chronologie** qui réunit d'un seul tenant
+> installation, entretiens, problèmes, dépenses et fin de garantie.
 
 ## Ce dépôt contient deux produits
 
@@ -73,7 +75,7 @@ qu'aucune porte supplémentaire ne s'ouvre sur les données de la maison.
 - [`frontend/`](frontend/) — interface React servie dans le panneau latéral
 - [`custom_components/mabarak/`](custom_components/mabarak/) — intégration Home Assistant
 - [`skills/mabarak/`](skills/mabarak/) — skill qui apprend à un agent conversationnel à se
-  servir des six actions de pilotage. Elle n'est embarquée nulle part : elle vit ici pour suivre
+  servir des huit actions de pilotage. Elle n'est embarquée nulle part : elle vit ici pour suivre
   le code qui définit ces actions
 - [`scripts/stage-addon.sh`](scripts/stage-addon.sh) — prépare les artefacts pour le build de
   l'add-on
