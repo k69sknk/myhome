@@ -144,8 +144,10 @@ réparation qu'on consigne. Ce n'est pas obligatoire — les actions fonctionnen
 échanges y gagnent.
 
 **Une limite connue** : les entretiens rattachés à la maison entière plutôt qu'à un équipement
-— « tester les détecteurs de fumée » — ne peuvent pas encore être marqués comme faits. C'est
-aussi vrai dans l'interface. L'assistant vous le dira clairement plutôt que de chercher ailleurs.
+— « tester les détecteurs de fumée », « purger les radiateurs » — ne peuvent pas encore être
+marqués comme faits, parce qu'une intervention doit désigner un équipement. C'est aussi vrai
+dans l'interface, qui le dit sur le bouton. Ils se modifient et se suppriment normalement, eux.
+L'assistant vous expliquera la limite plutôt que de chercher ailleurs.
 
 ## Sauvegarde
 

@@ -17,16 +17,18 @@ seul chemin par lequel un document change de contenu.
 
 from __future__ import annotations
 
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from ..clock import utc_now_iso
 from ..config import Settings
-from ..models import Document
+from ..models import Document, Intervention, MaintenanceTask
 from ..schemas import DocumentOut, StorageMode
 
 ALLOWED_EXTENSIONS = {
@@ -195,3 +197,43 @@ def apply_reference_note(settings: Settings, row: Document, note: str) -> None:
 def delete_document(session: Session, settings: Settings, row: Document) -> None:
     discard_file(settings, row)
     session.delete(row)
+
+
+def discard_files_of_asset(session: Session, settings: Settings, asset_id: int) -> int:
+    """Efface les fichiers que la suppression d'une fiche va rendre inaccessibles.
+
+    `ON DELETE CASCADE` emporte les lignes `document` — celles de la fiche, celles
+    de ses entretiens et celles de ses interventions — mais pas les octets sous
+    `/data/documents/`. Sans ce passage, la facture d'un equipement supprime
+    resterait sur le disque, donc dans les sauvegardes Home Assistant : c'est la
+    meme fuite que celle contre laquelle `apply_*` protege deja, et elle serait
+    d'autant plus penible ici que plus rien en base ne permettrait de la retrouver.
+
+    Rend le nombre de fichiers effaces, pour que l'appelant puisse le dire.
+    """
+    rows = session.scalars(
+        select(Document).where(
+            or_(
+                Document.asset_id == asset_id,
+                Document.maintenance_task_id.in_(
+                    select(MaintenanceTask.id).where(MaintenanceTask.asset_id == asset_id)
+                ),
+                Document.intervention_id.in_(
+                    select(Intervention.id).where(Intervention.asset_id == asset_id)
+                ),
+            )
+        )
+    ).all()
+    efface = 0
+    for row in rows:
+        if row.storage_mode == "local_file" and row.file_path:
+            discard_file(settings, row)
+            efface += 1
+    # Le sous-repertoire de la fiche n'a plus de raison d'exister ; `rmdir` ne
+    # supprime que s'il est vide, ce qui laisse intact un repertoire partage par
+    # accident plutot que d'effacer le fichier d'un voisin.
+    repertoire = settings.documents_dir / str(asset_id)
+    if repertoire.is_dir():
+        with suppress(OSError):
+            repertoire.rmdir()
+    return efface

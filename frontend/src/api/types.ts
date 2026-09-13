@@ -449,6 +449,15 @@ export interface Asset {
   tasks: Task[]
 }
 
+/** Ce qu'une suppression de fiche a reellement emporte : l'interface le redit
+ *  apres coup, pour qu'une erreur de cible se voie tout de suite. */
+export interface AssetDeleteResult {
+  ok: boolean
+  deleted_tasks: number
+  deleted_interventions: number
+  deleted_files: number
+}
+
 export interface AssetIn {
   name: string
   kind?: 'equipment' | 'building_element'
@@ -464,10 +473,17 @@ export interface AssetIn {
   warranty?: WarrantyIn | null
 }
 
+/** Cycle de vie d'une fiche. `AssetStatus` est deja pris par la ligne de
+ *  synthese Home Assistant, d'ou le nom plus long. */
+export type AssetLifecycleStatus = 'planned' | 'active' | 'inactive' | 'removed'
+
 export interface AssetPatch {
   name?: string
   category_id?: number | null
   location_id?: number | null
+  /** 'active' | 'planned' | 'inactive' | 'removed'. `removed` est la sortie
+   *  normale d'un equipement : la fiche et son historique restent en base. */
+  status?: AssetLifecycleStatus
   brand?: string | null
   model?: string | null
   serial_number?: string | null

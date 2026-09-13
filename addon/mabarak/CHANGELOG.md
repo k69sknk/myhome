@@ -3,6 +3,32 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.33.0
+
+- **Les entretiens de la maison ne sont plus des lignes mortes.** « Purger les radiateurs »,
+  « tester les detecteurs de fumee » : ces entretiens ne sont rattaches a aucun appareil, et le
+  planning les affichait depuis toujours — mais Modifier et Supprimer repondaient « Entretien
+  introuvable » sur une ligne pourtant visible a l'ecran. Ils se modifient et se suppriment
+  maintenant comme les autres.
+
+  Les marquer comme faits reste impossible, pour une raison de fond qui n'est pas encore levee :
+  une intervention doit designer un equipement. Le bouton le dit desormais au lieu de laisser
+  cliquer vers une erreur trompeuse.
+
+- **Une fiche peut enfin sortir de la maison**, de deux facons que l'onglet « Details » distingue
+  clairement :
+
+  - **Retirer** un appareil vendu, remplace ou depose : ses entretiens quittent le planning, sa
+    fiche, son historique et ses couts restent consultables. C'est la sortie normale — l'histoire
+    de la maison ne s'efface pas parce qu'un appareil est parti.
+  - **Supprimer definitivement** un doublon ou une fiche creee par erreur : la fiche, ses
+    entretiens, son historique, ses couts et ses fichiers partent pour de bon. La confirmation
+    annonce ce qui va disparaitre avant de le faire, et le message qui suit dit ce qui est
+    reellement parti.
+
+  Les documents deposes dans l'application sont effaces **du disque** et pas seulement de la base :
+  sans cela, la facture d'un appareil supprime serait restee dans chaque sauvegarde Home Assistant.
+
 ## 0.32.1
 
 - **Republication.** Aucun changement fonctionnel : la 0.32.0 avait ete publiee sur GitHub en

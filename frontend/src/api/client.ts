@@ -2,6 +2,7 @@ import { apiUrl } from '../base-path'
 import type {
   ApplyRoomResult,
   Asset,
+  AssetDeleteResult,
   AssetIn,
   AssetKind,
   AssetListItem,
@@ -151,6 +152,8 @@ export const api = {
     request<AssetListItem[]>(`assets${kind ? `?kind=${kind}` : ''}`),
   asset: (id: number) => request<Asset>(`assets/${id}`),
   createAsset: (body: AssetIn) => request<Asset>('assets', { method: 'POST', ...jsonBody(body) }),
+  deleteAsset: (id: number) =>
+    request<AssetDeleteResult>(`assets/${id}`, { method: 'DELETE' }),
   patchAsset: (id: number, body: AssetPatch) =>
     request<Asset>(`assets/${id}`, { method: 'PATCH', ...jsonBody(body) }),
 

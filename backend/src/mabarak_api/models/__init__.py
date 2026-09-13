@@ -122,9 +122,21 @@ class Asset(Base):
     home: Mapped[Home] = relationship(back_populates="assets")
     location: Mapped[Location | None] = relationship(back_populates="assets")
     category: Mapped[Category | None] = relationship()
-    warranty: Mapped[Warranty | None] = relationship(back_populates="asset")
-    tasks: Mapped[list[MaintenanceTask]] = relationship(back_populates="asset")
-    ha_links: Mapped[list[HaLink]] = relationship(back_populates="asset")
+    # `passive_deletes` laisse le ON DELETE CASCADE de SQLite faire le travail.
+    # Sans lui, supprimer une fiche fait d'abord tenter a SQLAlchemy de mettre
+    # `asset_id` a NULL sur les enfants — ce que le CHECK de `maintenance_task`
+    # (exactement un rattachement, fiche ou maison) refuse net. La contrainte est
+    # dans schema.sql depuis l'origine ; c'est bien la couche ORM qu'il faut
+    # aligner dessus, pas l'inverse.
+    warranty: Mapped[Warranty | None] = relationship(
+        back_populates="asset", cascade="all, delete", passive_deletes=True
+    )
+    tasks: Mapped[list[MaintenanceTask]] = relationship(
+        back_populates="asset", cascade="all, delete", passive_deletes=True
+    )
+    ha_links: Mapped[list[HaLink]] = relationship(
+        back_populates="asset", cascade="all, delete", passive_deletes=True
+    )
 
 
 class Warranty(Base):

@@ -159,6 +159,15 @@ code {
   font-weight: 600;
 }
 
+/* Separe les deux sorties d'une fiche : retirer, qui garde tout, et supprimer,
+   qui n'en garde rien. Les mettre a la suite sans rupture visuelle rendrait la
+   seconde trop facile a cliquer pour la premiere. */
+.card__rule {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.25rem 0;
+}
+
 .facts {
   display: grid;
   grid-template-columns: auto 1fr;

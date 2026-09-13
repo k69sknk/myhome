@@ -173,8 +173,8 @@ enregistre-la en `lien`. Le document sera retrouvable, sans copie.
 
 **Les entretiens rattachés à la maison entière** — « tester les détecteurs de fumée », le
 ramonage quand il n'est lié à aucun appareil — **ne peuvent pas encore être marqués comme
-faits**. L'outil te le dira franchement. Ce n'est pas un problème de nom : transmets l'explication
-à l'utilisateur plutôt que de chercher ailleurs.
+faits** : une intervention doit désigner un équipement. L'outil te le dira franchement. Ce n'est
+pas un problème de nom : transmets l'explication à l'utilisateur plutôt que de chercher ailleurs.
 
 **Si aucun outil `MaBarak*` n'apparaît**, l'intégration MaBarak n'est pas chargée dans Home
 Assistant. L'add-on seul n'expose rien. Dis-le : c'est à l'utilisateur d'ajouter l'intégration,

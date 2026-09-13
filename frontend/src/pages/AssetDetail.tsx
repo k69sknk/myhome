@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { useLocation, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { api, ApiError } from '../api/client'
 import type {
   Asset,
+  AssetDeleteResult,
+  AssetLifecycleStatus,
   Category,
   DocType,
   DocumentDraft,
@@ -54,6 +56,7 @@ function WarrantyBadge({ endDate }: { endDate: string | null | undefined }) {
 export default function AssetDetail() {
   const { id } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
   const isElement = location.pathname.startsWith('/elements')
   const basePath = isElement ? '/elements' : '/equipements'
   const baseLabel = isElement ? 'Éléments de la maison' : 'Équipements'
@@ -171,6 +174,9 @@ export default function AssetDetail() {
           <div>
             <h1 className="page__title">
               {asset.name} {isEquipment && <WarrantyBadge endDate={asset.warranty?.end_date} />}
+              {/* Une fiche retiree se lit comme les autres : sans ce badge, rien
+                  ne dirait pourquoi ses entretiens ont disparu du planning. */}
+              {asset.status === 'removed' && <span className="badge badge--unscheduled">Retiré</span>}
             </h1>
             <p className="page__lead">
               {[asset.category_name, asset.location_path, formatDate(asset.install_date)]
@@ -335,6 +341,14 @@ export default function AssetDetail() {
               onError={setError}
             />
           )}
+
+          <AssetRemovalCard
+            asset={asset}
+            documentCount={documents.length}
+            onChanged={(next) => setAsset(next)}
+            onDeleted={() => navigate(basePath, { replace: true })}
+            onError={setError}
+          />
         </>
       )}
 
@@ -799,4 +813,148 @@ function HaLinkCard({
       )}
     </div>
   )
+}
+
+/** Les deux sorties d'une fiche, et la difference entre les deux.
+ *
+ *  `schema.sql` tranche : un equipement retire reste en base, parce que son
+ *  historique et ses couts font partie de l'histoire de la maison. C'est donc
+ *  « Retirer » qui est propose en premier, et la suppression definitive qui doit
+ *  se justifier — le doublon, la fiche creee par erreur pendant le didacticiel.
+ *  La confirmation annonce ce qui va partir avant de partir : une fiche vide ne
+ *  merite pas le meme avertissement qu'une fiche portant dix ans d'entretiens. */
+function AssetRemovalCard({
+  asset,
+  documentCount,
+  onChanged,
+  onDeleted,
+  onError,
+}: {
+  asset: Asset
+  documentCount: number
+  onChanged: (asset: Asset) => void
+  onDeleted: () => void
+  onError: (message: string | null) => void
+}) {
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const { showToast } = useToast()
+  const isRemoved = asset.status === 'removed'
+  const noun = asset.kind === 'building_element' ? 'Cet élément' : 'Cet appareil'
+
+  async function setStatus(status: AssetLifecycleStatus, message: string) {
+    setBusy(true)
+    onError(null)
+    try {
+      onChanged(await api.patchAsset(asset.id, { status }))
+      showToast(message)
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove() {
+    setBusy(true)
+    onError(null)
+    try {
+      const result = await api.deleteAsset(asset.id)
+      showToast(`${asset.name} supprimé · ${summarise(result)}`)
+      onDeleted()
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+      setBusy(false)
+      setConfirming(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <h2 className="card__title">Sortie de la fiche</h2>
+
+      {isRemoved ? (
+        <>
+          <p className="muted">
+            {noun} est marqué comme retiré : il ne compte plus dans le planning, mais sa fiche, son
+            historique et ses coûts restent consultables.
+          </p>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => void setStatus('active', 'Remis en service')}
+          >
+            Remettre en service
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="muted">
+            Vendu, remplacé, déposé ? Retirez-le plutôt que de le supprimer : ses entretiens
+            quittent le planning, et son historique reste dans celui de la maison.
+          </p>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => void setStatus('removed', 'Retiré de la maison')}
+          >
+            Retirer de la maison
+          </button>
+        </>
+      )}
+
+      <hr className="card__rule" />
+
+      {confirming ? (
+        <>
+          <p className="status status--error">
+            Supprimer définitivement « {asset.name} » ? Cette action efface aussi{' '}
+            {countList(asset.tasks.length, documentCount)}, et ne peut pas être annulée.
+          </p>
+          <div className="complete__actions">
+            <button type="button" className="btn btn--delete" disabled={busy} onClick={() => void remove()}>
+              <TrashIcon /> Oui, tout supprimer
+            </button>
+            <button type="button" className="btn" disabled={busy} onClick={() => setConfirming(false)}>
+              Annuler
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="muted">
+            Fiche créée par erreur, doublon, mauvaise saisie : la suppression définitive emporte la
+            fiche, ses entretiens, son historique, ses coûts et ses fichiers.
+          </p>
+          <button
+            type="button"
+            className="btn btn--small btn--delete"
+            disabled={busy}
+            onClick={() => setConfirming(true)}
+          >
+            <TrashIcon /> Supprimer définitivement
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+/** « 3 entretiens et 2 documents », sans les zeros qui n'apprennent rien. */
+function countList(tasks: number, documents: number): string {
+  const parts: string[] = []
+  if (tasks > 0) parts.push(`${tasks} entretien${tasks > 1 ? 's' : ''} et leur historique`)
+  if (documents > 0) parts.push(`${documents} document${documents > 1 ? 's' : ''}`)
+  if (parts.length === 0) return 'tout ce qui y est rattaché'
+  return parts.join(' et ')
+}
+
+function summarise(result: AssetDeleteResult): string {
+  const parts: string[] = []
+  if (result.deleted_tasks > 0) parts.push(`${result.deleted_tasks} entretien(s)`)
+  if (result.deleted_interventions > 0) parts.push(`${result.deleted_interventions} intervention(s)`)
+  if (result.deleted_files > 0) parts.push(`${result.deleted_files} fichier(s)`)
+  return parts.length > 0 ? parts.join(', ') : 'rien d’autre n’y était rattaché'
 }

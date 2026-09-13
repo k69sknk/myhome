@@ -392,6 +392,20 @@ class AssetPatch(BaseModel):
     warranty: WarrantyIn | None = None
 
 
+class AssetDeleteResult(BaseModel):
+    """Ce que la suppression d'une fiche a reellement emporte.
+
+    Les nombres ne sont pas decoratifs : l'interface les affiche apres coup, pour
+    que l'utilisateur qui vient de supprimer sache ce qui est parti avec — et
+    s'apercoive tout de suite s'il s'est trompe de fiche.
+    """
+
+    ok: bool
+    deleted_tasks: int
+    deleted_interventions: int
+    deleted_files: int
+
+
 class AssetListItem(BaseModel):
     id: int
     name: str

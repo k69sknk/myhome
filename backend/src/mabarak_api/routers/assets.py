@@ -4,7 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..clock import utc_now_iso, utc_today
@@ -28,6 +28,7 @@ from ..models import (
     Warranty,
 )
 from ..schemas import (
+    AssetDeleteResult,
     AssetIn,
     AssetListItem,
     AssetOut,
@@ -69,6 +70,7 @@ from ..services.documents import (
     apply_reference_note,
     contenu_a_la_creation,
     delete_document,
+    discard_files_of_asset,
     document_out,
     reference_valide,
     store_upload,
@@ -102,6 +104,27 @@ def _get_asset(session: Session, asset_id: int) -> Asset:
     if asset is None or asset.home_id != home.id:
         raise HTTPException(404, "Equipement introuvable")
     return asset
+
+
+def _get_task(session: Session, task_id: int) -> tuple[MaintenanceTask, Asset | None]:
+    """L'entretien et sa fiche, quand il en a une.
+
+    Un entretien peut etre rattache a la maison plutot qu'a un equipement
+    (« purger les radiateurs », « tester les detecteurs de fumee ») : le modele
+    le prevoit depuis l'origine et le planning les affiche. Les routes par
+    entretien, elles, exigeaient un `asset_id` et repondaient 404 « Entretien
+    introuvable » — un message faux, sur une ligne visible a l'ecran, qui rendait
+    Modifier et Supprimer inoperants sur ces entretiens-la.
+    """
+    home = _home(session)
+    task = session.get(MaintenanceTask, task_id)
+    if task is None:
+        raise HTTPException(404, "Entretien introuvable")
+    if task.asset_id is not None:
+        return task, _get_asset(session, task.asset_id)
+    if task.home_id != home.id:
+        raise HTTPException(404, "Entretien introuvable")
+    return task, None
 
 
 def _warranty_out(row: Warranty | None) -> WarrantyOut | None:
@@ -342,6 +365,38 @@ def patch_asset(
     return _asset_out(session, _get_asset(session, asset.id))
 
 
+@router.delete("/assets/{asset_id}", response_model=AssetDeleteResult)
+def delete_asset(
+    asset_id: int,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_app_settings),
+) -> AssetDeleteResult:
+    """Efface une fiche et tout ce qui pend apres elle.
+
+    Ce n'est pas la sortie normale d'un equipement : `schema.sql` le dit, un
+    appareil retire passe en `status = 'removed'` et garde son historique, qui
+    fait partie de l'histoire de la maison. Cette route est la pour l'autre cas,
+    celui qu'aucune colonne ne repare : la fiche creee par erreur, le doublon, le
+    mauvais lieu saisi pendant le didacticiel. Elle emporte donc reellement les
+    entretiens, les interventions, les couts et les documents — et, avant de
+    rendre la main a SQLite, les fichiers correspondants sur le disque.
+    """
+    asset = _get_asset(session, asset_id)
+    fichiers = discard_files_of_asset(session, settings, asset.id)
+    interventions = session.scalar(
+        select(func.count()).select_from(Intervention).where(Intervention.asset_id == asset.id)
+    )
+    entretiens = len(asset.tasks)
+    session.delete(asset)
+    session.flush()
+    return AssetDeleteResult(
+        ok=True,
+        deleted_tasks=entretiens,
+        deleted_interventions=interventions or 0,
+        deleted_files=fichiers,
+    )
+
+
 def _get_member(session: Session, member_id: int) -> Member:
     member = session.get(Member, member_id)
     if member is None:
@@ -430,10 +485,7 @@ def create_task(asset_id: int, body: TaskIn, session: Session = Depends(get_sess
 
 @router.patch("/tasks/{task_id}", response_model=TaskOut)
 def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_session)) -> TaskOut:
-    task = session.get(MaintenanceTask, task_id)
-    if task is None or task.asset_id is None:
-        raise HTTPException(404, "Entretien introuvable")
-    asset = _get_asset(session, task.asset_id)
+    task, asset = _get_task(session, task_id)
     data = body.model_dump(exclude_unset=True)
     replace_parts = "replacement_parts" in data
     data.pop("replacement_parts", None)
@@ -522,8 +574,8 @@ def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_ses
     return _task_out(
         task,
         statuses.get(task.id),
-        asset_name=asset.name,
-        loc_path=location_path(session, asset.location_id),
+        asset_name=asset.name if asset is not None else None,
+        loc_path=location_path(session, asset.location_id) if asset is not None else None,
     )
 
 
@@ -531,10 +583,17 @@ def patch_task(task_id: int, body: TaskPatch, session: Session = Depends(get_ses
 def mark_task_done(
     task_id: int, body: CompleteIn, session: Session = Depends(get_session)
 ) -> TaskOut:
-    task = session.get(MaintenanceTask, task_id)
-    if task is None or task.asset_id is None:
-        raise HTTPException(404, "Entretien introuvable")
-    asset = _get_asset(session, task.asset_id)
+    task, asset = _get_task(session, task_id)
+    if asset is None:
+        # `intervention.asset_id` est NOT NULL : un entretien rattache a la
+        # maison ne peut pas encore porter d'intervention. Le dire ici, comme le
+        # fait deja la surface agent, vaut mieux qu'un 404 qui laisse croire que
+        # l'entretien a disparu.
+        raise HTTPException(
+            409,
+            f"« {task.name} » est un entretien de la maison, pas d'un equipement. "
+            "MaBarak ne sait pas encore enregistrer sa realisation.",
+        )
     performed_on = body.performed_on or utc_today().isoformat()
     # Le nom affiche vient de la fiche du membre quand il y en a une : c'est ce
     # qui evite qu'une meme entreprise s'ecrive de trois facons dans l'historique.
@@ -588,10 +647,7 @@ def mark_task_done(
 def list_task_interventions(
     task_id: int, session: Session = Depends(get_session)
 ) -> list[InterventionOut]:
-    task = session.get(MaintenanceTask, task_id)
-    if task is None or task.asset_id is None:
-        raise HTTPException(404, "Entretien introuvable")
-    _get_asset(session, task.asset_id)
+    _get_task(session, task_id)
     interventions = session.scalars(
         select(Intervention)
         .where(Intervention.task_id == task_id)
@@ -683,10 +739,7 @@ def list_interventions(
 
 @router.delete("/tasks/{task_id}")
 def delete_task(task_id: int, session: Session = Depends(get_session)) -> dict[str, bool]:
-    task = session.get(MaintenanceTask, task_id)
-    if task is None or task.asset_id is None:
-        raise HTTPException(404, "Entretien introuvable")
-    _get_asset(session, task.asset_id)
+    task, _asset = _get_task(session, task_id)
     session.delete(task)
     session.flush()
     return {"ok": True}
