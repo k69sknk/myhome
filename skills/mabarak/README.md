@@ -1,7 +1,7 @@
 # Skill MaBarak, pour un agent externe
 
 [`SKILL.md`](SKILL.md) apprend à un agent conversationnel — Claude, ou tout assistant qui lit ce
-format — à se servir des six actions que MaBarak expose dans Home Assistant.
+format — à se servir des sept actions que MaBarak expose dans Home Assistant.
 
 Elle ne sert qu'à **l'agent**, pas à l'application : rien ici n'est embarqué dans l'add-on ni
 dans l'intégration. Elle vit néanmoins dans ce dépôt pour une raison précise — elle nomme les

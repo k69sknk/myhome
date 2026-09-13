@@ -584,16 +584,6 @@ def mark_task_done(
     task_id: int, body: CompleteIn, session: Session = Depends(get_session)
 ) -> TaskOut:
     task, asset = _get_task(session, task_id)
-    if asset is None:
-        # `intervention.asset_id` est NOT NULL : un entretien rattache a la
-        # maison ne peut pas encore porter d'intervention. Le dire ici, comme le
-        # fait deja la surface agent, vaut mieux qu'un 404 qui laisse croire que
-        # l'entretien a disparu.
-        raise HTTPException(
-            409,
-            f"« {task.name} » est un entretien de la maison, pas d'un equipement. "
-            "MaBarak ne sait pas encore enregistrer sa realisation.",
-        )
     performed_on = body.performed_on or utc_today().isoformat()
     # Le nom affiche vient de la fiche du membre quand il y en a une : c'est ce
     # qui evite qu'une meme entreprise s'ecrive de trois facons dans l'historique.
@@ -622,7 +612,10 @@ def mark_task_done(
         now = utc_now_iso()
         session.add(
             Cost(
-                asset_id=asset.id,
+                # Le cout suit le meme rattachement que l'intervention : l'un ou
+                # l'autre, jamais les deux (CHECK de schema.sql).
+                asset_id=asset.id if asset is not None else None,
+                home_id=home.id if asset is None else None,
                 intervention_id=intervention.id,
                 cost_type="maintenance",
                 amount_cents=body.amount_cents,
@@ -637,8 +630,8 @@ def mark_task_done(
     return _task_out(
         task,
         statuses.get(task.id),
-        asset_name=asset.name,
-        loc_path=location_path(session, asset.location_id),
+        asset_name=asset.name if asset is not None else None,
+        loc_path=location_path(session, asset.location_id) if asset is not None else None,
         last_intervention_id=intervention.id,
     )
 
@@ -684,10 +677,18 @@ def list_interventions(
     (pages /membres et /prestataires).
     """
     home = _home(session)
+    # Jointure externe, pour la meme raison que `list_tasks` : une intervention
+    # peut concerner la maison plutot qu'un equipement. Une jointure interne
+    # faisait disparaitre de l'historique un ramonage tout juste enregistre.
     query = (
         select(Intervention)
-        .join(Asset, Intervention.asset_id == Asset.id)
-        .where(Asset.home_id == home.id)
+        .join(Asset, Intervention.asset_id == Asset.id, isouter=True)
+        .where(
+            or_(
+                and_(Intervention.asset_id.is_not(None), Asset.home_id == home.id),
+                Intervention.home_id == home.id,
+            )
+        )
     )
     if member_id is not None:
         query = query.where(Intervention.performed_by_member_id == member_id)
@@ -700,7 +701,7 @@ def list_interventions(
         .offset(offset)
     ).all()
 
-    asset_ids = {row.asset_id for row in rows}
+    asset_ids = {row.asset_id for row in rows if row.asset_id is not None}
     assets = (
         {a.id: a for a in session.scalars(select(Asset).where(Asset.id.in_(asset_ids))).all()}
         if asset_ids
@@ -722,7 +723,13 @@ def list_interventions(
         HistoryEntryOut(
             id=row.id,
             asset_id=row.asset_id,
-            asset_name=assets[row.asset_id].name if row.asset_id in assets else "?",
+            asset_name=(
+                assets[row.asset_id].name
+                if row.asset_id in assets
+                else home.name
+                if row.asset_id is None
+                else "?"
+            ),
             task_id=row.task_id,
             task_name=tasks[row.task_id].name if row.task_id in tasks else None,
             performed_on=row.performed_on,
@@ -756,12 +763,24 @@ def delete_intervention(
     )
     if intervention is None:
         raise HTTPException(404, "Intervention introuvable")
-    _get_asset(session, intervention.asset_id)
+    _verifier_intervention(session, intervention)
     for document in list(intervention.documents):
         delete_document(session, settings, document)
     session.delete(intervention)
     session.flush()
     return {"ok": True}
+
+
+def _verifier_intervention(session: Session, intervention: Intervention) -> None:
+    """Que l'intervention appartienne bien a cette maison, avec ou sans fiche.
+
+    Une intervention rattachee a la maison (entretien sans equipement) n'a pas
+    de fiche a controler : c'est `home_id` qui fait foi.
+    """
+    if intervention.asset_id is not None:
+        _get_asset(session, intervention.asset_id)
+    elif intervention.home_id != _home(session).id:
+        raise HTTPException(404, "Intervention introuvable")
 
 
 def _cost_out(intervention: Intervention) -> CostOut | None:
@@ -787,7 +806,7 @@ def _document_scope(session: Session, row: Document) -> str:
         return str(row.asset_id)
     if row.intervention_id is not None:
         intervention = session.get(Intervention, row.intervention_id)
-        if intervention is not None:
+        if intervention is not None and intervention.asset_id is not None:
             return str(intervention.asset_id)
     return UNSCOPED_DIR
 
@@ -810,11 +829,11 @@ async def create_intervention_document(
     intervention = session.get(Intervention, intervention_id)
     if intervention is None:
         raise HTTPException(404, "Intervention introuvable")
-    _get_asset(session, intervention.asset_id)
+    _verifier_intervention(session, intervention)
 
     contenu, label = await contenu_a_la_creation(
         settings,
-        scope=str(intervention.asset_id),
+        scope=str(intervention.asset_id) if intervention.asset_id is not None else UNSCOPED_DIR,
         storage_mode=storage_mode,
         file=file,
         url=url,
@@ -937,7 +956,7 @@ def list_documents(session: Session = Depends(get_session)) -> list[DocumentList
         else {}
     )
     asset_ids = {row.asset_id for row in rows if row.asset_id is not None}
-    asset_ids |= {row.asset_id for row in interventions.values()}
+    asset_ids |= {row.asset_id for row in interventions.values() if row.asset_id is not None}
     asset_ids |= {row.asset_id for row in tasks.values() if row.asset_id is not None}
     assets = (
         {row.id: row for row in session.scalars(select(Asset).where(Asset.id.in_(asset_ids)))}

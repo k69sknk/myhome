@@ -79,16 +79,14 @@ def test_historique_dun_entretien_de_la_maison_est_vide_et_non_introuvable(
     assert response.json() == []
 
 
-def test_valider_un_entretien_de_la_maison_dit_pourquoi_il_ne_peut_pas(
-    client: TestClient,
-) -> None:
-    """La limite est reelle — `intervention.asset_id` est NOT NULL — mais elle
-    doit s'annoncer comme telle, pas en 404 qui ferait croire a une disparition."""
+def test_valider_un_entretien_de_la_maison(client: TestClient) -> None:
+    """La limite a saute avec la migration 0015 : `intervention.asset_id` accepte
+    NULL, et l'intervention se rattache alors a la maison."""
     task_id = _entretien_de_la_maison(client)
 
-    response = client.post(f"/api/tasks/{task_id}/complete", json={})
-    assert response.status_code == 409
-    assert "maison" in response.json()["detail"]
+    response = client.post(f"/api/tasks/{task_id}/complete", json={"performed_on": "2026-10-01"})
+    assert response.status_code == 200
+    assert response.json()["last_completed_on"] == "2026-10-01"
 
 
 def test_un_entretien_qui_nexiste_pas_reste_introuvable(client: TestClient) -> None:

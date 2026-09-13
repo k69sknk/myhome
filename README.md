@@ -73,7 +73,7 @@ qu'aucune porte supplémentaire ne s'ouvre sur les données de la maison.
 - [`frontend/`](frontend/) — interface React servie dans le panneau latéral
 - [`custom_components/mabarak/`](custom_components/mabarak/) — intégration Home Assistant
 - [`skills/mabarak/`](skills/mabarak/) — skill qui apprend à un agent conversationnel à se
-  servir des six actions de pilotage. Elle n'est embarquée nulle part : elle vit ici pour suivre
+  servir des sept actions de pilotage. Elle n'est embarquée nulle part : elle vit ici pour suivre
   le code qui définit ces actions
 - [`scripts/stage-addon.sh`](scripts/stage-addon.sh) — prépare les artefacts pour le build de
   l'add-on

@@ -191,25 +191,14 @@ export default function CompleteTask({
     }
   }
 
-  /** Un entretien rattache a la maison plutot qu'a un equipement ne peut pas
-   *  encore porter d'intervention : `intervention.asset_id` est NOT NULL. Le
-   *  dire sur le bouton, plutot que de laisser cliquer vers une erreur — et sans
-   *  toucher a Modifier ni a Supprimer, qui eux fonctionnent. */
-  const sansEquipement = task.asset_id === null
-
   return (
     <div className="complete">
       <div className="complete__actions">
         <button
           type="button"
           className={open ? 'btn btn--active' : 'btn btn--primary'}
-          disabled={busy || sansEquipement}
+          disabled={busy}
           aria-expanded={open}
-          title={
-            sansEquipement
-              ? "Entretien de la maison : MaBarak ne sait pas encore enregistrer sa realisation."
-              : undefined
-          }
           onClick={() => {
             setEditing(false)
             setOpen((current) => !current)
@@ -243,12 +232,6 @@ export default function CompleteTask({
         </button>
       </div>
       {error && <p className="status status--error">{error}</p>}
-      {sansEquipement && (
-        <p className="muted">
-          Entretien de la maison : il peut être modifié ou supprimé, mais pas encore marqué comme
-          fait.
-        </p>
-      )}
       {editing && (
         <TaskForm
           members={members}

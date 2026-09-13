@@ -349,7 +349,9 @@ class InterventionOut(BaseModel):
 
 class HistoryEntryOut(BaseModel):
     id: int
-    asset_id: int
+    # Nul pour un entretien de la maison, qui ne vise aucun equipement. Le nom
+    # reste renseigne — « Maison » — pour que l'affichage n'ait pas a le deviner.
+    asset_id: int | None
     asset_name: str
     task_id: int | None
     task_name: str | None

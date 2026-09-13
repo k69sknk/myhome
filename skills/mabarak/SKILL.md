@@ -169,12 +169,12 @@ Assistant ; garder un lien laisse l'original où il est, avec le risque qu'il di
 Si le téléchargement est refusé parce que l'adresse est publique, ne t'obstine pas :
 enregistre-la en `lien`. Le document sera retrouvable, sans copie.
 
-## Deux limites connues
+## Les entretiens qui ne visent aucun appareil
 
-**Les entretiens rattachés à la maison entière** — « tester les détecteurs de fumée », le
-ramonage quand il n'est lié à aucun appareil — **ne peuvent pas encore être marqués comme
-faits** : une intervention doit désigner un équipement. L'outil te le dira franchement. Ce n'est
-pas un problème de nom : transmets l'explication à l'utilisateur plutôt que de chercher ailleurs.
+« Tester les détecteurs de fumée », le ramonage quand il n'est lié à aucun appareil : ces
+entretiens sont rattachés à la maison. Tu les valides comme les autres, en ne donnant que leur
+nom — `equipement` n'a rien à désigner. La réponse dit « pour la maison » plutôt que de nommer un
+appareil ; c'est normal, ne cherche pas l'équipement manquant.
 
 **Si aucun outil `MaBarak*` n'apparaît**, l'intégration MaBarak n'est pas chargée dans Home
 Assistant. L'add-on seul n'expose rien. Dis-le : c'est à l'utilisateur d'ajouter l'intégration,
@@ -221,7 +221,7 @@ réponse en français. Mais si les appels échouent, les entités sont là.
 
 ## Deux portes, et une seule est confortable
 
-Les six actions existent sous deux formes, et **il faut préférer la première** :
+Les sept actions existent sous deux formes, et **il faut préférer la première** :
 
 **Les outils `MaBarak…`** — `MaBarakApercu`, `MaBarakChercherEquipement`, etc. Si ta liste
 d'outils les contient, sers-toi d'eux exclusivement. Ils rendent la réponse directement, sans

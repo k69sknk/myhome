@@ -275,7 +275,10 @@ class Intervention(Base):
     __tablename__ = "intervention"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    asset_id: Mapped[int] = mapped_column(ForeignKey("asset.id"))
+    # L'equipement concerne, ou la maison quand l'entretien n'en vise aucun.
+    # Exactement un des deux (CHECK dans schema.sql), comme `maintenance_task`.
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey("asset.id"))
+    home_id: Mapped[int | None] = mapped_column(ForeignKey("home.id"))
     task_id: Mapped[int | None] = mapped_column(ForeignKey("maintenance_task.id"))
     issue_id: Mapped[int | None] = mapped_column(Integer)
     intervention_type: Mapped[str] = mapped_column(Text, default="maintenance")
@@ -303,7 +306,9 @@ class Cost(Base):
     __tablename__ = "cost"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    asset_id: Mapped[int] = mapped_column(ForeignKey("asset.id"))
+    # Meme rattachement exclusif que l'intervention qui le porte.
+    asset_id: Mapped[int | None] = mapped_column(ForeignKey("asset.id"))
+    home_id: Mapped[int | None] = mapped_column(ForeignKey("home.id"))
     intervention_id: Mapped[int | None] = mapped_column(ForeignKey("intervention.id"))
     cost_type: Mapped[str] = mapped_column(Text)
     label: Mapped[str | None] = mapped_column(Text)

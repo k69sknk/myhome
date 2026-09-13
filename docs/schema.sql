@@ -697,7 +697,15 @@ CREATE INDEX ix_issue_status ON issue(status) WHERE status <> 'resolved';
 
 CREATE TABLE intervention (
     id                INTEGER PRIMARY KEY,
-    asset_id          INTEGER NOT NULL REFERENCES asset(id) ON DELETE CASCADE,
+
+    -- EXACTEMENT UN RATTACHEMENT, comme `maintenance_task` : l'equipement
+    -- concerne, ou la maison quand l'entretien n'en vise aucun (« tester les
+    -- detecteurs de fumee », le ramonage). Ces entretiens existaient depuis
+    -- l'origine et le planning les affichait ; `asset_id NOT NULL` les rendait
+    -- impossibles a marquer comme faits, ce qui n'etait une regle metier nulle
+    -- part — seulement une contrainte heritee.
+    asset_id          INTEGER          REFERENCES asset(id) ON DELETE CASCADE,
+    home_id           INTEGER          REFERENCES home(id)  ON DELETE CASCADE,
 
     -- Nullable : une intervention peut decouler d'une tache planifiee (bouton
     -- 'entretien effectue') ou etre saisie librement.
@@ -732,10 +740,14 @@ CREATE TABLE intervention (
     updated_at        TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
 
     -- Une seule personne a fait l'entretien (adr/0011).
-    CHECK (performed_by_member_id IS NULL OR performed_by_provider_id IS NULL)
+    CHECK (performed_by_member_id IS NULL OR performed_by_provider_id IS NULL),
+
+    -- Rattachement exclusif. En SQLite, (x IS NOT NULL) vaut 0 ou 1.
+    CHECK ((asset_id IS NOT NULL) + (home_id IS NOT NULL) = 1)
 );
 
 CREATE INDEX ix_intervention_asset ON intervention(asset_id, performed_on DESC);
+CREATE INDEX ix_intervention_home  ON intervention(home_id, performed_on DESC);
 CREATE INDEX ix_intervention_task  ON intervention(task_id);
 CREATE INDEX ix_intervention_issue ON intervention(issue_id);
 
@@ -746,7 +758,11 @@ CREATE INDEX ix_intervention_issue ON intervention(issue_id);
 
 CREATE TABLE cost (
     id              INTEGER PRIMARY KEY,
-    asset_id        INTEGER NOT NULL REFERENCES asset(id) ON DELETE CASCADE,
+
+    -- Meme rattachement exclusif que l'intervention qui le porte : une depense
+    -- suit l'equipement concerne, ou la maison quand il n'y en a pas.
+    asset_id        INTEGER          REFERENCES asset(id) ON DELETE CASCADE,
+    home_id         INTEGER          REFERENCES home(id)  ON DELETE CASCADE,
 
     -- Nullable. Quand l'utilisateur saisit un cout en validant un entretien, UNE
     -- seule ligne est creee et rattachee a l'intervention : pas de double saisie,
@@ -773,10 +789,13 @@ CREATE TABLE cost (
     notes           TEXT,
 
     created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    updated_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+    updated_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+
+    CHECK ((asset_id IS NOT NULL) + (home_id IS NOT NULL) = 1)
 );
 
 CREATE INDEX ix_cost_asset        ON cost(asset_id);
+CREATE INDEX ix_cost_home         ON cost(home_id);
 CREATE INDEX ix_cost_intervention ON cost(intervention_id);
 
 
@@ -897,6 +916,7 @@ CREATE VIEW v_asset_timeline AS
            'intervention',
            i.id
     FROM   intervention i
+    WHERE  i.asset_id IS NOT NULL
 
     UNION ALL
 
@@ -938,7 +958,7 @@ CREATE VIEW v_asset_timeline AS
            'cost',
            c.id
     FROM   cost c
-    WHERE  c.intervention_id IS NULL
+    WHERE  c.intervention_id IS NULL AND c.asset_id IS NOT NULL
 
     UNION ALL
 

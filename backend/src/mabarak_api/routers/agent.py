@@ -253,20 +253,10 @@ def valider_entretien(
     home = _home(session)
     task = resoudre_entretien(session, home.id, body.entretien, body.equipement)
 
-    if task.asset_id is None:
-        # Limitation connue et anterieure a cette surface : `intervention.asset_id`
-        # est NOT NULL, un entretien rattache a la maison ne peut donc pas encore
-        # etre valide — pas davantage depuis l'interface. Le dire franchement vaut
-        # mieux que de laisser croire a un probleme de resolution du nom.
-        raise HTTPException(
-            409,
-            f"« {task.name} » est un entretien de la maison, pas d'un equipement. "
-            "MaBarak ne sait pas encore enregistrer sa realisation, ni ici ni dans "
-            "l'interface.",
-        )
-
-    asset = session.get(Asset, task.asset_id)
-    if asset is None:
+    # Un entretien rattache a la maison plutot qu'a un equipement — « tester les
+    # detecteurs de fumee » — se valide comme les autres depuis la 0015.
+    asset = session.get(Asset, task.asset_id) if task.asset_id is not None else None
+    if task.asset_id is not None and asset is None:
         raise HTTPException(404, "Equipement introuvable")
 
     quand = _date_ou_aujourdhui(body.date)
@@ -290,7 +280,8 @@ def valider_entretien(
         maintenant = utc_now_iso()
         session.add(
             Cost(
-                asset_id=asset.id,
+                asset_id=asset.id if asset is not None else None,
+                home_id=home.id if asset is None else None,
                 intervention_id=intervention.id,
                 cost_type="maintenance",
                 amount_cents=centimes,
@@ -307,9 +298,12 @@ def valider_entretien(
         if task.next_due_on
         else " Cet entretien n'a pas de frequence : aucune prochaine echeance n'a ete calculee."
     )
+    # « sur la PAC » n'a pas de sens pour un entretien qui vise la maison : la
+    # phrase rendue est relue telle quelle par l'agent, elle doit rester juste.
+    ou = f" sur « {asset.name} »" if asset is not None else " pour la maison"
     return ActionOut(
-        message=f"« {task.name} » sur « {asset.name} » est note comme fait le {quand}.{suite}",
-        equipement=asset.name,
+        message=f"« {task.name} »{ou} est note comme fait le {quand}.{suite}",
+        equipement=asset.name if asset is not None else home.name,
         entretien=task.name,
         prochaine_echeance=task.next_due_on,
     )
