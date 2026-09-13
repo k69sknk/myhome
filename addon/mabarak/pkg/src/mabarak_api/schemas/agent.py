@@ -161,6 +161,21 @@ class CreerEquipementIn(BaseModel):
     garantie_mois: int | None = Field(default=None, gt=0)
 
 
+class RetirerEquipementIn(BaseModel):
+    """Sortir un appareil de la maison, sans effacer son passe.
+
+    Pas de suppression definitive ici, et c'est deliberé : effacer une fiche
+    emporte son historique, ses couts et ses documents, sans retour possible.
+    Une demande formulee a l'oral, comprise de travers par un agent, ne doit pas
+    pouvoir faire disparaitre dix ans d'entretien. Le retrait, lui, se defait.
+    """
+
+    equipement: str = Field(min_length=1)
+    # Le meme champ dans les deux sens : un agent qui vient de retirer le mauvais
+    # appareil doit pouvoir revenir en arriere dans la foulee.
+    remettre_en_service: bool = False
+
+
 class ConsignerInterventionIn(BaseModel):
     """Une intervention hors entretien planifie : une panne, une reparation.
 

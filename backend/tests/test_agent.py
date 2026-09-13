@@ -462,3 +462,26 @@ def test_l_agent_n_a_aucune_route_pour_supprimer_une_fiche(client: TestClient) -
         and "DELETE" in getattr(route, "methods", set())
     }
     assert routes == set()
+
+
+def test_la_phrase_de_retrait_s_accorde(client: TestClient) -> None:
+    """Elle est relue telle quelle a l'utilisateur : « ses 1 entretien(s) » s'y entend."""
+    asset_id = _fiche(client)
+    client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Detartrage", "recurrence_type": "months", "recurrence_interval": 6},
+    )
+
+    un = client.post("/api/agent/equipements/retirer", json={"equipement": "Lave-vaisselle"})
+    assert "Son entretien quitte les echeances" in un.json()["message"]
+
+    client.post(
+        "/api/agent/equipements/retirer",
+        json={"equipement": "Lave-vaisselle", "remettre_en_service": True},
+    )
+    client.post(
+        f"/api/assets/{asset_id}/tasks",
+        json={"name": "Joints", "recurrence_type": "years", "recurrence_interval": 1},
+    )
+    deux = client.post("/api/agent/equipements/retirer", json={"equipement": "Lave-vaisselle"})
+    assert "Ses 2 entretiens quittent les echeances" in deux.json()["message"]

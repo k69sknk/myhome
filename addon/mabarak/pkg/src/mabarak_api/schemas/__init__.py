@@ -1,8 +1,8 @@
 """Modeles Pydantic d'entree et de sortie."""
 
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 RecurrenceType = Literal["none", "days", "months", "years", "annual_fixed", "custom_date"]
 TaskStatus = Literal["ok", "due_soon", "overdue", "unscheduled"]
@@ -336,6 +336,119 @@ class CostOut(BaseModel):
     incurred_on: str
 
 
+CostType = Literal[
+    "purchase", "installation", "maintenance", "repair", "parts", "subscription", "other"
+]
+
+
+class CostIn(BaseModel):
+    """Une depense saisie a la main, hors validation d'entretien.
+
+    Le prix d'achat, la pose, un abonnement : `cost.cost_type` les prevoyait
+    depuis l'origine, mais rien ne savait les ecrire — seule la validation d'un
+    entretien creait une ligne, toujours en `maintenance`. Le total par
+    equipement que promet la section 18 etait donc structurellement incomplet.
+    """
+
+    cost_type: CostType = "other"
+    label: str | None = None
+    # ENTIER EN CENTIMES : additionner des flottants pour afficher un total
+    # produit des erreurs d'arrondi visibles (voir schema.sql).
+    amount_cents: int = Field(gt=0)
+    incurred_on: str | None = None
+    notes: str | None = None
+
+
+class CostItemOut(BaseModel):
+    id: int
+    cost_type: CostType
+    label: str | None
+    amount_cents: int
+    currency: str
+    incurred_on: str
+    notes: str | None
+    # Renseigne quand la depense a ete saisie en validant un entretien : elle
+    # n'est alors pas modifiable ici, elle appartient a son intervention.
+    intervention_id: int | None
+    task_name: str | None
+
+
+class CostsOut(BaseModel):
+    """Les depenses d'un equipement, et leur total.
+
+    Le total additionne TOUT, y compris les couts nes d'une intervention — c'est
+    la question posee (« combien m'a coute cet appareil »). A ne pas confondre
+    avec `v_asset_timeline`, qui les exclut pour ne pas afficher deux fois le
+    meme evenement dans la chronologie.
+    """
+
+    total_cents: int
+    currency: str
+    items: list[CostItemOut]
+
+
+IssueStatus = Literal["open", "in_progress", "resolved"]
+IssueSeverity = Literal["low", "normal", "high", "critical"]
+
+
+class IssueIn(BaseModel):
+    # `min_length` compte les caracteres, espaces compris : « \u00a0\u00a0 » passerait.
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+    description: str | None = None
+    severity: IssueSeverity = "normal"
+    opened_on: str | None = None
+
+
+class IssuePatch(BaseModel):
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] | None = None
+    description: str | None = None
+    action_taken: str | None = None
+    result: str | None = None
+    severity: IssueSeverity | None = None
+    # Passer a `resolved` date automatiquement la resolution, et en sortir
+    # l'efface : le CHECK de schema.sql exige que `resolved_on` soit renseigne
+    # si et seulement si le statut est `resolved`. Demander la date a l'appelant
+    # ferait porter cette regle a l'interface, qui l'oublierait un jour.
+    status: IssueStatus | None = None
+    resolved_on: str | None = None
+
+
+class IssueOut(BaseModel):
+    id: int
+    asset_id: int
+    title: str
+    description: str | None
+    action_taken: str | None
+    result: str | None
+    status: IssueStatus
+    severity: IssueSeverity
+    opened_on: str
+    resolved_on: str | None
+
+
+TimelineEvent = Literal[
+    "installation", "intervention", "issue_opened", "issue_resolved", "cost", "warranty_end"
+]
+
+
+class TimelineEntryOut(BaseModel):
+    """Une ligne de `v_asset_timeline`.
+
+    La vue existait dans schema.sql depuis l'origine et n'etait interrogee nulle
+    part : `test_migrate.py` verifiait sa presence, rien ne lisait son contenu.
+    Elle reunit ce que six tables savent chacune de leur cote — pose, entretiens,
+    problemes, depenses autonomes, fin de garantie — en une seule histoire.
+    """
+
+    event_type: TimelineEvent
+    occurred_on: str
+    title: str
+    detail: str | None
+    amount_cents: int | None
+    source_table: str
+    source_id: int
+
+
 class InterventionOut(BaseModel):
     id: int
     performed_on: str
@@ -349,7 +462,9 @@ class InterventionOut(BaseModel):
 
 class HistoryEntryOut(BaseModel):
     id: int
-    asset_id: int
+    # Nul pour un entretien de la maison, qui ne vise aucun equipement. Le nom
+    # reste renseigne — « Maison » — pour que l'affichage n'ait pas a le deviner.
+    asset_id: int | None
     asset_name: str
     task_id: int | None
     task_name: str | None

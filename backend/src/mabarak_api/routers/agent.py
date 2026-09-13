@@ -511,18 +511,27 @@ def retirer_equipement(
     asset.updated_at = utc_now_iso()
     session.flush()
 
+    # La phrase est relue telle quelle a l'utilisateur : « ses 1 entretien(s) »
+    # s'y entendrait.
     restants = sum(1 for task in asset.tasks if task.is_active)
+    if restants == 1:
+        sujet = "Son entretien"
+        verbe = "revient" if body.remettre_en_service else "quitte"
+    else:
+        sujet = f"Ses {restants} entretiens"
+        verbe = "reviennent" if body.remettre_en_service else "quittent"
+
     if body.remettre_en_service:
         message = f"« {asset.name} » est remis en service."
         if restants:
-            message += f" Ses {restants} entretien(s) reviennent dans les echeances."
+            message += f" {sujet} {verbe} dans les echeances."
     else:
         message = (
             f"« {asset.name} » est retire de la maison. Sa fiche, son historique et ses "
             "couts restent consultables."
         )
         if restants:
-            message += f" Ses {restants} entretien(s) quittent les echeances."
+            message += f" {sujet} {verbe} les echeances."
     return ActionOut(message=message, equipement=asset.name)
 
 

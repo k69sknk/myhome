@@ -13,9 +13,13 @@ import type {
   DocumentDraft,
   DocumentMeta,
   HaDevice,
+  Issue,
+  IssuePatch,
+  IssueSeverity,
   Location,
   Member,
   Provider,
+  TimelineEntry,
   Trade,
 } from '../api/types'
 import { draftIsEmpty, emptyDraft } from '../api/types'
@@ -34,6 +38,7 @@ import { useToast } from '../components/Toast'
 import { categoryIcon } from '../lib/categoryIcon'
 import {
   COST_TYPE_OPTIONS,
+  ISSUE_SEVERITY_OPTIONS,
   costTypeLabel,
   docTypeLabel,
   documentWhere,
@@ -43,9 +48,13 @@ import {
   formatAmount,
   formatDate,
   formatRecurrence,
+  issueSeverityBadge,
+  issueSeverityLabel,
+  issueStatusLabel,
   optionalId,
   storageModeLabel,
   structureCategories,
+  timelineEventLabel,
   warrantyAlert,
   warrantyAlertLabel,
 } from '../lib/format'
@@ -77,7 +86,7 @@ export default function AssetDetail() {
   const [haUnavailable, setHaUnavailable] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
-  const [activeTab, setActiveTab] = useState<'entretiens' | 'details' | 'documents'>('entretiens')
+  const [activeTab, setActiveTab] = useState<'entretiens' | 'chronologie' | 'details' | 'documents'>('entretiens')
 
   async function reload() {
     const next = await api.asset(assetId)
@@ -230,6 +239,15 @@ export default function AssetDetail() {
         <button
           type="button"
           role="tab"
+          aria-selected={activeTab === 'chronologie'}
+          className={`tabs__tab${activeTab === 'chronologie' ? ' tabs__tab--active' : ''}`}
+          onClick={() => setActiveTab('chronologie')}
+        >
+          Chronologie
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={activeTab === 'details'}
           className={`tabs__tab${activeTab === 'details' ? ' tabs__tab--active' : ''}`}
           onClick={() => setActiveTab('details')}
@@ -347,6 +365,8 @@ export default function AssetDetail() {
             />
           )}
 
+          <AssetIssuesCard assetId={asset.id} onError={setError} />
+
           <AssetCostsCard
             assetId={asset.id}
             purchaseDate={asset.purchase_date}
@@ -362,6 +382,8 @@ export default function AssetDetail() {
           />
         </>
       )}
+
+      {activeTab === 'chronologie' && <AssetTimeline assetId={asset.id} onError={setError} />}
 
       {activeTab === 'documents' && (
         <AssetDocuments
@@ -1151,6 +1173,298 @@ function AssetCostsCard({
           Ajouter une dépense
         </button>
       )}
+    </div>
+  )
+}
+
+/** Les problemes constates sur l'appareil.
+ *
+ *  La table `issue` existe dans schema.sql depuis l'origine, avec sa place dans
+ *  `v_asset_timeline` — et rien ne l'ecrivait. Un probleme n'est pas une
+ *  intervention : l'intervention est une action datee, le probleme dure. « La
+ *  VMC fait du bruit » commence un jour, appelle peut-etre trois passages, et se
+ *  resout un autre jour. C'est cette duree que la fiche ne savait pas porter. */
+function AssetIssuesCard({
+  assetId,
+  onError,
+}: {
+  assetId: number
+  onError: (message: string | null) => void
+}) {
+  const [issues, setIssues] = useState<Issue[] | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [severity, setSeverity] = useState<IssueSeverity>('normal')
+  const { showToast } = useToast()
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .assetIssues(assetId)
+      .then((rows) => {
+        if (!cancelled) setIssues(rows)
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) onError(errorMessage(caught))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [assetId, onError])
+
+  async function reload() {
+    setIssues(await api.assetIssues(assetId))
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    if (!title.trim()) return
+    setBusy(true)
+    onError(null)
+    try {
+      await api.createIssue(assetId, {
+        title: title.trim(),
+        description: description.trim() || null,
+        severity,
+      })
+      setTitle('')
+      setDescription('')
+      setSeverity('normal')
+      setAdding(false)
+      await reload()
+      showToast('Problème signalé')
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function change(issue: Issue, body: IssuePatch, message: string) {
+    setBusy(true)
+    onError(null)
+    try {
+      await api.patchIssue(issue.id, body)
+      await reload()
+      showToast(message)
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(issue: Issue) {
+    setBusy(true)
+    onError(null)
+    try {
+      await api.deleteIssue(issue.id)
+      await reload()
+      showToast('Problème supprimé')
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (issues === null) return null
+  const ouverts = issues.filter((issue) => issue.status !== 'resolved').length
+
+  return (
+    <div className="card">
+      <h2 className="card__title">
+        Problèmes
+        {ouverts > 0 && (
+          <span className="badge badge--overdue">
+            {ouverts} en cours
+          </span>
+        )}
+      </h2>
+
+      {issues.length === 0 ? (
+        <p className="muted">
+          Rien à signaler. Un bruit, une fuite, une panne : notez-le ici pour en garder la date,
+          même si vous ne vous en occupez pas tout de suite.
+        </p>
+      ) : (
+        <ul className="issue-list">
+          {issues.map((issue) => (
+            <li
+              key={issue.id}
+              className={`issue${issue.status === 'resolved' ? ' issue--resolved' : ''}`}
+            >
+              <div className="issue__head">
+                <strong>{issue.title}</strong>
+                <span className={`badge badge--${issueSeverityBadge(issue.severity)}`}>
+                  {issueSeverityLabel(issue.severity)}
+                </span>
+                <span className="muted">
+                  {issueStatusLabel(issue.status)} · ouvert le {formatDate(issue.opened_on)}
+                  {issue.resolved_on ? ` · résolu le ${formatDate(issue.resolved_on)}` : ''}
+                </span>
+              </div>
+              {issue.description && <p className="muted">{issue.description}</p>}
+              {issue.result && <p className="muted">Résultat : {issue.result}</p>}
+              <div className="complete__actions">
+                {issue.status === 'open' && (
+                  <button
+                    type="button"
+                    className="btn btn--small"
+                    disabled={busy}
+                    onClick={() => void change(issue, { status: 'in_progress' }, 'Pris en charge')}
+                  >
+                    Je m'en occupe
+                  </button>
+                )}
+                {issue.status !== 'resolved' ? (
+                  <button
+                    type="button"
+                    className="btn btn--small btn--primary"
+                    disabled={busy}
+                    onClick={() => void change(issue, { status: 'resolved' }, 'Problème résolu')}
+                  >
+                    Marquer résolu
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn--small"
+                    disabled={busy}
+                    onClick={() => void change(issue, { status: 'open' }, 'Problème rouvert')}
+                  >
+                    Rouvrir
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn--small btn--delete"
+                  disabled={busy}
+                  onClick={() => void remove(issue)}
+                  aria-label={`Supprimer « ${issue.title} »`}
+                >
+                  <TrashIcon />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {adding ? (
+        <form className="form" onSubmit={submit}>
+          <Field label="Ce qui ne va pas">
+            <input
+              type="text"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="La VMC fait beaucoup de bruit"
+              required
+            />
+          </Field>
+          <Field label="Détails" hint="Facultatif : depuis quand, dans quelles conditions.">
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={2}
+            />
+          </Field>
+          <Field label="Gravité">
+            <select
+              value={severity}
+              onChange={(event) => setSeverity(event.target.value as IssueSeverity)}
+            >
+              {ISSUE_SEVERITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="complete__actions">
+            <button type="submit" className="btn btn--primary" disabled={busy}>
+              Signaler
+            </button>
+            <button type="button" className="btn" disabled={busy} onClick={() => setAdding(false)}>
+              Annuler
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button type="button" className="btn btn--small" onClick={() => setAdding(true)}>
+          Signaler un problème
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** L'histoire de l'appareil, telle que la base la raconte.
+ *
+ *  `v_asset_timeline` existait depuis l'origine et n'etait interrogee nulle
+ *  part. Elle reunit la pose, les interventions, les problemes ouverts et
+ *  resolus, les depenses autonomes et la fin de garantie — six tables qui, sans
+ *  elle, ne se lisaient que separement. L'ordre vient du SQL et non d'ici : deux
+ *  appelants ne peuvent donc pas raconter deux histoires differentes (ADR-0003). */
+function AssetTimeline({
+  assetId,
+  onError,
+}: {
+  assetId: number
+  onError: (message: string | null) => void
+}) {
+  const [entries, setEntries] = useState<TimelineEntry[] | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .assetTimeline(assetId)
+      .then((rows) => {
+        if (!cancelled) setEntries(rows)
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) onError(errorMessage(caught))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [assetId, onError])
+
+  if (entries === null) return <p className="muted">Chargement...</p>
+
+  if (entries.length === 0) {
+    return (
+      <div className="card">
+        <p className="muted">
+          Rien à raconter pour l'instant. La date d'installation, les entretiens réalisés, les
+          problèmes et les dépenses viendront s'inscrire ici au fur et à mesure.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="card">
+      <ol className="timeline">
+        {entries.map((entry) => (
+          <li
+            key={`${entry.source_table}-${entry.source_id}-${entry.event_type}`}
+            className={`timeline__item timeline__item--${entry.event_type}`}
+          >
+            <span className="timeline__date">{formatDate(entry.occurred_on)}</span>
+            <span className="timeline__body">
+              <strong>{timelineEventLabel(entry.event_type)}</strong>
+              {entry.title && entry.title !== timelineEventLabel(entry.event_type) && (
+                <> · {entry.title}</>
+              )}
+              {entry.amount_cents !== null && <> · {formatAmount(entry.amount_cents, 'EUR')}</>}
+              {entry.detail && <span className="muted"> — {entry.detail}</span>}
+            </span>
+          </li>
+        ))}
+      </ol>
     </div>
   )
 }

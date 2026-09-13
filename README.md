@@ -11,7 +11,7 @@ est encore sous garantie.
 **Local-first.** Aucune donnée ne quitte votre machine. Pas de cloud, pas de compte, pas de
 télémétrie.
 
-> **État du projet : 0.33.0.**
+> **État du projet : 0.34.0.**
 > Maison, lieux en arbre, fiches d'appareils et d'éléments de construction, entretiens
 > (Fait / préciser), historique, membres, prestataires, rappels, et les documents — dans leurs
 > trois modes de stockage, rattachés à une fiche, à un entretien ou à la maison elle-même, avec
@@ -24,7 +24,9 @@ télémétrie.
 > [ADR-0015](docs/adr/0015-documents-depuis-un-agent.md)). Chaque équipement publie aussi son
 > état d'entretien complet en entité Home Assistant, lisible sans appel.
 >
-> Les problèmes (`issue`) n'ont pas encore d'interface.
+> Chaque fiche porte aussi ses **problèmes** (un bruit, une fuite, une panne : ouvert, en cours,
+> résolu), ses **coûts** avec leur total, et une **chronologie** qui réunit d'un seul tenant
+> installation, entretiens, problèmes, dépenses et fin de garantie.
 
 ## Ce dépôt contient deux produits
 

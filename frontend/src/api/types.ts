@@ -458,6 +458,60 @@ export interface AssetDeleteResult {
   deleted_files: number
 }
 
+export type TimelineEvent =
+  | 'installation'
+  | 'intervention'
+  | 'issue_opened'
+  | 'issue_resolved'
+  | 'cost'
+  | 'warranty_end'
+
+/** Une ligne de la vue SQL `v_asset_timeline` : six tables reunies en une
+ *  histoire, ordonnee par la base et non par l'interface (ADR-0003). */
+export interface TimelineEntry {
+  event_type: TimelineEvent
+  occurred_on: string
+  title: string
+  detail: string | null
+  amount_cents: number | null
+  source_table: string
+  source_id: number
+}
+
+export type IssueStatus = 'open' | 'in_progress' | 'resolved'
+export type IssueSeverity = 'low' | 'normal' | 'high' | 'critical'
+
+/** Un probleme constate : bruit, fuite, panne. Distinct d'une intervention,
+ *  qui est une action datee — un probleme dure et peut en appeler plusieurs. */
+export interface Issue {
+  id: number
+  asset_id: number
+  title: string
+  description: string | null
+  action_taken: string | null
+  result: string | null
+  status: IssueStatus
+  severity: IssueSeverity
+  opened_on: string
+  resolved_on: string | null
+}
+
+export interface IssueIn {
+  title: string
+  description?: string | null
+  severity?: IssueSeverity
+  opened_on?: string | null
+}
+
+export interface IssuePatch {
+  title?: string
+  description?: string | null
+  action_taken?: string | null
+  result?: string | null
+  severity?: IssueSeverity
+  status?: IssueStatus
+}
+
 export type CostType =
   | 'purchase'
   | 'installation'

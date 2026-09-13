@@ -45,6 +45,7 @@ from ..schemas.agent import (
     EquipementResume,
     GarantieResume,
     JoindreDocumentIn,
+    RetirerEquipementIn,
     ValiderEntretienIn,
 )
 from ..services.agent import (
@@ -253,20 +254,10 @@ def valider_entretien(
     home = _home(session)
     task = resoudre_entretien(session, home.id, body.entretien, body.equipement)
 
-    if task.asset_id is None:
-        # Limitation connue et anterieure a cette surface : `intervention.asset_id`
-        # est NOT NULL, un entretien rattache a la maison ne peut donc pas encore
-        # etre valide — pas davantage depuis l'interface. Le dire franchement vaut
-        # mieux que de laisser croire a un probleme de resolution du nom.
-        raise HTTPException(
-            409,
-            f"« {task.name} » est un entretien de la maison, pas d'un equipement. "
-            "MaBarak ne sait pas encore enregistrer sa realisation, ni ici ni dans "
-            "l'interface.",
-        )
-
-    asset = session.get(Asset, task.asset_id)
-    if asset is None:
+    # Un entretien rattache a la maison plutot qu'a un equipement — « tester les
+    # detecteurs de fumee » — se valide comme les autres depuis la 0015.
+    asset = session.get(Asset, task.asset_id) if task.asset_id is not None else None
+    if task.asset_id is not None and asset is None:
         raise HTTPException(404, "Equipement introuvable")
 
     quand = _date_ou_aujourdhui(body.date)
@@ -290,7 +281,8 @@ def valider_entretien(
         maintenant = utc_now_iso()
         session.add(
             Cost(
-                asset_id=asset.id,
+                asset_id=asset.id if asset is not None else None,
+                home_id=home.id if asset is None else None,
                 intervention_id=intervention.id,
                 cost_type="maintenance",
                 amount_cents=centimes,
@@ -307,9 +299,12 @@ def valider_entretien(
         if task.next_due_on
         else " Cet entretien n'a pas de frequence : aucune prochaine echeance n'a ete calculee."
     )
+    # « sur la PAC » n'a pas de sens pour un entretien qui vise la maison : la
+    # phrase rendue est relue telle quelle par l'agent, elle doit rester juste.
+    ou = f" sur « {asset.name} »" if asset is not None else " pour la maison"
     return ActionOut(
-        message=f"« {task.name} » sur « {asset.name} » est note comme fait le {quand}.{suite}",
-        equipement=asset.name,
+        message=f"« {task.name} »{ou} est note comme fait le {quand}.{suite}",
+        equipement=asset.name if asset is not None else home.name,
         entretien=task.name,
         prochaine_echeance=task.next_due_on,
     )
@@ -489,6 +484,55 @@ def creer_equipement(body: CreerEquipementIn, session: Session = Depends(get_ses
         ),
         equipement=asset.name,
     )
+
+
+@router.post(
+    "/equipements/retirer", response_model=ActionOut, summary="Retirer un equipement de la maison"
+)
+def retirer_equipement(
+    body: RetirerEquipementIn, session: Session = Depends(get_session)
+) -> ActionOut:
+    """Marque une fiche comme retiree, ou la remet en service.
+
+    La suppression definitive n'est volontairement pas exposee ici : elle emporte
+    l'historique, les couts et les documents sans retour possible, et une phrase
+    mal comprise ne doit pas pouvoir la declencher. Elle reste dans l'interface,
+    derriere une confirmation qui annonce ce qui va disparaitre.
+    """
+    home = _home(session)
+    asset = resoudre_equipement(session, home.id, body.equipement, inclure_retires=True)
+
+    vise = "active" if body.remettre_en_service else "removed"
+    if asset.status == vise:
+        etat = "deja en service" if body.remettre_en_service else "deja retire"
+        raise HTTPException(409, f"« {asset.name} » est {etat}.")
+
+    asset.status = vise
+    asset.updated_at = utc_now_iso()
+    session.flush()
+
+    # La phrase est relue telle quelle a l'utilisateur : « ses 1 entretien(s) »
+    # s'y entendrait.
+    restants = sum(1 for task in asset.tasks if task.is_active)
+    if restants == 1:
+        sujet = "Son entretien"
+        verbe = "revient" if body.remettre_en_service else "quitte"
+    else:
+        sujet = f"Ses {restants} entretiens"
+        verbe = "reviennent" if body.remettre_en_service else "quittent"
+
+    if body.remettre_en_service:
+        message = f"« {asset.name} » est remis en service."
+        if restants:
+            message += f" {sujet} {verbe} dans les echeances."
+    else:
+        message = (
+            f"« {asset.name} » est retire de la maison. Sa fiche, son historique et ses "
+            "couts restent consultables."
+        )
+        if restants:
+            message += f" {sujet} {verbe} les echeances."
+    return ActionOut(message=message, equipement=asset.name)
 
 
 @router.post(

@@ -30,6 +30,9 @@ import type {
   HealthResponse,
   HistoryEntry,
   Home,
+  Issue,
+  IssueIn,
+  IssuePatch,
   Intervention,
   Location,
   LocationIn,
@@ -44,6 +47,7 @@ import type {
   Task,
   TaskIn,
   TaskPatch,
+  TimelineEntry,
   Trade,
 } from './types'
 
@@ -159,6 +163,16 @@ export const api = {
     request<AssetDeleteResult>(`assets/${id}`, { method: 'DELETE' }),
   patchAsset: (id: number, body: AssetPatch) =>
     request<Asset>(`assets/${id}`, { method: 'PATCH', ...jsonBody(body) }),
+
+  assetTimeline: (assetId: number) => request<TimelineEntry[]>(`assets/${assetId}/timeline`),
+
+  assetIssues: (assetId: number) => request<Issue[]>(`assets/${assetId}/issues`),
+  createIssue: (assetId: number, body: IssueIn) =>
+    request<Issue>(`assets/${assetId}/issues`, { method: 'POST', ...jsonBody(body) }),
+  patchIssue: (issueId: number, body: IssuePatch) =>
+    request<Issue>(`issues/${issueId}`, { method: 'PATCH', ...jsonBody(body) }),
+  deleteIssue: (issueId: number) =>
+    request<{ ok: boolean }>(`issues/${issueId}`, { method: 'DELETE' }),
 
   assetCosts: (assetId: number) => request<Costs>(`assets/${assetId}/costs`),
   createAssetCost: (assetId: number, body: CostIn) =>

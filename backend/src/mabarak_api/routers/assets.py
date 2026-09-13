@@ -4,7 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.orm import Session, selectinload
 
 from ..clock import utc_now_iso, utc_today
@@ -55,6 +55,7 @@ from ..schemas import (
     TaskOut,
     TaskPatch,
     TaskStatus,
+    TimelineEntryOut,
     WarrantyIn,
     WarrantyOut,
 )
@@ -505,6 +506,33 @@ def delete_cost(cost_id: int, session: Session = Depends(get_session)) -> dict[s
     session.delete(row)
     session.flush()
     return {"ok": True}
+
+
+@router.get("/assets/{asset_id}/timeline", response_model=list[TimelineEntryOut])
+def asset_timeline(
+    asset_id: int, session: Session = Depends(get_session)
+) -> list[TimelineEntryOut]:
+    """L'histoire de l'appareil, du plus recent au plus ancien.
+
+    Lit `v_asset_timeline`, qui reunit la pose, les interventions, les problemes
+    ouverts et resolus, les depenses autonomes et la fin de garantie. C'est la
+    vue qui porte la reponse a « que s'est-il passe sur cet appareil », et le
+    faire en SQL plutot qu'en Python garantit que l'ordre et le contenu ne
+    divergent pas d'un appelant a l'autre (adr/0003).
+
+    Les depenses nees d'une intervention en sont exclues par la vue elle-meme :
+    elles feraient un doublon avec la ligne d'intervention qui les porte.
+    """
+    _get_asset(session, asset_id)
+    lignes = session.execute(
+        text(
+            "SELECT event_type, occurred_on, title, detail, amount_cents, source_table, source_id "
+            "FROM v_asset_timeline WHERE asset_id = :asset_id AND occurred_on IS NOT NULL "
+            "ORDER BY occurred_on DESC, source_table, source_id DESC"
+        ),
+        {"asset_id": asset_id},
+    ).mappings()
+    return [TimelineEntryOut(**ligne) for ligne in lignes]
 
 
 def _get_member(session: Session, member_id: int) -> Member:
