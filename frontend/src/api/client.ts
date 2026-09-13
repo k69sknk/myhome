@@ -14,6 +14,9 @@ import type {
   Category,
   CategoryIn,
   CompleteIn,
+  CostIn,
+  CostItem,
+  Costs,
   DocumentDraft,
   DocumentFields,
   DocumentListItem,
@@ -156,6 +159,11 @@ export const api = {
     request<AssetDeleteResult>(`assets/${id}`, { method: 'DELETE' }),
   patchAsset: (id: number, body: AssetPatch) =>
     request<Asset>(`assets/${id}`, { method: 'PATCH', ...jsonBody(body) }),
+
+  assetCosts: (assetId: number) => request<Costs>(`assets/${assetId}/costs`),
+  createAssetCost: (assetId: number, body: CostIn) =>
+    request<CostItem>(`assets/${assetId}/costs`, { method: 'POST', ...jsonBody(body) }),
+  deleteCost: (costId: number) => request<{ ok: boolean }>(`costs/${costId}`, { method: 'DELETE' }),
 
   createTask: (assetId: number, body: TaskIn) =>
     request<Task>(`assets/${assetId}/tasks`, { method: 'POST', ...jsonBody(body) }),

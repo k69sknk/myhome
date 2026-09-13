@@ -244,3 +244,24 @@ export function warrantyAlert(endDate: string | null | undefined): WarrantyAlert
 export function warrantyAlertLabel(level: WarrantyAlertLevel): string {
   return level === 'expired' ? 'Garantie expiree' : 'Garantie bientot expiree'
 }
+
+/** Les sept natures de depense de `cost.cost_type`, en francais.
+ *  Le libelle brut ('purchase') apparaitrait tel quel dans la liste sinon. */
+const COST_TYPES: Record<string, string> = {
+  purchase: 'Achat',
+  installation: 'Installation',
+  maintenance: 'Entretien',
+  repair: 'Réparation',
+  parts: 'Pièces',
+  subscription: 'Abonnement',
+  other: 'Autre',
+}
+
+export function costTypeLabel(type: string): string {
+  return COST_TYPES[type] ?? 'Autre'
+}
+
+export const COST_TYPE_OPTIONS = Object.entries(COST_TYPES).map(([value, label]) => ({
+  value,
+  label,
+}))

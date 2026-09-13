@@ -336,6 +336,57 @@ class CostOut(BaseModel):
     incurred_on: str
 
 
+CostType = Literal[
+    "purchase", "installation", "maintenance", "repair", "parts", "subscription", "other"
+]
+
+
+class CostIn(BaseModel):
+    """Une depense saisie a la main, hors validation d'entretien.
+
+    Le prix d'achat, la pose, un abonnement : `cost.cost_type` les prevoyait
+    depuis l'origine, mais rien ne savait les ecrire — seule la validation d'un
+    entretien creait une ligne, toujours en `maintenance`. Le total par
+    equipement que promet la section 18 etait donc structurellement incomplet.
+    """
+
+    cost_type: CostType = "other"
+    label: str | None = None
+    # ENTIER EN CENTIMES : additionner des flottants pour afficher un total
+    # produit des erreurs d'arrondi visibles (voir schema.sql).
+    amount_cents: int = Field(gt=0)
+    incurred_on: str | None = None
+    notes: str | None = None
+
+
+class CostItemOut(BaseModel):
+    id: int
+    cost_type: CostType
+    label: str | None
+    amount_cents: int
+    currency: str
+    incurred_on: str
+    notes: str | None
+    # Renseigne quand la depense a ete saisie en validant un entretien : elle
+    # n'est alors pas modifiable ici, elle appartient a son intervention.
+    intervention_id: int | None
+    task_name: str | None
+
+
+class CostsOut(BaseModel):
+    """Les depenses d'un equipement, et leur total.
+
+    Le total additionne TOUT, y compris les couts nes d'une intervention — c'est
+    la question posee (« combien m'a coute cet appareil »). A ne pas confondre
+    avec `v_asset_timeline`, qui les exclut pour ne pas afficher deux fois le
+    meme evenement dans la chronologie.
+    """
+
+    total_cents: int
+    currency: str
+    items: list[CostItemOut]
+
+
 class InterventionOut(BaseModel):
     id: int
     performed_on: str

@@ -159,6 +159,50 @@ code {
   font-weight: 600;
 }
 
+/* Le total se lit dans le titre de la carte, a droite : c'est la reponse a
+   « combien m'a coute cet appareil », elle ne doit pas etre a chercher. */
+.card__total {
+  float: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.cost-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.cost {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.cost:last-child {
+  border-bottom: 0;
+}
+
+/* Largeur fixe et chiffres tabulaires : les montants s'alignent, ce qui rend
+   la colonne lisible d'un coup d'oeil au lieu de zigzaguer. */
+.cost__amount {
+  min-width: 6.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.cost__detail {
+  flex: 1 1 12rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.cost__origine {
+  font-size: 0.8rem;
+}
+
 /* Separe les deux sorties d'une fiche : retirer, qui garde tout, et supprimer,
    qui n'en garde rien. Les mettre a la suite sans rupture visuelle rendrait la
    seconde trop facile a cliquer pour la premiere. */

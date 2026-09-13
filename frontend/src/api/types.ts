@@ -458,6 +458,43 @@ export interface AssetDeleteResult {
   deleted_files: number
 }
 
+export type CostType =
+  | 'purchase'
+  | 'installation'
+  | 'maintenance'
+  | 'repair'
+  | 'parts'
+  | 'subscription'
+  | 'other'
+
+export interface CostItem {
+  id: number
+  cost_type: CostType
+  label: string | null
+  amount_cents: number
+  currency: string
+  incurred_on: string
+  notes: string | null
+  /** Renseigne quand la depense vient d'une validation d'entretien : elle
+   *  appartient alors a son intervention et ne se supprime pas d'ici. */
+  intervention_id: number | null
+  task_name: string | null
+}
+
+export interface Costs {
+  total_cents: number
+  currency: string
+  items: CostItem[]
+}
+
+export interface CostIn {
+  cost_type: CostType
+  label?: string | null
+  amount_cents: number
+  incurred_on?: string | null
+  notes?: string | null
+}
+
 export interface AssetIn {
   name: string
   kind?: 'equipment' | 'building_element'

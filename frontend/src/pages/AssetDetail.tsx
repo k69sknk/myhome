@@ -7,6 +7,8 @@ import type {
   AssetDeleteResult,
   AssetLifecycleStatus,
   Category,
+  CostType,
+  Costs,
   DocType,
   DocumentDraft,
   DocumentMeta,
@@ -31,11 +33,14 @@ import TaskPrepInfo from '../components/TaskPrepInfo'
 import { useToast } from '../components/Toast'
 import { categoryIcon } from '../lib/categoryIcon'
 import {
+  COST_TYPE_OPTIONS,
+  costTypeLabel,
   docTypeLabel,
   documentWhere,
   emptyToNull,
   equipmentCategories,
   errorMessage,
+  formatAmount,
   formatDate,
   formatRecurrence,
   optionalId,
@@ -341,6 +346,12 @@ export default function AssetDetail() {
               onError={setError}
             />
           )}
+
+          <AssetCostsCard
+            assetId={asset.id}
+            purchaseDate={asset.purchase_date}
+            onError={setError}
+          />
 
           <AssetRemovalCard
             asset={asset}
@@ -957,4 +968,189 @@ function summarise(result: AssetDeleteResult): string {
   if (result.deleted_interventions > 0) parts.push(`${result.deleted_interventions} intervention(s)`)
   if (result.deleted_files > 0) parts.push(`${result.deleted_files} fichier(s)`)
   return parts.length > 0 ? parts.join(', ') : 'rien d’autre n’y était rattaché'
+}
+
+/** Ce que l'appareil a coute, depuis son achat.
+ *
+ *  `schema.sql` annonce « la section 18 affiche explicitement un total par
+ *  equipement », et le README promet de savoir « combien il a coute ». En
+ *  pratique, seule la validation d'un entretien ecrivait une ligne, toujours en
+ *  `maintenance` : le prix d'achat et la pose n'existaient nulle part, et rien
+ *  n'additionnait. Le total compte tout, entretiens compris — c'est la question
+ *  posee. */
+function AssetCostsCard({
+  assetId,
+  purchaseDate,
+  onError,
+}: {
+  assetId: number
+  purchaseDate: string | null
+  onError: (message: string | null) => void
+}) {
+  const [costs, setCosts] = useState<Costs | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [type, setType] = useState<CostType>('purchase')
+  const [amount, setAmount] = useState('')
+  const [label, setLabel] = useState('')
+  const [on, setOn] = useState('')
+  const { showToast } = useToast()
+
+  useEffect(() => {
+    let cancelled = false
+    api
+      .assetCosts(assetId)
+      .then((next) => {
+        if (!cancelled) setCosts(next)
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) onError(errorMessage(caught))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [assetId, onError])
+
+  async function reload() {
+    setCosts(await api.assetCosts(assetId))
+  }
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    // Saisi en euros, stocke en centimes : additionner des flottants pour
+    // afficher un total produit des erreurs d'arrondi visibles (schema.sql).
+    const cents = Math.round(Number(amount.replace(',', '.')) * 100)
+    if (!Number.isFinite(cents) || cents <= 0) {
+      onError('Le montant doit être un nombre supérieur à zéro.')
+      return
+    }
+    setBusy(true)
+    onError(null)
+    try {
+      await api.createAssetCost(assetId, {
+        cost_type: type,
+        amount_cents: cents,
+        label: label.trim() || null,
+        incurred_on: on || null,
+      })
+      setAmount('')
+      setLabel('')
+      setOn('')
+      setAdding(false)
+      await reload()
+      showToast('Dépense ajoutée')
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(costId: number) {
+    setBusy(true)
+    onError(null)
+    try {
+      await api.deleteCost(costId)
+      await reload()
+      showToast('Dépense supprimée')
+    } catch (caught: unknown) {
+      onError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (costs === null) return null
+
+  return (
+    <div className="card">
+      <h2 className="card__title">
+        Coûts
+        {costs.total_cents > 0 && (
+          <span className="card__total">{formatAmount(costs.total_cents, costs.currency)}</span>
+        )}
+      </h2>
+
+      {costs.items.length === 0 ? (
+        <p className="muted">
+          Aucune dépense enregistrée. Ajoutez le prix d'achat pour savoir, plus tard, ce que cet
+          appareil vous aura coûté.
+        </p>
+      ) : (
+        <ul className="cost-list">
+          {costs.items.map((item) => (
+            <li key={item.id} className="cost">
+              <span className="cost__amount">{formatAmount(item.amount_cents, item.currency)}</span>
+              <span className="cost__detail">
+                {costTypeLabel(item.cost_type)}
+                {item.task_name ? ` · ${item.task_name}` : ''}
+                {item.label ? ` · ${item.label}` : ''}
+                {` · ${formatDate(item.incurred_on)}`}
+              </span>
+              {item.intervention_id === null ? (
+                <button
+                  type="button"
+                  className="btn btn--small btn--delete"
+                  disabled={busy}
+                  onClick={() => void remove(item.id)}
+                  aria-label={`Supprimer la dépense de ${formatAmount(item.amount_cents, item.currency)}`}
+                >
+                  <TrashIcon />
+                </button>
+              ) : (
+                // Saisie en validant un entretien : elle se corrige la-bas, sinon
+                // l'historique annoncerait un montant introuvable.
+                <span className="muted cost__origine">depuis l'historique</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {adding ? (
+        <form className="form form--inline" onSubmit={submit}>
+          <select value={type} onChange={(event) => setType(event.target.value as CostType)}>
+            {COST_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value)}
+            placeholder="0,00"
+            aria-label="Montant en euros"
+            required
+          />
+          <input
+            type="date"
+            value={on}
+            onChange={(event) => setOn(event.target.value)}
+            aria-label="Date de la dépense"
+            placeholder={purchaseDate ?? ''}
+          />
+          <input
+            type="text"
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+            placeholder="Intitulé (facultatif)"
+            aria-label="Intitulé"
+          />
+          <button type="submit" className="btn btn--primary" disabled={busy}>
+            Ajouter
+          </button>
+          <button type="button" className="btn" disabled={busy} onClick={() => setAdding(false)}>
+            Annuler
+          </button>
+        </form>
+      ) : (
+        <button type="button" className="btn btn--small" onClick={() => setAdding(true)}>
+          Ajouter une dépense
+        </button>
+      )}
+    </div>
+  )
 }

@@ -34,7 +34,10 @@ from ..schemas import (
     AssetOut,
     AssetPatch,
     CompleteIn,
+    CostIn,
+    CostItemOut,
     CostOut,
+    CostsOut,
     DocType,
     DocumentListItem,
     DocumentOut,
@@ -395,6 +398,113 @@ def delete_asset(
         deleted_interventions=interventions or 0,
         deleted_files=fichiers,
     )
+
+
+@router.get("/assets/{asset_id}/costs", response_model=CostsOut)
+def list_asset_costs(asset_id: int, session: Session = Depends(get_session)) -> CostsOut:
+    """Toutes les depenses de cet equipement, et leur total.
+
+    Le total additionne aussi les couts nes d'une validation d'entretien : la
+    question posee est « combien m'a coute cet appareil », pas « combien en
+    dehors de ses entretiens ».
+    """
+    asset = _get_asset(session, asset_id)
+    home = _home(session)
+    rows = session.scalars(
+        select(Cost)
+        .where(Cost.asset_id == asset.id)
+        .order_by(Cost.incurred_on.desc(), Cost.id.desc())
+    ).all()
+
+    # Le nom de l'entretien d'origine, quand il y en a un : sans lui, une ligne
+    # « maintenance, 180 € » ne dit pas de quel entretien elle vient.
+    intervention_ids = {row.intervention_id for row in rows if row.intervention_id is not None}
+    noms: dict[int, str] = {}
+    if intervention_ids:
+        for intervention_id, nom in session.execute(
+            select(Intervention.id, MaintenanceTask.name)
+            .join(MaintenanceTask, Intervention.task_id == MaintenanceTask.id)
+            .where(Intervention.id.in_(intervention_ids))
+        ).all():
+            noms[intervention_id] = nom
+
+    return CostsOut(
+        total_cents=sum(row.amount_cents for row in rows),
+        currency=home.currency,
+        items=[
+            CostItemOut(
+                id=row.id,
+                cost_type=row.cost_type,  # type: ignore[arg-type]
+                label=row.label,
+                amount_cents=row.amount_cents,
+                currency=row.currency,
+                incurred_on=row.incurred_on,
+                notes=row.notes,
+                intervention_id=row.intervention_id,
+                task_name=noms.get(row.intervention_id) if row.intervention_id else None,
+            )
+            for row in rows
+        ],
+    )
+
+
+@router.post("/assets/{asset_id}/costs", response_model=CostItemOut, status_code=201)
+def create_asset_cost(
+    asset_id: int, body: CostIn, session: Session = Depends(get_session)
+) -> CostItemOut:
+    asset = _get_asset(session, asset_id)
+    home = _home(session)
+    maintenant = utc_now_iso()
+    # Le prix d'achat n'a de sens qu'a la date d'achat : la proposer par defaut
+    # evite de dater de ce matin une facture de 2019.
+    defaut = asset.purchase_date if body.cost_type == "purchase" else None
+    row = Cost(
+        asset_id=asset.id,
+        cost_type=body.cost_type,
+        label=(body.label or "").strip() or None,
+        amount_cents=body.amount_cents,
+        currency=home.currency,
+        incurred_on=body.incurred_on or defaut or utc_today().isoformat(),
+        notes=(body.notes or "").strip() or None,
+        created_at=maintenant,
+        updated_at=maintenant,
+    )
+    session.add(row)
+    session.flush()
+    return CostItemOut(
+        id=row.id,
+        cost_type=row.cost_type,  # type: ignore[arg-type]
+        label=row.label,
+        amount_cents=row.amount_cents,
+        currency=row.currency,
+        incurred_on=row.incurred_on,
+        notes=row.notes,
+        intervention_id=None,
+        task_name=None,
+    )
+
+
+@router.delete("/costs/{cost_id}")
+def delete_cost(cost_id: int, session: Session = Depends(get_session)) -> dict[str, bool]:
+    row = session.get(Cost, cost_id)
+    if row is None:
+        raise HTTPException(404, "Depense introuvable")
+    if row.asset_id is not None:
+        _get_asset(session, row.asset_id)
+    elif row.home_id != _home(session).id:
+        raise HTTPException(404, "Depense introuvable")
+    if row.intervention_id is not None:
+        # Une depense nee d'un entretien appartient a son intervention : la
+        # retirer d'ici laisserait une ligne d'historique qui annonce un montant
+        # introuvable. C'est l'intervention qu'il faut corriger.
+        raise HTTPException(
+            409,
+            "Cette depense a ete saisie en validant un entretien. Corrigez-la depuis "
+            "l'historique de cet entretien.",
+        )
+    session.delete(row)
+    session.flush()
+    return {"ok": True}
 
 
 def _get_member(session: Session, member_id: int) -> Member:
