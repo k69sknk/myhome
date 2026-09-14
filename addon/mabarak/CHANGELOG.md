@@ -3,6 +3,18 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.34.2
+
+- **Le menu de la fiche sortait de l'ecran sur telephone.** Il s'ancrait au bouton « ... », qui
+  se retrouve contre le bord gauche quand l'en-tete passe a la ligne : le panneau debordait alors
+  de 106 px hors de l'ecran. Il s'ancre desormais au bloc des boutons, dont le bord droit est
+  toujours au bon endroit — a cote du bouton sur grand ecran, contre la marge de la page sur
+  telephone.
+
+- **Le nom d'un appareil un peu long faisait defiler la fiche de gauche a droite**, et se coupait
+  au milieu d'un mot. Sur telephone, la photo et le nom passent maintenant l'un au-dessus de
+  l'autre : le nom reprend toute la largeur au lieu de se lire sur sept lignes.
+
 ## 0.34.1
 
 - **Retirer ou supprimer une fiche se trouve enfin.** Les deux actions etaient au bas de l'onglet

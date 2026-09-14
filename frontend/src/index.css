@@ -321,27 +321,78 @@ code {
   margin-bottom: 0.25rem;
 }
 
+/* Sans `min-width: 0`, un element flex refuse de descendre sous la largeur de
+   son contenu : le bloc photo + titre poussait alors toute la page, et un nom
+   un peu long — « Chaudiere gaz a condensation de la buanderie du sous-sol
+   nord » — faisait defiler la fiche horizontalement sur telephone. La regle
+   existait deja un cran plus bas (`.field__row > *:last-child`), mais pas sur
+   la rangee elle-meme. */
+.page__header > * {
+  min-width: 0;
+}
+
+/* Et pour le nom qui n'a pas d'espace ou se couper — une reference de modele
+   saisie comme nom — la coupure force plutot que le debordement. `break-word`
+   et non `anywhere` : le second coupe des qu'il le peut et donnait
+   « condensatio / n » alors qu'un retour a l'espace precedent suffisait. */
+.page__title {
+  overflow-wrap: break-word;
+}
+
+/* Sur telephone, la photo et son bouton « Changer l'image » mangeaient la
+   moitie de la largeur, et le nom se lisait sur sept lignes a cote. Ils passent
+   l'un au-dessus de l'autre : le titre reprend toute la largeur. */
+@media (max-width: 40rem) {
+  .page__header .field__row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .page__header .field__row > *:last-child {
+    width: 100%;
+  }
+}
+
 /* Les actions de l'en-tete restent groupees quand la carte passe a la ligne
-   sur telephone. */
+   sur telephone.
+
+   `flex: 1 0 auto` + alignement a droite : sur bureau le bloc prend la place
+   restante et les boutons restent contre le bord droit, comme avant ; quand
+   l'en-tete passe a la ligne, il occupe TOUTE la ligne. Son bord droit vaut
+   donc toujours celui du bouton sur bureau, et celui de la page sur telephone
+   — c'est ce qui permet d'y ancrer le menu sans qu'il sorte jamais de l'ecran,
+   sans point de rupture a deviner (l'en-tete passe a la ligne plus ou moins
+   tot selon la longueur du nom de la fiche). */
 .page__actions {
+  position: relative;
   display: flex;
   align-items: flex-start;
+  justify-content: flex-end;
+  flex: 1 0 auto;
   gap: 0.5rem;
 }
 
 /* Menu des actions de sortie. Il est a cote de « Modifier » parce qu'une action
    qu'on cherche est une action mal placee — mais derriere un clic, parce que
-   « Supprimer » ne doit pas se trouver sous le pouce par hasard. */
+   « Supprimer » ne doit pas se trouver sous le pouce par hasard.
+
+   Le panneau s'ancre au BLOC D'ACTIONS et non au bouton lui-meme. Le bouton se
+   deplace : quand l'en-tete passe a la ligne, il se retrouve contre la
+   gouttiere gauche, et un panneau ancre a sa droite sortait de l'ecran par la
+   gauche (mesure a 390 px : x = -106 px). Le bloc d'actions, lui, a toujours
+   son bord droit la ou il faut — voir `.page__actions`. */
 .menu {
-  position: relative;
+  position: static;
 }
 
 .menu__panel {
   position: absolute;
   right: 0;
-  top: calc(100% + 0.35rem);
+  top: calc(100% + 0.25rem);
   z-index: 20;
-  min-width: 18.5rem;
+  min-width: min(18.5rem, 100%);
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   background: var(--surface);
