@@ -331,12 +331,28 @@ code {
   min-width: 0;
 }
 
-/* Et pour le nom qui n'a pas d'espace ou se couper — une reference de modele
-   saisie comme nom — la coupure force plutot que le debordement. `break-word`
-   et non `anywhere` : le second coupe des qu'il le peut et donnait
-   « condensatio / n » alors qu'un retour a l'espace precedent suffisait. */
-.page__title {
+/* Un nom saisi par l'utilisateur peut n'avoir aucun espace ou se couper — une
+   reference de modele, « REF-XKZ9930012345678901234567890 ». Deux choses sont
+   alors necessaires, et l'une sans l'autre ne suffit pas :
+
+   1. que la boite flex accepte de se retrecir. `min-width` vaut `auto` par
+      defaut sur un enfant flex, ce qui lui interdit de descendre sous la
+      largeur de son contenu — c'est ce qui poussait la page ;
+   2. que le texte accepte de se couper. `break-word` et non `anywhere` : le
+      second coupe des qu'il le peut et donnait « condensatio / n » la ou un
+      retour a l'espace precedent suffisait.
+
+   La regle sur le texte est posee une fois pour toutes sur `body` : elle ne
+   coupe que ce qui deborderait de toute facon, et le prochain ecran en
+   heritera sans qu'on ait a y penser. */
+body {
   overflow-wrap: break-word;
+}
+
+.rows__link > *,
+.rows__link span,
+.task__main {
+  min-width: 0;
 }
 
 /* Sur telephone, la photo et son bouton « Changer l'image » mangeaient la

@@ -1,14 +1,16 @@
 {
   "name": "mabarak-frontend",
   "private": true,
-  "version": "0.34.2",
+  "version": "0.35.0",
   "type": "module",
   "description": "Interface web de MaBarak, servie dans le panneau lateral de Home Assistant",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "react": "^19.2.0",
@@ -16,6 +18,7 @@
     "react-router-dom": "^7.18.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.1.0",

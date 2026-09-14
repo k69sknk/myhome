@@ -27,6 +27,13 @@ backend/.data/
 *.db-wal
 *.db-shm
 
+# --- Tests de bout en bout ---
+# Base jetable de la campagne, rapports et traces : regeneres a chaque passage.
+frontend/.e2e-data/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+
 # --- Environnements et editeurs ---
 .env
 .env.local

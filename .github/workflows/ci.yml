@@ -123,6 +123,59 @@ jobs:
         working-directory: backend
         run: pytest
 
+  # Les tests de bout en bout demandent les DEUX piles : le backend sert le build
+  # du frontend, comme dans l'add-on. C'est le seul job qui voit l'application
+  # telle que l'utilisateur la voit — deux regressions d'interface sont passees
+  # en deux versions parce que rien ne regardait l'ecran.
+  interface:
+    name: Interface (bout en bout)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer le backend
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Installer le frontend
+        working-directory: frontend
+        run: npm ci
+
+      # `--with-deps` installe les bibliotheques systeme dont Chromium a besoin
+      # sur un runner nu ; la version du navigateur suit celle de @playwright/test,
+      # epinglee dans package.json.
+      - name: Installer Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Tests de bout en bout
+        working-directory: frontend
+        run: npm run e2e
+
+      # Les captures et les traces des tests tombes : sur un echec de mise en
+      # page, voir l'ecran vaut mieux que lire des coordonnees.
+      - name: Conserver les traces des echecs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces-interface
+          path: frontend/test-results/
+          retention-days: 7
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest

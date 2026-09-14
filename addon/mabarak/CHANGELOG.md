@@ -3,6 +3,19 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.35.0
+
+- **Un nom d'appareil sans espace faisait deborder les listes.** Une reference de modele saisie
+  comme nom — « REF-XKZ9930012345678901234567890 » — poussait la page et la faisait defiler de
+  gauche a droite sur telephone. Trouve par les nouveaux tests d'interface le jour meme ou ils
+  ont ete ecrits.
+
+- **L'interface est desormais verifiee dans un vrai navigateur**, a chaque commit. Jusqu'ici, la
+  CI compilait le code et construisait le site sans jamais regarder l'ecran : deux defauts
+  d'affichage sont passes en deux versions sans que rien ne bronche. Soixante tests jouent
+  maintenant les parcours de la fiche et verifient, sur neuf ecrans et quatre largeurs de 320 a
+  1280 px, que rien ne sort de la fenetre.
+
 ## 0.34.2
 
 - **Le menu de la fiche sortait de l'ecran sur telephone.** Il s'ancrait au bouton « ... », qui

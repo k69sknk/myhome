@@ -11,7 +11,7 @@ est encore sous garantie.
 **Local-first.** Aucune donnée ne quitte votre machine. Pas de cloud, pas de compte, pas de
 télémétrie.
 
-> **État du projet : 0.34.2.**
+> **État du projet : 0.35.0.**
 > Maison, lieux en arbre, fiches d'appareils et d'éléments de construction, entretiens
 > (Fait / préciser), historique, membres, prestataires, rappels, et les documents — dans leurs
 > trois modes de stockage, rattachés à une fiche, à un entretien ou à la maison elle-même, avec
@@ -72,7 +72,8 @@ qu'aucune porte supplémentaire ne s'ouvre sur les données de la maison.
 - [`addon/mabarak/`](addon/mabarak/) — configuration de l'add-on, Dockerfile, services
   s6-overlay, nginx
 - [`backend/`](backend/) — API FastAPI, SQLite, migrations Alembic
-- [`frontend/`](frontend/) — interface React servie dans le panneau latéral
+- [`frontend/`](frontend/) — interface React servie dans le panneau latéral, et ses tests de
+  bout en bout dans [`frontend/e2e/`](frontend/e2e/)
 - [`custom_components/mabarak/`](custom_components/mabarak/) — intégration Home Assistant
 - [`skills/mabarak/`](skills/mabarak/) — skill qui apprend à un agent conversationnel à se
   servir des huit actions de pilotage. Elle n'est embarquée nulle part : elle vit ici pour suivre
@@ -135,14 +136,45 @@ docker build -t mabarak:dev \
 
 ```bash
 sqlite3 /tmp/check.db < docs/schema.sql    # le schema doit s'executer
-python3 scripts/check-versions.py          # les cinq artefacts annoncent la meme version
+python3 scripts/check-versions.py          # les six artefacts annoncent la meme version
 python3 scripts/check-integration.py       # services, schemas et traductions concordent
 cd backend  && pytest && ruff check . && mypy
-cd frontend && npm run build
+cd frontend && npm run build && npm run e2e
 ```
 
 La CI rejoue tout cela, plus `hassfest`, la validation HACS, le lint de l'add-on et le build de
 l'image sur amd64 et aarch64.
+
+### Tests de bout en bout
+
+`npm run e2e` lance Chromium sur la **vraie pile** : le backend sert le build du frontend,
+exactement comme l'add-on. C'est le seul endroit où l'application est vue telle que l'utilisateur
+la voit.
+
+```bash
+cd frontend
+npx playwright install chromium   # une fois
+npm run e2e                       # la campagne
+npm run e2e:ui                    # en mode interactif, pour mettre au point
+```
+
+`scripts/e2e-server.sh` construit le frontend, repart d'une base vide et lance le backend
+dessus ; Playwright l'appelle tout seul. Les tests posent leurs données par l'API et ne cliquent
+que sur ce qu'ils examinent.
+
+Deux fichiers, deux intentions :
+
+- [`e2e/fiche.spec.ts`](frontend/e2e/fiche.spec.ts) — les parcours de la fiche : ouvrir le menu
+  d'actions, retirer un équipement, le supprimer avec sa confirmation.
+- [`e2e/mise-en-page.spec.ts`](frontend/e2e/mise-en-page.spec.ts) — un **invariant** joué sur les
+  neuf écrans et quatre largeurs (320 → 1280 px) : rien ne sort de la fenêtre. Il ne connaît pas
+  la cause, il constate le symptôme et nomme les éléments fautifs, si bien qu'un écran ajouté
+  plus tard y tombe sans que personne ait eu à y penser.
+
+Ces tests existent pour une raison précise : `tsc` et le build ne voient pas l'écran. Deux
+régressions d'interface sont passées en deux versions — un menu qui sortait de la fenêtre sur
+téléphone, un nom d'appareil qui faisait défiler la fiche horizontalement — sans qu'aucune
+vérification ne bronche.
 
 ## Le piège à connaître : le chemin de base d'ingress
 
