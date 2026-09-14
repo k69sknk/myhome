@@ -38,3 +38,15 @@ export function TrashIcon() {
     </svg>
   )
 }
+
+/** Trois points : le menu des actions qui ne meritent pas un bouton a elles,
+ *  mais qui ne doivent pas pour autant etre enterrees dans un onglet. */
+export function MoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
+    </svg>
+  )
+}

@@ -3,6 +3,16 @@
 L'add-on et l'intégration MaBarak partagent le même numéro de version
 (voir [ADR-0005](../../docs/adr/0005-monodepot-addon-et-hacs.md)).
 
+## 0.34.1
+
+- **Retirer ou supprimer une fiche se trouve enfin.** Les deux actions etaient au bas de l'onglet
+  « Details », assez loin pour qu'on ne les clique pas par accident — trop loin : personne ne les
+  trouvait, et elles avaient encore recule quand les problemes et les couts sont passes au-dessus.
+  Elles sont maintenant dans un menu, a cote de « Modifier », en haut de la fiche.
+
+  Retirer reste immediat, puisque ca se defait. Supprimer passe par une boite qui annonce ce qui
+  va disparaitre — le nombre d'entretiens, de documents — et qui propose le retrait a la place.
+
 ## 0.34.0
 
 - **Les entretiens de la maison se marquent enfin comme faits.** « Purger les radiateurs »,

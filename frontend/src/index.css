@@ -321,6 +321,91 @@ code {
   margin-bottom: 0.25rem;
 }
 
+/* Les actions de l'en-tete restent groupees quand la carte passe a la ligne
+   sur telephone. */
+.page__actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+/* Menu des actions de sortie. Il est a cote de « Modifier » parce qu'une action
+   qu'on cherche est une action mal placee — mais derriere un clic, parce que
+   « Supprimer » ne doit pas se trouver sous le pouce par hasard. */
+.menu {
+  position: relative;
+}
+
+.menu__panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  z-index: 20;
+  min-width: 18.5rem;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  overflow: hidden;
+}
+
+.menu__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.6rem 0.9rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu__item:last-child {
+  border-bottom: 0;
+}
+
+.menu__item:hover,
+.menu__item:focus-visible {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.menu__item--danger {
+  color: var(--error);
+}
+
+.menu__item--danger:hover,
+.menu__item--danger:focus-visible {
+  background: color-mix(in srgb, var(--error) 10%, transparent);
+}
+
+/* L'icone appartient a la ligne de l'intitule, pas a la colonne : sans cela
+   elle se pose au-dessus et coupe « Supprimer definitivement » en deux. */
+.menu__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* La consequence sous l'intitule : c'est elle qui evite d'avoir a cliquer pour
+   savoir ce que fait chaque entree. */
+.menu__hint {
+  font-weight: 400;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  white-space: normal;
+}
+
+.menu__item--danger .menu__hint {
+  color: var(--text-muted);
+}
+
 .page__crumb {
   margin: 0 0 0.5rem;
   font-size: 0.9rem;

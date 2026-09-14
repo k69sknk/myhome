@@ -29,7 +29,8 @@ import CompleteTask from '../components/CompleteTask'
 import DocumentEdit, { DOC_TYPES } from '../components/DocumentEdit'
 import DocumentInput from '../components/DocumentInput'
 import Field from '../components/Field'
-import { EditIcon, TrashIcon } from '../components/icons'
+import Modal from '../components/Modal'
+import { EditIcon, MoreIcon, TrashIcon } from '../components/icons'
 import PrioritySelect from '../components/PrioritySelect'
 import StatusBadge from '../components/StatusBadge'
 import TaskForm from '../components/TaskForm'
@@ -199,15 +200,28 @@ export default function AssetDetail() {
             </p>
           </div>
         </div>
-        <button type="button" className="btn btn--edit" onClick={() => setEditing((value) => !value)}>
-          {editing ? (
-            'Fermer'
-          ) : (
-            <>
-              <EditIcon /> Modifier
-            </>
-          )}
-        </button>
+        <div className="page__actions">
+          <button
+            type="button"
+            className="btn btn--edit"
+            onClick={() => setEditing((value) => !value)}
+          >
+            {editing ? (
+              'Fermer'
+            ) : (
+              <>
+                <EditIcon /> Modifier
+              </>
+            )}
+          </button>
+          <AssetActionsMenu
+            asset={asset}
+            documentCount={documents.length}
+            onChanged={(next) => setAsset(next)}
+            onDeleted={() => navigate(basePath, { replace: true })}
+            onError={setError}
+          />
+        </div>
       </div>
 
       {error && <p className="status status--error">{error}</p>}
@@ -370,14 +384,6 @@ export default function AssetDetail() {
           <AssetCostsCard
             assetId={asset.id}
             purchaseDate={asset.purchase_date}
-            onError={setError}
-          />
-
-          <AssetRemovalCard
-            asset={asset}
-            documentCount={documents.length}
-            onChanged={(next) => setAsset(next)}
-            onDeleted={() => navigate(basePath, { replace: true })}
             onError={setError}
           />
         </>
@@ -848,15 +854,21 @@ function HaLinkCard({
   )
 }
 
-/** Les deux sorties d'une fiche, et la difference entre les deux.
+/** Les deux sorties d'une fiche, dans le menu de l'en-tete.
  *
- *  `schema.sql` tranche : un equipement retire reste en base, parce que son
- *  historique et ses couts font partie de l'histoire de la maison. C'est donc
- *  « Retirer » qui est propose en premier, et la suppression definitive qui doit
- *  se justifier — le doublon, la fiche creee par erreur pendant le didacticiel.
- *  La confirmation annonce ce qui va partir avant de partir : une fiche vide ne
- *  merite pas le meme avertissement qu'une fiche portant dix ans d'entretiens. */
-function AssetRemovalCard({
+ *  Elles ont d'abord vecu dans une carte au bas de l'onglet « Details », loin
+ *  du regard pour qu'on ne les clique pas par accident. Trop loin : le premier
+ *  utilisateur a chercher comment supprimer une fiche ne l'a pas trouvee, et la
+ *  carte avait encore recule quand les problemes et les couts sont passes
+ *  au-dessus. Une action qu'on cherche est une action mal placee.
+ *
+ *  Elles remontent donc a cote de « Modifier », sans devenir cliquables par
+ *  megarde : le menu demande une premiere intention, et `schema.sql` decide de
+ *  la suite — un equipement retire passe en `status = 'removed'` et garde son
+ *  historique, qui fait partie de l'histoire de la maison. Le retrait est donc
+ *  immediat, parce qu'il se defait ; la suppression passe par une boite qui
+ *  annonce ce qui va disparaitre, parce qu'elle ne se defait pas. */
+function AssetActionsMenu({
   asset,
   documentCount,
   onChanged,
@@ -869,14 +881,33 @@ function AssetRemovalCard({
   onDeleted: () => void
   onError: (message: string | null) => void
 }) {
+  const [open, setOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
+  const conteneur = useRef<HTMLDivElement>(null)
   const { showToast } = useToast()
   const isRemoved = asset.status === 'removed'
-  const noun = asset.kind === 'building_element' ? 'Cet élément' : 'Cet appareil'
+  const noun = asset.kind === 'building_element' ? 'cet élément' : 'cet appareil'
+
+  useEffect(() => {
+    if (!open) return
+    function auClic(event: MouseEvent) {
+      if (!conteneur.current?.contains(event.target as Node)) setOpen(false)
+    }
+    function auClavier(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', auClic)
+    document.addEventListener('keydown', auClavier)
+    return () => {
+      document.removeEventListener('mousedown', auClic)
+      document.removeEventListener('keydown', auClavier)
+    }
+  }, [open])
 
   async function setStatus(status: AssetLifecycleStatus, message: string) {
     setBusy(true)
+    setOpen(false)
     onError(null)
     try {
       onChanged(await api.patchAsset(asset.id, { status }))
@@ -903,85 +934,104 @@ function AssetRemovalCard({
   }
 
   return (
-    <div className="card">
-      <h2 className="card__title">Sortie de la fiche</h2>
+    <div className="menu" ref={conteneur}>
+      <button
+        type="button"
+        className={open ? 'btn btn--active' : 'btn'}
+        disabled={busy}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label="Autres actions"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <MoreIcon />
+      </button>
 
-      {isRemoved ? (
-        <>
-          <p className="muted">
-            {noun} est marqué comme retiré : il ne compte plus dans le planning, mais sa fiche, son
-            historique et ses coûts restent consultables.
-          </p>
+      {open && (
+        <div className="menu__panel" role="menu">
+          {isRemoved ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="menu__item"
+              onClick={() => void setStatus('active', 'Remis en service')}
+            >
+              Remettre en service
+              <span className="menu__hint">Ses entretiens reviennent au planning.</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              className="menu__item"
+              onClick={() => void setStatus('removed', 'Retiré de la maison')}
+            >
+              Retirer de la maison
+              <span className="menu__hint">
+                Vendu, remplacé, déposé. L'historique reste, et ça se défait.
+              </span>
+            </button>
+          )}
           <button
             type="button"
-            className="btn"
-            disabled={busy}
-            onClick={() => void setStatus('active', 'Remis en service')}
+            role="menuitem"
+            className="menu__item menu__item--danger"
+            onClick={() => {
+              setOpen(false)
+              setConfirming(true)
+            }}
           >
-            Remettre en service
+            <span className="menu__label">
+              <TrashIcon /> Supprimer définitivement
+            </span>
+            <span className="menu__hint">Doublon, fiche créée par erreur. Sans retour.</span>
           </button>
-        </>
-      ) : (
-        <>
-          <p className="muted">
-            Vendu, remplacé, déposé ? Retirez-le plutôt que de le supprimer : ses entretiens
-            quittent le planning, et son historique reste dans celui de la maison.
-          </p>
-          <button
-            type="button"
-            className="btn"
-            disabled={busy}
-            onClick={() => void setStatus('removed', 'Retiré de la maison')}
-          >
-            Retirer de la maison
-          </button>
-        </>
+        </div>
       )}
 
-      <hr className="card__rule" />
-
-      {confirming ? (
-        <>
-          <p className="status status--error">
-            Supprimer définitivement « {asset.name} » ? Cette action efface aussi{' '}
-            {countList(asset.tasks.length, documentCount)}, et ne peut pas être annulée.
+      {confirming && (
+        <Modal title={`Supprimer « ${asset.name} » ?`} onClose={() => setConfirming(false)}>
+          <p>
+            La suppression emporte la fiche de {noun}, {countList(asset.tasks.length, documentCount)}
+            , ses coûts et ses fichiers. <strong>Elle ne peut pas être annulée.</strong>
+          </p>
+          <p className="muted">
+            Si l'appareil a seulement quitté la maison, fermez cette boîte et choisissez plutôt
+            « Retirer de la maison » : son historique fait partie de celui de la maison.
           </p>
           <div className="complete__actions">
-            <button type="button" className="btn btn--delete" disabled={busy} onClick={() => void remove()}>
+            <button
+              type="button"
+              className="btn btn--delete"
+              disabled={busy}
+              onClick={() => void remove()}
+            >
               <TrashIcon /> Oui, tout supprimer
             </button>
-            <button type="button" className="btn" disabled={busy} onClick={() => setConfirming(false)}>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => setConfirming(false)}
+            >
               Annuler
             </button>
           </div>
-        </>
-      ) : (
-        <>
-          <p className="muted">
-            Fiche créée par erreur, doublon, mauvaise saisie : la suppression définitive emporte la
-            fiche, ses entretiens, son historique, ses coûts et ses fichiers.
-          </p>
-          <button
-            type="button"
-            className="btn btn--small btn--delete"
-            disabled={busy}
-            onClick={() => setConfirming(true)}
-          >
-            <TrashIcon /> Supprimer définitivement
-          </button>
-        </>
+        </Modal>
       )}
     </div>
   )
 }
 
-/** « 3 entretiens et 2 documents », sans les zeros qui n'apprennent rien. */
+/** « 3 entretiens et leur historique, 2 documents », sans les zeros qui
+ *  n'apprennent rien. La virgule, et non « et » : « et leur historique et 2
+ *  documents » s'entend a la lecture. */
 function countList(tasks: number, documents: number): string {
   const parts: string[] = []
   if (tasks > 0) parts.push(`${tasks} entretien${tasks > 1 ? 's' : ''} et leur historique`)
   if (documents > 0) parts.push(`${documents} document${documents > 1 ? 's' : ''}`)
   if (parts.length === 0) return 'tout ce qui y est rattaché'
-  return parts.join(' et ')
+  return parts.join(', ')
 }
 
 function summarise(result: AssetDeleteResult): string {
